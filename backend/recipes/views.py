@@ -7,14 +7,14 @@ from .serializers import RecipeDetailSerializer, RecipeListSerializer
 
 
 class HealthCheckView(APIView):
-	def get(self, request):
-		return Response({'status': 'ok', 'service': 'recipeforge-api'})
+    def get(self, _request):
+        return Response({'status': 'ok', 'service': 'recipeforge-api'})
 
 
 class RecipeViewSet(ModelViewSet):
-	queryset = Recipe.objects.prefetch_related('ingredients', 'steps').all()
+    queryset = Recipe.objects.prefetch_related('ingredients', 'steps').all()
 
-	def get_serializer_class(self):
-		if self.action == 'list':
-			return RecipeListSerializer
-		return RecipeDetailSerializer
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return RecipeListSerializer
+        return RecipeDetailSerializer

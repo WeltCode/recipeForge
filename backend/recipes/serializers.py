@@ -1,11 +1,11 @@
 from rest_framework import serializers
 
-from .models import IngredientLine, ProductionStep, Recipe
+from . import models
 
 
 class IngredientLineSerializer(serializers.ModelSerializer):
     class Meta:
-        model = IngredientLine
+        model = models.IngredientLine
         fields = [
             'id',
             'group_name',
@@ -19,7 +19,7 @@ class IngredientLineSerializer(serializers.ModelSerializer):
 
 class ProductionStepSerializer(serializers.ModelSerializer):
     class Meta:
-        model = ProductionStep
+        model = models.ProductionStep
         fields = [
             'id',
             'step_number',
@@ -32,7 +32,7 @@ class ProductionStepSerializer(serializers.ModelSerializer):
 
 class RecipeListSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Recipe
+        model = models.Recipe
         fields = [
             'id',
             'code',
@@ -51,7 +51,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
     steps = ProductionStepSerializer(many=True)
 
     class Meta:
-        model = Recipe
+        model = models.Recipe
         fields = [
             'id',
             'code',
@@ -75,17 +75,17 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         ingredients_data = validated_data.pop('ingredients', [])
         steps_data = validated_data.pop('steps', [])
 
-        recipe = Recipe.objects.create(**validated_data)
+        recipe = models.Recipe.objects.create(**validated_data)
 
         ingredient_objs = [
-            IngredientLine(recipe=recipe, **ingredient) for ingredient in ingredients_data
+            models.IngredientLine(recipe=recipe, **ingredient) for ingredient in ingredients_data
         ]
-        step_objs = [ProductionStep(recipe=recipe, **step) for step in steps_data]
+        step_objs = [models.ProductionStep(recipe=recipe, **step) for step in steps_data]
 
         if ingredient_objs:
-            IngredientLine.objects.bulk_create(ingredient_objs)
+            models.IngredientLine.objects.bulk_create(ingredient_objs)
         if step_objs:
-            ProductionStep.objects.bulk_create(step_objs)
+            models.ProductionStep.objects.bulk_create(step_objs)
 
         return recipe
 
@@ -100,15 +100,15 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         if ingredients_data is not None:
             instance.ingredients.all().delete()
             ingredient_objs = [
-                IngredientLine(recipe=instance, **ingredient) for ingredient in ingredients_data
+                models.IngredientLine(recipe=instance, **ingredient) for ingredient in ingredients_data
             ]
             if ingredient_objs:
-                IngredientLine.objects.bulk_create(ingredient_objs)
+                models.IngredientLine.objects.bulk_create(ingredient_objs)
 
         if steps_data is not None:
             instance.steps.all().delete()
-            step_objs = [ProductionStep(recipe=instance, **step) for step in steps_data]
+            step_objs = [models.ProductionStep(recipe=instance, **step) for step in steps_data]
             if step_objs:
-                ProductionStep.objects.bulk_create(step_objs)
+                models.ProductionStep.objects.bulk_create(step_objs)
 
         return instance
