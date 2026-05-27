@@ -1,0 +1,114 @@
+from rest_framework import serializers
+
+from .models import IngredientLine, ProductionStep, Recipe
+
+
+class IngredientLineSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IngredientLine
+        fields = [
+            'id',
+            'group_name',
+            'ingredient_name',
+            'quantity',
+            'unit',
+            'note',
+            'order',
+        ]
+
+
+class ProductionStepSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductionStep
+        fields = [
+            'id',
+            'step_number',
+            'title',
+            'instruction',
+            'tip',
+            'order',
+        ]
+
+
+class RecipeListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Recipe
+        fields = [
+            'id',
+            'code',
+            'name',
+            'category',
+            'servings',
+            'prep_time_min',
+            'cook_time_min',
+            'created_at',
+            'updated_at',
+        ]
+
+
+class RecipeDetailSerializer(serializers.ModelSerializer):
+    ingredients = IngredientLineSerializer(many=True)
+    steps = ProductionStepSerializer(many=True)
+
+    class Meta:
+        model = Recipe
+        fields = [
+            'id',
+            'code',
+            'name',
+            'category',
+            'description',
+            'servings',
+            'yield_grams',
+            'prep_time_min',
+            'cook_time_min',
+            'service_temp_c',
+            'notes',
+            'ingredients',
+            'steps',
+            'created_at',
+            'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def create(self, validated_data):
+        ingredients_data = validated_data.pop('ingredients', [])
+        steps_data = validated_data.pop('steps', [])
+
+        recipe = Recipe.objects.create(**validated_data)
+
+        ingredient_objs = [
+            IngredientLine(recipe=recipe, **ingredient) for ingredient in ingredients_data
+        ]
+        step_objs = [ProductionStep(recipe=recipe, **step) for step in steps_data]
+
+        if ingredient_objs:
+            IngredientLine.objects.bulk_create(ingredient_objs)
+        if step_objs:
+            ProductionStep.objects.bulk_create(step_objs)
+
+        return recipe
+
+    def update(self, instance, validated_data):
+        ingredients_data = validated_data.pop('ingredients', None)
+        steps_data = validated_data.pop('steps', None)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        if ingredients_data is not None:
+            instance.ingredients.all().delete()
+            ingredient_objs = [
+                IngredientLine(recipe=instance, **ingredient) for ingredient in ingredients_data
+            ]
+            if ingredient_objs:
+                IngredientLine.objects.bulk_create(ingredient_objs)
+
+        if steps_data is not None:
+            instance.steps.all().delete()
+            step_objs = [ProductionStep(recipe=instance, **step) for step in steps_data]
+            if step_objs:
+                ProductionStep.objects.bulk_create(step_objs)
+
+        return instance
