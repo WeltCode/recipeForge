@@ -104,6 +104,7 @@ Para evitar diferencias entre navegadores e impresoras:
 1. Backend con dominio base implementado:
    - Modelos `Recipe`, `IngredientLine`, `ProductionStep`.
    - CRUD REST en `/api/recipes/`.
+   - Exportacion PDF A4 estable en `/api/recipes/<id>/pdf/`.
    - Endpoint de salud en `/api/health/`.
    - Migraciones iniciales aplicadas correctamente.
 2. Frontend con formulario dinamico implementado:
@@ -111,6 +112,8 @@ Para evitar diferencias entre navegadores e impresoras:
    - Lista dinamica de ingredientes (agregar/quitar).
    - Lista dinamica de pasos (agregar/quitar).
    - Envio al backend para guardar receta.
+   - Vista previa tipo ficha tecnica A4 basada en el diseño de referencia.
+   - Enlace directo de descarga del PDF de la ultima receta guardada.
 3. Validaciones tecnicas ejecutadas:
    - `python manage.py check` sin errores.
    - `npm run build` sin errores.

@@ -49,6 +49,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
 class RecipeDetailSerializer(serializers.ModelSerializer):
     ingredients = IngredientLineSerializer(many=True)
     steps = ProductionStepSerializer(many=True)
+    final_photo = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
         model = models.Recipe
@@ -64,6 +65,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
             'cook_time_min',
             'service_temp_c',
             'notes',
+            'final_photo',
             'ingredients',
             'steps',
             'created_at',
