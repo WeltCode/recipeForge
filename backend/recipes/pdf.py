@@ -152,7 +152,7 @@ def _header(recipe, styles, photo_path=None):
 
     if photo_path:
         try:
-            photo_elem = Image(photo_path, width=60 * mm, height=56 * mm)
+            photo_elem = Image(photo_path, width=73 * mm, height=62 * mm)
             photo_cell = [[photo_elem]]
         except (OSError, IOError):
             photo_cell = None
@@ -160,31 +160,31 @@ def _header(recipe, styles, photo_path=None):
     if photo_cell is None:
         # Logo Leche de Tigre como texto estilizado
         logo_style = ParagraphStyle(
-            'LogoMain', fontName='Helvetica-Bold', fontSize=18, leading=17,
+            'LogoMain', fontName='Helvetica-Bold', fontSize=24, leading=22,
             textColor=colors.white, alignment=1,
         )
         logo_sub_style = ParagraphStyle(
-            'LogoSub', fontName='Helvetica-Bold', fontSize=12, leading=12,
+            'LogoSub', fontName='Helvetica-Bold', fontSize=18, leading=16,
             textColor=colors.white, alignment=1,
         )
         photo_cell = [[
             Table(
                 [[Paragraph('LECHE', logo_style)],
                  [Paragraph('DE TIGRE', logo_sub_style)]],
-                colWidths=[56 * mm],
+                colWidths=[73 * mm],
                 style=TableStyle([
                     ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
                     ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('TOPPADDING', (0, 0), (-1, -1), 2),
-                    ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+                    ('TOPPADDING', (0, 0), (-1, -1), 15),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 15),
                 ])
             )
         ]]
 
     photo_box = Table(
         photo_cell,
-        colWidths=[60 * mm],
-        rowHeights=[56 * mm],
+        colWidths=[73 * mm],
+        rowHeights=[62 * mm],
         style=TableStyle(
             [
                 ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#161412')),
@@ -197,20 +197,20 @@ def _header(recipe, styles, photo_path=None):
 
     right_cell = [
         Paragraph('PLATO PRINCIPAL - COCINA TRADICIONAL', styles['RecipeCategory']),
-        Spacer(1, 2 * mm),
+        Spacer(1, 3 * mm),
         Paragraph(recipe.name or 'Nombre de la receta', styles['RecipeTitle']),
-        Spacer(1, 1.5 * mm),
+        Spacer(1, 2.5 * mm),
         Paragraph(
             recipe.description or 'Descripcion breve de la receta y de su tecnica principal.',
             styles['RecipeDesc'],
         ),
-        Spacer(1, 2 * mm),
+        Spacer(1, 3.5 * mm),
         Paragraph(f'Codigo {recipe.code or "FT-000"}', styles['RecipeCategory']),
     ]
 
     return Table(
         [[photo_box, right_cell]],
-        colWidths=[60 * mm, 118 * mm],
+        colWidths=[73 * mm, 120 * mm],
         style=TableStyle(
             [
                 ('BACKGROUND', (0, 0), (0, 0), colors.HexColor('#161412')),
@@ -220,10 +220,10 @@ def _header(recipe, styles, photo_path=None):
                 ('RIGHTPADDING', (0, 0), (0, 0), 0),
                 ('TOPPADDING', (0, 0), (0, 0), 0),
                 ('BOTTOMPADDING', (0, 0), (0, 0), 0),
-                ('LEFTPADDING', (1, 0), (1, 0), 11 * mm),
-                ('RIGHTPADDING', (1, 0), (1, 0), 12 * mm),
-                ('TOPPADDING', (1, 0), (1, 0), 11 * mm),
-                ('BOTTOMPADDING', (1, 0), (1, 0), 9 * mm),
+                ('LEFTPADDING', (1, 0), (1, 0), 8 * mm),
+                ('RIGHTPADDING', (1, 0), (1, 0), 0 * mm),
+                ('TOPPADDING', (1, 0), (1, 0), 8 * mm),
+                ('BOTTOMPADDING', (1, 0), (1, 0), 8 * mm),
             ]
         ),
     )
@@ -360,9 +360,10 @@ def build_recipe_pdf(recipe, ingredients_by_group, steps, photo_path=None):
 
     page_width, page_height = A4
     body_width = page_width - left_margin - right_margin
-    header_height = 66 * mm
-    body_height = page_height - top_margin - bottom_margin - header_height - 4 * mm
-    left_width = 60 * mm
+    header_height = 100 * mm  # Altura header con foto más grande
+    stats_height = 25 * mm  # Altura stats bar
+    body_height = page_height - top_margin - bottom_margin - header_height - stats_height - 4 * mm
+    left_width = 75 * mm  # Columna ingredientes (aprox 220px)
     right_width = body_width - left_width
 
     header_frame = Frame(
@@ -376,6 +377,17 @@ def build_recipe_pdf(recipe, ingredients_by_group, steps, photo_path=None):
         topPadding=0,
         bottomPadding=0,
     )
+    stats_frame = Frame(
+        left_margin,
+        page_height - top_margin - header_height - stats_height,
+        body_width,
+        stats_height,
+        id='stats',
+        leftPadding=0,
+        rightPadding=0,
+        topPadding=0,
+        bottomPadding=0,
+    )
     left_frame = Frame(
         left_margin,
         bottom_margin + 4 * mm,
@@ -383,7 +395,7 @@ def build_recipe_pdf(recipe, ingredients_by_group, steps, photo_path=None):
         body_height,
         id='left',
         leftPadding=0,
-        rightPadding=4 * mm,
+        rightPadding=3 * mm,
         topPadding=0,
         bottomPadding=0,
     )
@@ -393,7 +405,7 @@ def build_recipe_pdf(recipe, ingredients_by_group, steps, photo_path=None):
         right_width,
         body_height,
         id='right',
-        leftPadding=4 * mm,
+        leftPadding=3 * mm,
         rightPadding=0,
         topPadding=0,
         bottomPadding=0,
@@ -448,16 +460,16 @@ def build_recipe_pdf(recipe, ingredients_by_group, steps, photo_path=None):
         canvas.setLineWidth(0.6)
         canvas.line(
             left_margin,
-            page_height - top_margin - header_height,
+            page_height - top_margin - header_height - stats_height,
             page_width - right_margin,
-            page_height - top_margin - header_height,
+            page_height - top_margin - header_height - stats_height,
         )
         # Linea vertical entre columnas del body
         canvas.line(
             left_margin + left_width,
             bottom_margin,
             left_margin + left_width,
-            page_height - top_margin - header_height,
+            page_height - top_margin - header_height - stats_height,
         )
 
         # Footer
@@ -468,15 +480,17 @@ def build_recipe_pdf(recipe, ingredients_by_group, steps, photo_path=None):
         canvas.drawRightString(page_width - right_margin, 6 * mm, '1 / 1')
         canvas.restoreState()
 
-    doc.addPageTemplates([PageTemplate(id='RecipeForgeA4', frames=[header_frame, left_frame, right_frame], onPage=on_page)])
+    doc.addPageTemplates([PageTemplate(id='RecipeForgeA4', frames=[header_frame, stats_frame, left_frame, right_frame], onPage=on_page)])
 
     story = [
-        KeepInFrame(body_width, header_height, [_header(recipe, styles, photo_path=photo_path), Spacer(1, 3 * mm), _stats(recipe, styles)], mode='shrink'),
+        _header(recipe, styles, photo_path=photo_path),
+        _stats(recipe, styles),
         FrameBreak(),
-        KeepInFrame(left_width, body_height, _ingredients_story(ingredients_by_group, styles), mode='shrink'),
-        FrameBreak(),
-        KeepInFrame(right_width, body_height, _steps_story(steps, styles), mode='shrink'),
+        Spacer(1, 0.1 * mm),
     ]
+    story.extend(_ingredients_story(ingredients_by_group, styles))
+    story.append(FrameBreak())
+    story.extend(_steps_story(steps, styles))
 
     doc.build(story)
     return buffer.getvalue()

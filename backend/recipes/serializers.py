@@ -47,8 +47,8 @@ class RecipeListSerializer(serializers.ModelSerializer):
 
 
 class RecipeDetailSerializer(serializers.ModelSerializer):
-    ingredients = IngredientLineSerializer(many=True)
-    steps = ProductionStepSerializer(many=True)
+    ingredients = IngredientLineSerializer(many=True, required=False)
+    steps = ProductionStepSerializer(many=True, required=False)
     final_photo = serializers.ImageField(required=False, allow_null=True)
 
     class Meta:
