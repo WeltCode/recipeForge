@@ -40,6 +40,11 @@ function App() {
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null)
   const [recipeList, setRecipeList] = useState([])
   const [showList, setShowList] = useState(false)
+  const exportRecipeId = new URL(window.location.href).searchParams.get('export')
+  const isExportMode = Boolean(exportRecipeId)
+  const [exportRecipe, setExportRecipe] = useState(null)
+  const [exportLoading, setExportLoading] = useState(false)
+  const [printScheduled, setPrintScheduled] = useState(false)
   const [form, setForm] = useState({
     code: '',
     name: '',
@@ -168,9 +173,46 @@ function App() {
     }
   }
 
+  const downloadPDFProfessional = (recipeId) => {
+    window.open(`${window.location.origin}/?export=${recipeId}`, '_blank', 'width=1000,height=800')
+  }
+
   useEffect(() => {
-    fetchRecipeList()
-  }, [])
+    if (!exportRecipeId) {
+      fetchRecipeList()
+      return
+    }
+
+    const loadExportRecipe = async () => {
+      setExportLoading(true)
+      try {
+        const response = await fetch(`${API_BASE}/recipes/${exportRecipeId}/`)
+        if (!response.ok) {
+          throw new Error('No se encontró la receta de exportación')
+        }
+        const data = await response.json()
+        setExportRecipe({
+          ...data,
+          photoPreviewUrl: data.final_photo || null,
+        })
+      } catch (error) {
+        setMessage(`No se pudo cargar la ficha para exportación: ${error.message}`)
+      } finally {
+        setExportLoading(false)
+      }
+    }
+
+    loadExportRecipe()
+  }, [exportRecipeId])
+
+  useEffect(() => {
+    if (isExportMode && exportRecipe && !exportLoading && !printScheduled) {
+      setPrintScheduled(true)
+      setTimeout(() => {
+        window.print()
+      }, 600)
+    }
+  }, [isExportMode, exportRecipe, exportLoading, printScheduled])
 
   const submitRecipe = async (event) => {
     event.preventDefault()
@@ -214,6 +256,22 @@ function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (isExportMode) {
+    return (
+      <main className="mx-auto min-h-screen w-full p-6 bg-stone-100 md:p-8">
+        <div className="mx-auto max-w-[880px] rounded-[28px] border border-stone-200 bg-white shadow-sm">
+          {exportLoading || !exportRecipe ? (
+            <div className="p-10 text-center text-stone-700">
+              Cargando ficha técnica para exportación...
+            </div>
+          ) : (
+            <RecipeSheetPreview recipe={exportRecipe} />
+          )}
+        </div>
+      </main>
+    )
   }
 
   return (
@@ -476,14 +534,13 @@ function App() {
               </button>
 
               {savedRecipeId ? (
-                <a
-                  href={`${API_BASE}/recipes/${savedRecipeId}/pdf/`}
-                  className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900"
-                  target="_blank"
-                  rel="noreferrer"
+                <button
+                  type="button"
+                  onClick={() => downloadPDFProfessional(savedRecipeId)}
+                  className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
                 >
-                  Descargar PDF
-                </a>
+                  Descargar PDF Profesional
+                </button>
               ) : null}
             </div>
           </form>
@@ -542,14 +599,12 @@ function App() {
                         <td className="px-4 py-3 text-stone-600">{r.category || '—'}</td>
                         <td className="px-4 py-3 text-stone-600">{r.servings}</td>
                         <td className="px-4 py-3">
-                          <a
-                            href={`${API_BASE}/recipes/${r.id}/pdf/`}
-                            target="_blank"
-                            rel="noreferrer"
+                          <button
+                            onClick={() => downloadPDFProfessional(r.id)}
                             className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200"
                           >
                             Descargar
-                          </a>
+                          </button>
                         </td>
                       </tr>
                     ))}

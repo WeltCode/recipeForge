@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ recipe.code }} - {{ recipe.name }}</title>
+    <style>
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+        }
+
+        :root {
+            --sand: #E8E0D5;
+            --sand-dark: #D4C9B8;
+            --cream: #F5F0E8;
+            --black: #1A1A18;
+            --charcoal: #2D2D2A;
+            --amber: #C8870A;
+            --amber-light: #E8A020;
+            --red: #B02A1A;
+            --text: #2D2D2A;
+            --text-muted: #7A7468;
+            --border: #C8BFB0;
+            --step-bg: #FDFAF5;
+        }
+
+        @page {
+            size: A4;
+            margin: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: white;
+            margin: 0;
+            padding: 0;
+        }
+
+        .page {
+            width: 210mm;
+            height: 297mm;
+            background: var(--cream);
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* TOP STRIPE */
+        .top-stripe {
+            height: 5px;
+            background: var(--black);
+        }
+
+        /* HEADER */
+        .header {
+            background: var(--sand);
+            padding: 20px 28px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 2px solid var(--black);
+        }
+
+        .logo-img {
+            height: 52px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .header-right {
+            text-align: right;
+        }
+
+        .doc-label {
+            font-size: 8px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-weight: 500;
+            font-family: 'Courier New', monospace;
+        }
+
+        .doc-code {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--black);
+            margin-top: 2px;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* HERO */
+        .hero {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            border-bottom: 2px solid var(--black);
+        }
+
+        .hero-photo {
+            width: 220px;
+            height: 185px;
+            object-fit: cover;
+            border-right: 2px solid var(--black);
+        }
+
+        .hero-text {
+            padding: 18px 22px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: var(--black);
+        }
+
+        .dish-category {
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--amber);
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .dish-name {
+            font-size: 36px;
+            color: white;
+            line-height: 0.95;
+            letter-spacing: -1px;
+            margin-bottom: 10px;
+            font-weight: 700;
+            font-family: Georgia, serif;
+        }
+
+        .dish-desc {
+            font-size: 12px;
+            color: rgba(255,255,255,0.45);
+            line-height: 1.4;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            padding-top: 10px;
+            font-style: italic;
+            font-family: Georgia, serif;
+        }
+
+        /* STATS BAR */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            border-bottom: 2px solid var(--black);
+            background: var(--sand);
+        }
+
+        .stat {
+            padding: 10px 0;
+            text-align: center;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stat:last-child {
+            border-right: none;
+        }
+
+        .stat-val {
+            font-size: 17px;
+            font-weight: 700;
+            color: var(--black);
+            line-height: 1;
+        }
+
+        .stat-key {
+            font-size: 7.5px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-family: 'Courier New', monospace;
+        }
+
+        /* BODY GRID */
+        .body-grid {
+            display: grid;
+            grid-template-columns: 195px 1fr;
+            flex: 1;
+            border-bottom: 2px solid var(--black);
+        }
+
+        /* LEFT COLUMN */
+        .col-left {
+            border-right: 2px solid var(--black);
+            padding: 16px 14px;
+            background: white;
+        }
+
+        .col-title {
+            font-size: 8px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--amber);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .col-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        .ing-group {
+            margin-bottom: 14px;
+        }
+
+        .ing-group-name {
+            font-size: 8.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--red);
+            padding: 3px 0 3px 6px;
+            border-left: 3px solid var(--red);
+            margin-bottom: 6px;
+        }
+
+        .ing-row {
+            display: grid;
+            grid-template-columns: 52px 1fr;
+            gap: 0;
+            padding: 4px 0;
+            border-bottom: 1px solid #EEE8DC;
+            align-items: baseline;
+            font-size: 10.5px;
+        }
+
+        .ing-row:last-child {
+            border-bottom: none;
+        }
+
+        .ing-qty {
+            font-weight: 600;
+            color: var(--black);
+            text-align: right;
+            padding-right: 8px;
+            border-right: 1px solid var(--border);
+            font-family: 'Courier New', monospace;
+        }
+
+        .ing-name {
+            color: var(--text);
+            padding-left: 7px;
+            line-height: 1.35;
+        }
+
+        .ing-note {
+            display: block;
+            font-size: 9px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        /* RIGHT COLUMN - STEPS */
+        .col-right {
+            padding: 16px 18px;
+            background: var(--step-bg);
+        }
+
+        .steps-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .step {
+            display: grid;
+            grid-template-columns: 32px 1fr;
+            gap: 0;
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 15px;
+            top: 32px;
+            bottom: 0;
+            width: 2px;
+            background: var(--sand-dark);
+        }
+
+        .step-num-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 4px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .step-circle {
+            width: 28px;
+            height: 28px;
+            background: var(--black);
+            color: var(--amber);
+            font-size: 12px;
+            font-weight: 600;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .step-body {
+            padding: 4px 0 16px 10px;
+        }
+
+        .step-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--black);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .step-text {
+            font-size: 11.5px;
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .step-tip {
+            display: inline-block;
+            margin-top: 5px;
+            background: #FFF8E8;
+            border-left: 3px solid var(--amber);
+            padding: 4px 8px;
+            font-size: 10.5px;
+            color: #7A5A10;
+            font-style: italic;
+            line-height: 1.4;
+            border-radius: 0 2px 2px 0;
+        }
+
+        /* FOOTER */
+        .footer {
+            background: var(--sand);
+            border-top: 2px solid var(--black);
+            padding: 8px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 8px;
+        }
+
+        .footer-left {
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            font-family: 'Courier New', monospace;
+        }
+
+        .footer-code {
+            font-weight: 600;
+            color: var(--black);
+            letter-spacing: 2px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .footer-right {
+            color: var(--text-muted);
+            letter-spacing: 1px;
+            font-family: 'Courier New', monospace;
+        }
+
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+            .page {
+                box-shadow: none;
+                margin: 0;
+                width: 210mm;
+                height: 297mm;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <!-- TOP STRIPE -->
+        <div class="top-stripe"></div>
+
+        <!-- HEADER -->
+        <div class="header">
+            <img src="data:image/png;base64,{{ logo_base64 }}" class="logo-img" alt="Leche de Tigre">
+            <div class="header-right">
+                <div class="doc-label">Ficha técnica de producción</div>
+                <div class="doc-code">{{ recipe.code }} / REV.01</div>
+            </div>
+        </div>
+
+        <!-- HERO -->
+        <div class="hero">
+            {% if photo_data %}
+                <img src="data:image/png;base64,{{ photo_data }}" class="hero-photo" alt="{{ recipe.name }}">
+            {% else %}
+                <div style="width: 220px; height: 185px; background: var(--black); display: flex; align-items: center; justify-content: center; color: #999; font-size: 12px;">Sin foto</div>
+            {% endif %}
+            <div class="hero-text">
+                <div class="dish-category">Plato Principal · Cocina Tradicional Peruana</div>
+                <div class="dish-name">{{ recipe.name }}</div>
+                <div class="dish-desc">{{ recipe.description }}</div>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="stat-val">{{ recipe.servings }}</div>
+                <div class="stat-key">Raciones</div>
+            </div>
+            <div class="stat">
+                <div class="stat-val">{{ recipe.yield_grams|default:"---" }} g</div>
+                <div class="stat-key">Gramaje / Ración</div>
+            </div>
+            <div class="stat">
+                <div class="stat-val">{{ recipe.prep_time_min }} min</div>
+                <div class="stat-key">Preparación</div>
+            </div>
+            <div class="stat">
+                <div class="stat-val">{{ recipe.cook_time_min }} min</div>
+                <div class="stat-key">Cocción</div>
+            </div>
+            <div class="stat">
+                <div class="stat-val">{{ recipe.service_temp_c }}&ndash;{{ recipe.service_temp_c|add:5 }} °C</div>
+                <div class="stat-key">Tiempo de Vida</div>
+            </div>
+        </div>
+
+        <!-- BODY -->
+        <div class="body-grid">
+            <!-- INGREDIENTES -->
+            <div class="col-left">
+                <div class="col-title">Ingredientes</div>
+                {% for group_name, ingredients in ingredients_by_group %}
+                    <div class="ing-group">
+                        <div class="ing-group-name">{{ group_name }}</div>
+                        {% for ing in ingredients %}
+                            <div class="ing-row">
+                                <div class="ing-qty">{{ ing.quantity }} {{ ing.unit }}</div>
+                                <div class="ing-name">
+                                    {{ ing.ingredient_name }}
+                                    {% if ing.note %}<span class="ing-note">{{ ing.note }}</span>{% endif %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            </div>
+
+            <!-- PASOS -->
+            <div class="col-right">
+                <div class="col-title">Proceso paso a paso</div>
+                <div class="steps-list">
+                    {% for step in steps %}
+                        <div class="step">
+                            <div class="step-num-wrap">
+                                <div class="step-circle">{{ forloop.counter }}</div>
+                            </div>
+                            <div class="step-body">
+                                <div class="step-title">{{ step.title }}</div>
+                                <div class="step-text">{{ step.instruction }}</div>
+                                {% if step.tip %}<div class="step-tip">{{ step.tip }}</div>{% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER -->
+        <div class="footer">
+            <div class="footer-left">Leche de Tigre · Cocina · Producción</div>
+            <div class="footer-code">{{ recipe.code }}</div>
+            <div class="footer-right">1 / 1 · Junio 2026</div>
+        </div>
+    </div>
+</body>
+</html>

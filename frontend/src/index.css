@@ -11,3 +11,7 @@ body {
   background: #f3f0ea;
   color: #1f1d1a;
 }
+
+@media print {
+  .no-print { display: none !important; }
+}
