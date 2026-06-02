@@ -1,138 +1,218 @@
-# RecipeForge
+<div align="center">
+  <img src="docs/lockup-white-on-dark.png" alt="RecipeForge" width="520" />
+  <br /><br />
+  <p><strong>Plataforma para crear, gestionar y exportar fichas técnicas de producción gastronómica en formato A4 profesional.</strong></p>
+  <p>
+    <img src="https://img.shields.io/badge/Django-5.x-092E20?style=flat-square&logo=django" />
+    <img src="https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react" />
+    <img src="https://img.shields.io/badge/TailwindCSS-4.x-06B6D4?style=flat-square&logo=tailwindcss" />
+    <img src="https://img.shields.io/badge/DRF-REST%20API-red?style=flat-square" />
+  </p>
+</div>
 
-Web app para crear fichas tecnicas de cocina con formulario dinamico, vista previa e impresion/exportacion en formato A4 profesional.
+---
 
-## Vision del producto
+## Qué es RecipeForge
 
-RecipeForge permite:
+RecipeForge es una aplicación web full-stack orientada a cocinas profesionales. Permite a chefs y equipos de producción documentar sus recetas en fichas técnicas estandarizadas: con código de referencia, versión, ingredientes agrupados, proceso paso a paso y foto del producto final. Cada ficha se puede exportar como PDF A4 listo para imprimir.
 
-1. Crear recetas mediante formulario estructurado.
-2. Agregar insumos/ingredientes segun necesidad (lista dinamica).
-3. Agregar pasos de produccion segun necesidad (lista dinamica).
-4. Adjuntar foto del producto final.
-5. Generar una ficha tecnica visualmente profesional.
-6. Exportar e imprimir en formato A4 sin problemas de maquetacion.
+---
 
-## Referencia visual de ficha terminada
+## Características principales
 
-El estilo objetivo es editorial/profesional, basado en el ejemplo compartido por el usuario:
+| Funcionalidad | Descripción |
+|---|---|
+| **Formulario dinámico** | Agrega o quita ingredientes y pasos sin recargar la página |
+| **Vista previa en vivo** | La ficha A4 se actualiza en tiempo real mientras editas |
+| **Grupos de ingredientes** | Organiza los insumos por categoría (Proteínas, Vegetales, Lacteos, etc.) |
+| **Tips técnicos** | Cada paso puede incluir una nota o tip de chef |
+| **Foto del plato** | Sube la imagen del producto final; se muestra en la ficha |
+| **Control de revisiones** | Cada actualización incrementa el número de revisión automáticamente |
+| **Exportación PDF A4** | Imprime o guarda la ficha directamente desde el navegador, a escala exacta |
+| **CRUD completo** | Crea, edita, lista y elimina recetas desde la misma interfaz |
+| **API REST** | Todos los datos se gestionan vía endpoints JSON para integración futura |
 
-- Hero con foto del plato + nombre + descripcion.
-- Barra de metricas rapidas (porciones, gramaje, tiempos, temperatura).
-- Columna izquierda de ingredientes agrupados.
-- Columna derecha de proceso paso a paso numerado.
-- Footer tecnico con codigo de ficha/version.
+---
 
-## Stack elegido
+## Estructura de la ficha técnica
+
+Cada ficha generada por RecipeForge sigue una estructura editorial consistente:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Logo de establecimiento          FT-001 / Rev. 0.1     │  ← Header
+├──────────────┬──────────────────────────────────────────┤
+│              │  Categoría                               │
+│   Foto A4    │  NOMBRE DEL PLATO                        │  ← Hero
+│              │  Descripción del plato                   │
+├──────┬───────┴───────┬──────────┬──────────┬────────────┤
+│ Rac. │  Rendimiento  │  Prep    │  Cocción │  Vida útil │  ← Stats bar
+├──────┴───────────────┼──────────┴──────────┴────────────┤
+│  INGREDIENTES        │  PROCESO PASO A PASO             │
+│  · Grupo A           │  ① Paso uno                      │
+│    100 g  Insumo     │    Instrucción detallada         │  ← Body
+│    50 g   Insumo     │    ► Tip técnico                 │
+│  · Grupo B           │  ② Paso dos                      │
+│    ...               │    ...                           │
+├──────────────────────┴──────────────────────────────────┤
+│  Establecimiento · Producción     FT-001 · junio 2026   │  ← Footer
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Stack tecnológico
+
+### Backend
+- **Python 3.12** + **Django 5** + **Django REST Framework**
+- Base de datos: **SQLite** (desarrollo) / PostgreSQL (producción)
+- Almacenamiento de imágenes: sistema de archivos local (`media/`)
+- Exportación: renderizado de plantilla HTML + diálogo de impresión del navegador
 
 ### Frontend
+- **React 19** + **Vite 8**
+- **Tailwind CSS 4**
+- Comunicación con API vía `fetch` nativo
 
-- React + Vite
-- Tailwind CSS
+---
+
+## Estructura del proyecto
+
+```
+recipeForge/
+├── backend/
+│   ├── backend/               # Configuración Django (settings, urls, wsgi)
+│   ├── recipes/
+│   │   ├── models.py          # Recipe, IngredientLine, ProductionStep
+│   │   ├── serializers.py     # Serializadores DRF
+│   │   ├── views.py           # ViewSet + exportación HTML
+│   │   ├── urls.py            # Rutas de la API
+│   │   └── templates/
+│   │       └── recipe_sheet.html   # Plantilla de exportación A4
+│   ├── manage.py
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx            # Formulario + lista + lógica principal
+│   │   ├── components/
+│   │   │   └── RecipeSheetPreview.jsx  # Componente de ficha A4
+│   │   └── assets/
+│   ├── index.html
+│   └── package.json
+├── docs/
+│   └── lockup-white-on-dark.png
+└── .gitignore
+```
+
+---
+
+## Modelo de datos
+
+### `Recipe`
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `code` | CharField | Código único de ficha (ej. `FT-001`) |
+| `name` | CharField | Nombre del plato |
+| `category` | CharField | Categoría culinaria |
+| `description` | TextField | Descripción libre |
+| `revision` | PositiveInteger | Versión de la ficha (autoincrementa) |
+| `servings` | PositiveInteger | Número de raciones |
+| `yield_quantity` | Decimal | Rendimiento total |
+| `yield_unit` | CharField | Unidad de rendimiento (`g` / `kg`) |
+| `prep_time_min` | PositiveInteger | Tiempo de preparación en minutos |
+| `cook_time_min` | PositiveInteger | Tiempo de cocción en minutos |
+| `shelf_life_value` | PositiveInteger | Vida útil numérica |
+| `shelf_life_unit` | CharField | Unidad de vida útil (`dias` / `meses`) |
+| `final_photo` | ImageField | Foto del plato terminado |
+
+### `IngredientLine`
+Ingrediente vinculado a una receta, con grupo, cantidad, unidad y nota opcional. Ordenable.
+
+### `ProductionStep`
+Paso de producción con título, instrucción y tip técnico. Ordenable.
+
+---
+
+## API REST
+
+Base URL: `http://localhost:8000/api/`
+
+| Método | Endpoint | Acción |
+|---|---|---|
+| `GET` | `/api/` | Health check de la API |
+| `GET` | `/api/recipes/` | Listar todas las fichas |
+| `POST` | `/api/recipes/` | Crear nueva ficha |
+| `GET` | `/api/recipes/{id}/` | Detalle de una ficha |
+| `PUT` | `/api/recipes/{id}/` | Actualizar ficha completa |
+| `DELETE` | `/api/recipes/{id}/` | Eliminar ficha |
+| `GET` | `/api/recipes/{id}/sheet_html/` | HTML de exportación A4 |
+
+La creación y edición soporta tanto `application/json` como `multipart/form-data` (necesario para subir la foto).
+
+---
+
+## Cómo ejecutar en local
+
+### Requisitos previos
+- Python 3.12+
+- Node.js 20+
 
 ### Backend
 
-- Django
-- Django REST Framework
-- django-cors-headers
+```bash
+cd backend
 
-### Datos y despliegue (plan)
+# Crear y activar entorno virtual
+python -m venv .venv
+.venv\Scripts\activate          # Windows
+# source .venv/bin/activate     # macOS / Linux
 
-- PostgreSQL para produccion.
-- Almacenamiento de imagenes: S3/Cloudinary (segun costo/flujo).
+pip install -r requirements.txt
 
-## Requisito clave: PDF A4 perfecto
-
-Para evitar diferencias entre navegadores e impresoras:
-
-1. El frontend arma y valida la ficha.
-2. El backend genera el HTML final de impresion.
-3. El backend renderiza PDF A4 con reglas de paginacion (margenes, saltos, encabezados).
-4. El usuario descarga PDF final listo para imprimir.
-
-## Roadmap paso a paso (idea -> ejecucion)
-
-### Fase 0 - Definicion funcional
-
-1. Congelar plantilla de ficha tecnica base.
-2. Definir campos obligatorios y opcionales.
-3. Definir reglas de costeo y unidades.
-4. Definir flujo de usuario (crear, editar, previsualizar, exportar).
-
-### Fase 1 - MVP tecnico
-
-1. Modelo de datos base de receta.
-2. API CRUD para recetas, ingredientes, pasos.
-3. Formulario dinamico en frontend.
-4. Endpoint inicial de vista/descarga de ficha.
-
-### Fase 2 - Calidad A4
-
-1. Sistema tipografico y jerarquia visual.
-2. Reglas de saltos de pagina para recetas largas.
-3. Validar impresion en multiples navegadores/impresoras.
-4. Ajustes finales para salida PDF estable.
-
-### Fase 3 - Escalado
-
-1. Versionado de recetas.
-2. Escalado de cantidades por porciones.
-3. Costeo historico de insumos.
-4. Roles de usuario (chef, admin, operacion).
-
-## Modelo de datos inicial (MVP)
-
-1. Recipe
-   - code, name, category, description, servings, yield_grams, prep_time_min, cook_time_min, service_temp_c, notes, final_photo
-2. IngredientLine
-   - recipe, group_name, ingredient_name, quantity, unit, note, order
-3. ProductionStep
-   - recipe, step_number, title, instruction, tip, order
-4. RecipeMeta (opcional inicial)
-   - allergens, techniques, doc_version
-
-## Estructura creada en este primer paso
-
-- frontend con React + Vite + Tailwind listo.
-- backend con Django + DRF + CORS listo.
-- endpoint base de salud API para pruebas.
-- archivos de entorno ejemplo.
-- hoja de ruta consolidada en este README.
-
-## Estado actual (paso ejecutado)
-
-1. Backend con dominio base implementado:
-   - Modelos `Recipe`, `IngredientLine`, `ProductionStep`.
-   - CRUD REST en `/api/recipes/`.
-   - Exportacion PDF A4 estable en `/api/recipes/<id>/pdf/`.
-   - Endpoint de salud en `/api/health/`.
-   - Migraciones iniciales aplicadas correctamente.
-2. Frontend con formulario dinamico implementado:
-   - Campos generales de ficha tecnica.
-   - Lista dinamica de ingredientes (agregar/quitar).
-   - Lista dinamica de pasos (agregar/quitar).
-   - Envio al backend para guardar receta.
-   - Vista previa tipo ficha tecnica A4 basada en el diseño de referencia.
-   - Enlace directo de descarga del PDF de la ultima receta guardada.
-3. Validaciones tecnicas ejecutadas:
-   - `python manage.py check` sin errores.
-   - `npm run build` sin errores.
-
-## Comandos de arranque local
+python manage.py migrate
+python manage.py runserver
+# → API disponible en http://localhost:8000
+```
 
 ### Frontend
 
-1. cd frontend
-2. npm install
-3. npm run dev
+```bash
+cd frontend
+npm install
+npm run dev
+# → App disponible en http://localhost:5173
+```
 
-### Backend
+---
 
-1. cd backend
-2. .\\.venv\\Scripts\\python.exe -m pip install -r requirements.txt
-3. .\\.venv\\Scripts\\python.exe manage.py migrate
-4. .\\.venv\\Scripts\\python.exe manage.py runserver
+## Exportación a PDF
 
-## Siguiente paso sugerido
+1. Guarda o edita una receta en el formulario.
+2. Haz clic en **Descargar PDF** (o en el botón PDF de la lista).
+3. Se abre una nueva ventana con la ficha renderizada en A4.
+4. El diálogo de impresión del navegador se lanza automáticamente.
+5. Selecciona **Guardar como PDF** en el destino de impresión.
 
-Construir el dominio base de recetas en backend (modelos + serializers + viewsets) y luego conectar el primer formulario dinamico en frontend.
+> La ficha está diseñada para escala 100 % en papel A4, sin márgenes adicionales del navegador.
+
+---
+
+## Categorías de recetas soportadas
+
+Plato Fuerte · Entrante · Aderezos y Salsas · Sopas y Cremas · Ensaladas · Postres · Panes y Masas · Bebidas · Fondos y Caldos · Guarniciones · Tapas y Aperitivos · Snacks · Fermentados · Pre-elaborados
+
+---
+
+## Roadmap
+
+- [ ] Escalado de cantidades por número de raciones
+- [ ] Costeo de insumos por receta
+- [ ] Múltiples páginas para recetas largas
+- [ ] Roles de usuario (chef, admin, operaciones)
+- [ ] Deploy en producción con PostgreSQL y almacenamiento en nube
+
+---
+
+<div align="center">
+  <sub>Desarrollado con Django · React · Tailwind CSS</sub>
+</div>
