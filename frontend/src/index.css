@@ -14,4 +14,30 @@ body {
 
 @media print {
   .no-print { display: none !important; }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html,
+  body,
+  #root {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    width: 210mm !important;
+    height: 297mm !important;
+  }
+
+  /* Eliminar cualquier envoltorio decorativo fuera del sheet */
+  body > div,
+  #root > div {
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+  }
 }

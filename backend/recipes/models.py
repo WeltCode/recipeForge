@@ -10,7 +10,9 @@ class Recipe(models.Model):
     yield_grams = models.PositiveIntegerField(null=True, blank=True)
     prep_time_min = models.PositiveIntegerField(default=0)
     cook_time_min = models.PositiveIntegerField(default=0)
-    service_temp_c = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    SHELF_LIFE_UNITS = [('dias', 'Días'), ('meses', 'Meses')]
+    shelf_life_value = models.PositiveIntegerField(null=True, blank=True)
+    shelf_life_unit = models.CharField(max_length=6, choices=SHELF_LIFE_UNITS, default='dias')
     notes = models.TextField(blank=True)
     final_photo = models.ImageField(upload_to='recipe_photos/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

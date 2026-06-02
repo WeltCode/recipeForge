@@ -54,7 +54,8 @@ function App() {
     yield_grams: '',
     prep_time_min: 0,
     cook_time_min: 0,
-    service_temp_c: '',
+    shelf_life_value: '',
+    shelf_life_unit: 'dias',
     notes: '',
     ingredients: [{ ...emptyIngredient }],
     steps: [{ ...emptyStep }],
@@ -116,7 +117,8 @@ function App() {
     yield_grams: form.yield_grams ? Number(form.yield_grams) : null,
     prep_time_min: Number(form.prep_time_min || 0),
     cook_time_min: Number(form.cook_time_min || 0),
-    service_temp_c: form.service_temp_c ? Number(form.service_temp_c) : null,
+    shelf_life_value: form.shelf_life_value ? Number(form.shelf_life_value) : null,
+    shelf_life_unit: form.shelf_life_unit || 'dias',
     notes: form.notes,
     ingredients: form.ingredients
       .filter((item) => item.ingredient_name.trim())
@@ -149,7 +151,8 @@ function App() {
       yield_grams: '',
       prep_time_min: 0,
       cook_time_min: 0,
-      service_temp_c: '',
+      shelf_life_value: '',
+      shelf_life_unit: 'dias',
       notes: '',
       ingredients: [{ ...emptyIngredient }],
       steps: [{ ...emptyStep }],
@@ -207,6 +210,7 @@ function App() {
 
   useEffect(() => {
     if (isExportMode && exportRecipe && !exportLoading && !printScheduled) {
+      document.title = `${exportRecipe.code || 'FT-000'} | ${exportRecipe.name || 'Receta'}`
       setPrintScheduled(true)
       setTimeout(() => {
         window.print()
@@ -260,17 +264,15 @@ function App() {
 
   if (isExportMode) {
     return (
-      <main className="mx-auto min-h-screen w-full p-6 bg-stone-100 md:p-8">
-        <div className="mx-auto max-w-[880px] rounded-[28px] border border-stone-200 bg-white shadow-sm">
-          {exportLoading || !exportRecipe ? (
-            <div className="p-10 text-center text-stone-700">
-              Cargando ficha técnica para exportación...
-            </div>
-          ) : (
-            <RecipeSheetPreview recipe={exportRecipe} />
-          )}
-        </div>
-      </main>
+      <div style={{ margin: 0, padding: 0, background: 'white' }}>
+        {exportLoading || !exportRecipe ? (
+          <div style={{ padding: 40, textAlign: 'center' }}>
+            Cargando ficha técnica para exportación...
+          </div>
+        ) : (
+          <RecipeSheetPreview recipe={exportRecipe} />
+        )}
+      </div>
     )
   }
 
@@ -358,15 +360,25 @@ function App() {
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-stone-700">
-                Tiempo de vida
-                <input
-                  type="number"
-                  min="0"
-                  step="0.1"
-                  value={form.service_temp_c}
-                  onChange={(e) => updateField('service_temp_c', e.target.value)}
-                  className="rounded-md border border-stone-300 px-3 py-2"
-                />
+                Vida útil
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.shelf_life_value}
+                    onChange={(e) => updateField('shelf_life_value', e.target.value)}
+                    className="w-20 rounded-md border border-stone-300 px-3 py-2"
+                    placeholder="0"
+                  />
+                  <select
+                    value={form.shelf_life_unit}
+                    onChange={(e) => updateField('shelf_life_unit', e.target.value)}
+                    className="rounded-md border border-stone-300 px-3 py-2"
+                  >
+                    <option value="dias">Días</option>
+                    <option value="meses">Meses</option>
+                  </select>
+                </div>
               </label>
               <div className="flex items-end rounded-md border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-600">
                 Tiempo total: {totalTime} min
