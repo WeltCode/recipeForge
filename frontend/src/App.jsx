@@ -3,6 +3,23 @@ import RecipeSheetPreview from './components/RecipeSheetPreview'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
+const CATEGORIES = [
+  'Plato Fuerte',
+  'Entrante',
+  'Aderezos y Salsas',
+  'Sopas y Cremas',
+  'Ensaladas',
+  'Postres',
+  'Panes y Masas',
+  'Bebidas',
+  'Fondos y Caldos',
+  'Guarniciones',
+  'Tapas y Aperitivos',
+  'Snacks',
+  'Fermentados',
+  'Pre-elaborados',
+]
+
 const INGREDIENT_GROUPS = [
   'Proteinas',
   'Vegetales',
@@ -32,6 +49,22 @@ const emptyStep = {
   tip: '',
 }
 
+const emptyForm = {
+  code: '',
+  name: '',
+  category: '',
+  description: '',
+  servings: 1,
+  yield_quantity: '',
+  yield_unit: 'g',
+  prep_time_min: 0,
+  cook_time_min: 0,
+  shelf_life_value: '',
+  shelf_life_unit: 'dias',
+  ingredients: [{ ...emptyIngredient }],
+  steps: [{ ...emptyStep }],
+}
+
 function App() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -40,35 +73,22 @@ function App() {
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null)
   const [recipeList, setRecipeList] = useState([])
   const [showList, setShowList] = useState(false)
+  const [editingRecipeId, setEditingRecipeId] = useState(null)
+
   const exportRecipeId = new URL(window.location.href).searchParams.get('export')
   const isExportMode = Boolean(exportRecipeId)
   const [exportRecipe, setExportRecipe] = useState(null)
   const [exportLoading, setExportLoading] = useState(false)
   const [printScheduled, setPrintScheduled] = useState(false)
-  const [form, setForm] = useState({
-    code: '',
-    name: '',
-    category: '',
-    description: '',
-    servings: 1,
-    yield_grams: '',
-    prep_time_min: 0,
-    cook_time_min: 0,
-    shelf_life_value: '',
-    shelf_life_unit: 'dias',
-    notes: '',
-    ingredients: [{ ...emptyIngredient }],
-    steps: [{ ...emptyStep }],
-  })
+
+  const [form, setForm] = useState({ ...emptyForm })
 
   const totalTime = useMemo(
     () => Number(form.prep_time_min || 0) + Number(form.cook_time_min || 0),
     [form.prep_time_min, form.cook_time_min],
   )
 
-  const updateField = (field, value) => {
-    setForm((prev) => ({ ...prev, [field]: value }))
-  }
+  const updateField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
 
   const updateIngredient = (index, field, value) => {
     setForm((prev) => {
@@ -86,27 +106,23 @@ function App() {
     })
   }
 
-  const addIngredient = () => {
+  const addIngredient = () =>
     setForm((prev) => ({ ...prev, ingredients: [...prev.ingredients, { ...emptyIngredient }] }))
-  }
 
-  const removeIngredient = (index) => {
+  const removeIngredient = (index) =>
     setForm((prev) => {
-      const ingredients = prev.ingredients.filter((_, current) => current !== index)
+      const ingredients = prev.ingredients.filter((_, i) => i !== index)
       return { ...prev, ingredients: ingredients.length ? ingredients : [{ ...emptyIngredient }] }
     })
-  }
 
-  const addStep = () => {
+  const addStep = () =>
     setForm((prev) => ({ ...prev, steps: [...prev.steps, { ...emptyStep }] }))
-  }
 
-  const removeStep = (index) => {
+  const removeStep = (index) =>
     setForm((prev) => {
-      const steps = prev.steps.filter((_, current) => current !== index)
+      const steps = prev.steps.filter((_, i) => i !== index)
       return { ...prev, steps: steps.length ? steps : [{ ...emptyStep }] }
     })
-  }
 
   const buildPayload = () => ({
     code: form.code,
@@ -114,12 +130,12 @@ function App() {
     category: form.category,
     description: form.description,
     servings: Number(form.servings || 1),
-    yield_grams: form.yield_grams ? Number(form.yield_grams) : null,
+    yield_quantity: form.yield_quantity ? Number(form.yield_quantity) : null,
+    yield_unit: form.yield_unit || 'g',
     prep_time_min: Number(form.prep_time_min || 0),
     cook_time_min: Number(form.cook_time_min || 0),
     shelf_life_value: form.shelf_life_value ? Number(form.shelf_life_value) : null,
     shelf_life_unit: form.shelf_life_unit || 'dias',
-    notes: form.notes,
     ingredients: form.ingredients
       .filter((item) => item.ingredient_name.trim())
       .map((item, index) => ({
@@ -136,27 +152,14 @@ function App() {
       })),
   })
 
-  const resetForm = (clearSavedRecipeId = false) => {
-    if (clearSavedRecipeId) {
-      setSavedRecipeId(null)
-      setPhotoFile(null)
-      setPhotoPreviewUrl(null)
-    }
-    setForm({
-      code: '',
-      name: '',
-      category: '',
-      description: '',
-      servings: 1,
-      yield_grams: '',
-      prep_time_min: 0,
-      cook_time_min: 0,
-      shelf_life_value: '',
-      shelf_life_unit: 'dias',
-      notes: '',
-      ingredients: [{ ...emptyIngredient }],
-      steps: [{ ...emptyStep }],
-    })
+  const resetForm = () => {
+    setSavedRecipeId(null)
+    setEditingRecipeId(null)
+    setPhotoFile(null)
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl)
+    setPhotoPreviewUrl(null)
+    setForm({ ...emptyForm, ingredients: [{ ...emptyIngredient }], steps: [{ ...emptyStep }] })
+    setMessage('')
   }
 
   const handlePhotoChange = (e) => {
@@ -176,7 +179,67 @@ function App() {
     }
   }
 
-  const downloadPDFProfessional = (recipeId) => {
+  const loadRecipeForEdit = async (recipeId) => {
+    setMessage('')
+    try {
+      const res = await fetch(`${API_BASE}/recipes/${recipeId}/`)
+      if (!res.ok) throw new Error('No se pudo cargar la receta')
+      const data = await res.json()
+      setEditingRecipeId(recipeId)
+      setSavedRecipeId(recipeId)
+      setPhotoFile(null)
+      if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl)
+      setPhotoPreviewUrl(data.final_photo || null)
+      setForm({
+        code: data.code || '',
+        name: data.name || '',
+        category: data.category || '',
+        description: data.description || '',
+        servings: data.servings || 1,
+        yield_quantity: data.yield_quantity ?? '',
+        yield_unit: data.yield_unit || 'g',
+        prep_time_min: data.prep_time_min || 0,
+        cook_time_min: data.cook_time_min || 0,
+        shelf_life_value: data.shelf_life_value ?? '',
+        shelf_life_unit: data.shelf_life_unit || 'dias',
+        ingredients: data.ingredients?.length
+          ? data.ingredients.map((ing) => ({
+              group_name: ing.group_name || '',
+              ingredient_name: ing.ingredient_name || '',
+              quantity: String(ing.quantity || 0),
+              unit: ing.unit || 'g',
+              note: ing.note || '',
+            }))
+          : [{ ...emptyIngredient }],
+        steps: data.steps?.length
+          ? data.steps.map((s) => ({
+              title: s.title || '',
+              instruction: s.instruction || '',
+              tip: s.tip || '',
+            }))
+          : [{ ...emptyStep }],
+      })
+      setShowList(false)
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    } catch (err) {
+      setMessage(`Error al cargar la receta: ${err.message}`)
+    }
+  }
+
+  const deleteRecipe = async (recipeId, recipeName) => {
+    if (!window.confirm(`¿Eliminar "${recipeName}"? Esta acción no se puede deshacer.`)) return
+    try {
+      const res = await fetch(`${API_BASE}/recipes/${recipeId}/`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Error al eliminar')
+      setMessage(`Receta "${recipeName}" eliminada.`)
+      fetchRecipeList()
+      if (editingRecipeId === recipeId) resetForm()
+    } catch (err) {
+      setMessage(`No se pudo eliminar: ${err.message}`)
+    }
+  }
+
+  const downloadPDF = (recipeId) => {
     window.open(`${window.location.origin}/?export=${recipeId}`, '_blank', 'width=1000,height=800')
   }
 
@@ -185,26 +248,19 @@ function App() {
       fetchRecipeList()
       return
     }
-
     const loadExportRecipe = async () => {
       setExportLoading(true)
       try {
         const response = await fetch(`${API_BASE}/recipes/${exportRecipeId}/`)
-        if (!response.ok) {
-          throw new Error('No se encontró la receta de exportación')
-        }
+        if (!response.ok) throw new Error('No se encontró la receta')
         const data = await response.json()
-        setExportRecipe({
-          ...data,
-          photoPreviewUrl: data.final_photo || null,
-        })
+        setExportRecipe({ ...data, photoPreviewUrl: data.final_photo || null })
       } catch (error) {
-        setMessage(`No se pudo cargar la ficha para exportación: ${error.message}`)
+        setMessage(`No se pudo cargar la ficha: ${error.message}`)
       } finally {
         setExportLoading(false)
       }
     }
-
     loadExportRecipe()
   }, [exportRecipeId])
 
@@ -212,9 +268,7 @@ function App() {
     if (isExportMode && exportRecipe && !exportLoading && !printScheduled) {
       document.title = `${exportRecipe.code || 'FT-000'} | ${exportRecipe.name || 'Receta'}`
       setPrintScheduled(true)
-      setTimeout(() => {
-        window.print()
-      }, 600)
+      setTimeout(() => window.print(), 600)
     }
   }, [isExportMode, exportRecipe, exportLoading, printScheduled])
 
@@ -222,6 +276,10 @@ function App() {
     event.preventDefault()
     setLoading(true)
     setMessage('')
+
+    const isEdit = Boolean(editingRecipeId)
+    const url = isEdit ? `${API_BASE}/recipes/${editingRecipeId}/` : `${API_BASE}/recipes/`
+    const method = isEdit ? 'PUT' : 'POST'
 
     try {
       let response
@@ -236,10 +294,10 @@ function App() {
             formData.append(key, value)
           }
         })
-        response = await fetch(`${API_BASE}/recipes/`, { method: 'POST', body: formData })
+        response = await fetch(url, { method, body: formData })
       } else {
-        response = await fetch(`${API_BASE}/recipes/`, {
-          method: 'POST',
+        response = await fetch(url, {
+          method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(buildPayload()),
         })
@@ -252,16 +310,22 @@ function App() {
 
       const data = await response.json()
       setSavedRecipeId(data.id)
-      setMessage(`Receta guardada correctamente: ${data.code} - ${data.name}`)
+      setEditingRecipeId(data.id)
+      const revLabel = `Rev.0.${data.revision}`
+      setMessage(
+        isEdit
+          ? `Receta actualizada: ${data.code} - ${data.name} (${revLabel})`
+          : `Receta guardada: ${data.code} - ${data.name}`,
+      )
       fetchRecipeList()
-      resetForm(false)
     } catch (error) {
-      setMessage(`No se pudo guardar la receta. ${error.message}`)
+      setMessage(`Error al guardar. ${error.message}`)
     } finally {
       setLoading(false)
     }
   }
 
+  // ── MODO EXPORTACIÓN ──────────────────────────────────────────────────────
   if (isExportMode) {
     return (
       <div style={{ margin: 0, padding: 0, background: 'white' }}>
@@ -276,22 +340,27 @@ function App() {
     )
   }
 
+  // ── MODO NORMAL ───────────────────────────────────────────────────────────
   return (
     <main className="mx-auto min-h-screen w-full p-6 md:p-8">
       <section className="rounded-2xl border border-stone-300 bg-white p-6 shadow-sm md:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
-          RecipeForge
-        </p>
-        <h1 className="mt-3 text-3xl font-bold text-stone-900">Nueva ficha tecnica</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">RecipeForge</p>
+        <h1 className="mt-3 text-3xl font-bold text-stone-900">
+          {editingRecipeId ? `Editando: ${form.code} — ${form.name}` : 'Nueva ficha técnica'}
+        </h1>
         <p className="mt-2 text-stone-700">
-          Formulario dinamico para registrar receta, ingredientes y proceso de produccion.
+          {editingRecipeId
+            ? 'Modifica los campos y guarda para actualizar la revisión automáticamente.'
+            : 'Formulario dinámico para registrar receta, ingredientes y proceso de producción.'}
         </p>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
           <form className="space-y-8 rounded-3xl border border-stone-200 bg-stone-50 p-5 md:p-6" onSubmit={submitRecipe}>
+
+            {/* ── INFO BÁSICA ── */}
             <div className="grid gap-4 md:grid-cols-3">
               <label className="flex flex-col gap-1 text-sm text-stone-700">
-                Codigo
+                Código
                 <input
                   required
                   value={form.code}
@@ -307,17 +376,21 @@ function App() {
                   value={form.name}
                   onChange={(e) => updateField('name', e.target.value)}
                   className="rounded-md border border-stone-300 px-3 py-2"
-                  placeholder="Aji de gallina"
+                  placeholder="Ají de gallina"
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-stone-700">
-                Categoria
-                <input
+                Categoría
+                <select
                   value={form.category}
                   onChange={(e) => updateField('category', e.target.value)}
-                  className="rounded-md border border-stone-300 px-3 py-2"
-                  placeholder="Plato principal"
-                />
+                  className="rounded-md border border-stone-300 px-3 py-2 bg-white"
+                >
+                  <option value="">— Seleccionar —</option>
+                  {CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
               </label>
               <label className="flex flex-col gap-1 text-sm text-stone-700">
                 Porciones
@@ -330,14 +403,26 @@ function App() {
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-stone-700">
-                Rendimiento (g)
-                <input
-                  type="number"
-                  min="0"
-                  value={form.yield_grams}
-                  onChange={(e) => updateField('yield_grams', e.target.value)}
-                  className="rounded-md border border-stone-300 px-3 py-2"
-                />
+                Rendimiento
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    value={form.yield_quantity}
+                    onChange={(e) => updateField('yield_quantity', e.target.value)}
+                    className="flex-1 rounded-md border border-stone-300 px-3 py-2"
+                    placeholder="0"
+                  />
+                  <select
+                    value={form.yield_unit}
+                    onChange={(e) => updateField('yield_unit', e.target.value)}
+                    className="rounded-md border border-stone-300 px-3 py-2 bg-white"
+                  >
+                    <option value="g">g</option>
+                    <option value="kg">kg</option>
+                  </select>
+                </div>
               </label>
               <label className="flex flex-col gap-1 text-sm text-stone-700">
                 Prep (min)
@@ -350,7 +435,7 @@ function App() {
                 />
               </label>
               <label className="flex flex-col gap-1 text-sm text-stone-700">
-                Coccion (min)
+                Cocción (min)
                 <input
                   type="number"
                   min="0"
@@ -373,7 +458,7 @@ function App() {
                   <select
                     value={form.shelf_life_unit}
                     onChange={(e) => updateField('shelf_life_unit', e.target.value)}
-                    className="rounded-md border border-stone-300 px-3 py-2"
+                    className="rounded-md border border-stone-300 px-3 py-2 bg-white"
                   >
                     <option value="dias">Días</option>
                     <option value="meses">Meses</option>
@@ -386,7 +471,7 @@ function App() {
             </div>
 
             <label className="flex flex-col gap-1 text-sm text-stone-700">
-              Descripcion
+              Descripción
               <textarea
                 rows="3"
                 value={form.description}
@@ -395,6 +480,7 @@ function App() {
               />
             </label>
 
+            {/* ── INGREDIENTES ── */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-stone-900">Ingredientes</h2>
@@ -406,7 +492,6 @@ function App() {
                   Agregar insumo
                 </button>
               </div>
-
               {form.ingredients.map((item, index) => (
                 <div key={`ingredient-${index}`} className="grid gap-3 rounded-lg border border-stone-200 p-3 md:grid-cols-12">
                   <div className="md:col-span-2">
@@ -429,7 +514,7 @@ function App() {
                   />
                   <input
                     type="number"
-                    step="0.001"
+                    step="1"
                     min="0"
                     className="rounded-md border border-stone-300 px-3 py-2 text-sm md:col-span-2"
                     placeholder="Cantidad"
@@ -459,6 +544,7 @@ function App() {
               ))}
             </section>
 
+            {/* ── PASOS ── */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-stone-900">Proceso paso a paso</h2>
@@ -470,7 +556,6 @@ function App() {
                   Agregar paso
                 </button>
               </div>
-
               {form.steps.map((item, index) => (
                 <div key={`step-${index}`} className="space-y-3 rounded-lg border border-stone-200 p-3">
                   <div className="flex items-center justify-between">
@@ -485,7 +570,7 @@ function App() {
                   </div>
                   <input
                     className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
-                    placeholder="Titulo del paso"
+                    placeholder="Título del paso"
                     value={item.title}
                     onChange={(e) => updateStep(index, 'title', e.target.value)}
                   />
@@ -498,7 +583,7 @@ function App() {
                   />
                   <input
                     className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
-                    placeholder="Tip tecnico (opcional)"
+                    placeholder="Tip técnico (opcional)"
                     value={item.tip}
                     onChange={(e) => updateStep(index, 'tip', e.target.value)}
                   />
@@ -506,16 +591,7 @@ function App() {
               ))}
             </section>
 
-            <label className="flex flex-col gap-1 text-sm text-stone-700">
-              Notas finales
-              <textarea
-                rows="3"
-                value={form.notes}
-                onChange={(e) => updateField('notes', e.target.value)}
-                className="rounded-md border border-stone-300 px-3 py-2"
-              />
-            </label>
-
+            {/* ── FOTO ── */}
             <label className="flex flex-col gap-1 text-sm text-stone-700">
               Foto del plato final
               <input
@@ -529,39 +605,38 @@ function App() {
               )}
             </label>
 
+            {/* ── ACCIONES ── */}
             <div className="flex flex-wrap items-center gap-3">
               <button
                 type="submit"
                 disabled={loading}
                 className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
               >
-                {loading ? 'Guardando...' : 'Guardar receta'}
+                {loading ? 'Guardando...' : editingRecipeId ? 'Actualizar receta' : 'Guardar receta'}
               </button>
               <button
                 type="button"
-                onClick={() => resetForm(true)}
+                onClick={resetForm}
                 className="rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700"
               >
-                Limpiar formulario
+                {editingRecipeId ? 'Cancelar edición' : 'Limpiar formulario'}
               </button>
-
-              {savedRecipeId ? (
+              {savedRecipeId && (
                 <button
                   type="button"
-                  onClick={() => downloadPDFProfessional(savedRecipeId)}
+                  onClick={() => downloadPDF(savedRecipeId)}
                   className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
                 >
-                  Descargar PDF Profesional
+                  Descargar PDF
                 </button>
-              ) : null}
+              )}
             </div>
           </form>
 
+          {/* ── PREVIEW ── */}
           <div className="space-y-4">
             <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">
-                Vista previa A4
-              </p>
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Vista previa A4</p>
               <p className="mt-1 text-sm text-stone-600">
                 La ficha refleja el formulario en vivo con una estructura lista para impresión.
               </p>
@@ -570,12 +645,13 @@ function App() {
           </div>
         </div>
 
-        {message ? (
+        {message && (
           <p className="mt-5 rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700">
             {message}
           </p>
-        ) : null}
+        )}
 
+        {/* ── LISTA DE FICHAS ── */}
         <section className="mt-10">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold text-stone-900">Fichas creadas</h2>
@@ -591,16 +667,16 @@ function App() {
           {showList && (
             <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200">
               {recipeList.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-stone-500">No hay fichas guardadas aun.</p>
+                <p className="px-5 py-4 text-sm text-stone-500">No hay fichas guardadas aún.</p>
               ) : (
                 <table className="w-full text-sm">
                   <thead className="bg-stone-100 text-left text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
                     <tr>
-                      <th className="px-4 py-3">Codigo</th>
+                      <th className="px-4 py-3">Código</th>
                       <th className="px-4 py-3">Nombre</th>
-                      <th className="px-4 py-3">Categoria</th>
-                      <th className="px-4 py-3">Porciones</th>
-                      <th className="px-4 py-3">PDF</th>
+                      <th className="px-4 py-3">Categoría</th>
+                      <th className="px-4 py-3">Rev.</th>
+                      <th className="px-4 py-3">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-stone-100">
@@ -609,14 +685,28 @@ function App() {
                         <td className="px-4 py-3 font-mono text-xs text-stone-700">{r.code}</td>
                         <td className="px-4 py-3 font-medium text-stone-900">{r.name}</td>
                         <td className="px-4 py-3 text-stone-600">{r.category || '—'}</td>
-                        <td className="px-4 py-3 text-stone-600">{r.servings}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-stone-500">0.{r.revision}</td>
                         <td className="px-4 py-3">
-                          <button
-                            onClick={() => downloadPDFProfessional(r.id)}
-                            className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200"
-                          >
-                            Descargar
-                          </button>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => downloadPDF(r.id)}
+                              className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200"
+                            >
+                              PDF
+                            </button>
+                            <button
+                              onClick={() => loadRecipeForEdit(r.id)}
+                              className="rounded bg-stone-100 px-2 py-1 text-xs font-medium text-stone-700 hover:bg-stone-200"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => deleteRecipe(r.id, r.name)}
+                              className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

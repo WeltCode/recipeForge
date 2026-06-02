@@ -2,18 +2,21 @@ from django.db import models
 
 
 class Recipe(models.Model):
+    SHELF_LIFE_UNITS = [('dias', 'Días'), ('meses', 'Meses')]
+    YIELD_UNITS = [('g', 'Gramos'), ('kg', 'Kilos')]
+
     code = models.CharField(max_length=32, unique=True)
     name = models.CharField(max_length=180)
     category = models.CharField(max_length=120, blank=True)
     description = models.TextField(blank=True)
+    revision = models.PositiveIntegerField(default=1)
     servings = models.PositiveIntegerField(default=1)
-    yield_grams = models.PositiveIntegerField(null=True, blank=True)
+    yield_quantity = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
+    yield_unit = models.CharField(max_length=2, choices=YIELD_UNITS, default='g')
     prep_time_min = models.PositiveIntegerField(default=0)
     cook_time_min = models.PositiveIntegerField(default=0)
-    SHELF_LIFE_UNITS = [('dias', 'Días'), ('meses', 'Meses')]
     shelf_life_value = models.PositiveIntegerField(null=True, blank=True)
     shelf_life_unit = models.CharField(max_length=6, choices=SHELF_LIFE_UNITS, default='dias')
-    notes = models.TextField(blank=True)
     final_photo = models.ImageField(upload_to='recipe_photos/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

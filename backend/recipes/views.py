@@ -69,6 +69,16 @@ class RecipeViewSet(ModelViewSet):
             return Response(serializer.data, status=201)
         return super().create(request, *args, **kwargs)
 
+    def update(self, request, *args, **kwargs):
+        if request.content_type and 'multipart' in request.content_type:
+            data = self._normalize_multipart(request)
+            instance = self.get_object()
+            serializer = self.get_serializer(instance, data=data, partial=kwargs.get('partial', False))
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data)
+        return super().update(request, *args, **kwargs)
+
     @action(detail=True, methods=['get'])
     def sheet_html(self, _request, **kwargs):
         """Retorna el HTML de la ficha técnica profesional"""
