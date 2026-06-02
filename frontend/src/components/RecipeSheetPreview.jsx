@@ -1,4 +1,4 @@
-import ldtLogo from '../assets/ldt.png'
+import ldtLogo from '../assets/LDTlogo.png'
 
 function groupIngredients(ingredients) {
   const grouped = new Map()
@@ -71,26 +71,24 @@ function RecipeSheetPreview({ recipe }) {
       </div>
 
       {/* ── HERO: foto + título ── */}
-      <div className="grid border-b-[2.5px] border-[#1a1a18]" style={{ gridTemplateColumns: '160px 1fr' }}>
-        <div className="border-r-[2.5px] border-[#1a1a18]" style={{ width: 160, height: 115 }}>
+      <div className="grid border-b-[2.5px] border-[#1a1a18]" style={{ gridTemplateColumns: '185px 1fr' }}>
+        <div className="border-r-[2.5px] border-[#1a1a18] bg-[#f5f2ed] flex items-center justify-center" style={{ width: 185, height: 155 }}>
           {recipe.photoPreviewUrl ? (
-            <img src={recipe.photoPreviewUrl} alt="Foto del plato" className="h-full w-full object-cover block" />
+            <img src={recipe.photoPreviewUrl} alt="Foto del plato" className="h-full w-full object-contain block" />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-[#f0ece6]">
-              <span className="rf-mono text-center text-[11px] uppercase tracking-[0.1em] text-[#aaaaaa] leading-relaxed">
-                📷<br />Sin foto
-              </span>
-            </div>
+            <span className="rf-mono text-center text-[11px] uppercase tracking-[0.1em] text-[#aaaaaa] leading-relaxed">
+              📷<br />Sin foto
+            </span>
           )}
         </div>
-        <div className="flex flex-col justify-center bg-white px-[16px] py-[10px]">
-          <p className="rf-mono text-[10px] uppercase tracking-[0.16em] text-[#999999] mb-[5px]">
+        <div className="flex flex-col justify-center bg-white px-[18px] py-[12px]">
+          <p className="rf-mono text-[10px] uppercase tracking-[0.16em] text-[#999999] mb-[6px]">
             {recipe.category || 'Categoría'}
           </p>
-          <h1 className="text-[26px] font-bold leading-[1.05] tracking-tight text-[#1a1a18] mb-[6px]">
+          <h1 className="text-[28px] font-bold leading-[1.05] tracking-tight text-[#1a1a18] mb-[8px]">
             {recipe.name || 'Nombre del Plato'}
           </h1>
-          <p className="border-t border-[#e0e0e0] pt-[5px] text-[11.5px] leading-[1.4] text-[#555555]">
+          <p className="border-t border-[#e0e0e0] pt-[6px] text-[12px] leading-[1.45] text-[#555555]">
             {recipe.description || 'Descripción del plato aparecerá aquí.'}
           </p>
         </div>
@@ -116,7 +114,7 @@ function RecipeSheetPreview({ recipe }) {
       </div>
 
       {/* ── BODY ── */}
-      <div className="grid flex-1 border-b-[2.5px] border-[#1a1a18]" style={{ gridTemplateColumns: '168px 1fr' }}>
+      <div className="grid flex-1 border-b-[2.5px] border-[#1a1a18]" style={{ gridTemplateColumns: '185px 1fr' }}>
 
         {/* INGREDIENTES */}
         <aside className="border-r-[2.5px] border-[#1a1a18] bg-white px-[10px] py-[9px] overflow-hidden">
