@@ -29,3 +29,6 @@ frontend/dist/
 
 # Media uploads
 backend/media/
+
+# Documentación de planificación interna
+PlanEscalabeRecipeForge.md
