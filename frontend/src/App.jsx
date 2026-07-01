@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import RecipeSheetPreview from './components/RecipeSheetPreview'
+import rfLogo from './assets/lockup-color.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
@@ -49,6 +50,28 @@ const emptyStep = {
   tip: '',
 }
 
+// Detecta el prefijo más usado en la lista de recetas (ej. "LT" de "LT-001")
+function detectPrefix(list) {
+  const prefixes = list
+    .map((r) => r.code?.match(/^([A-Z]{1,6})-\d+$/i)?.[1]?.toUpperCase())
+    .filter(Boolean)
+  if (!prefixes.length) return 'LT'
+  // Devuelve el más frecuente
+  return prefixes
+    .sort((a, b) => prefixes.filter((v) => v === b).length - prefixes.filter((v) => v === a).length)[0]
+}
+
+// Genera el siguiente código disponible: prefijo + número correlativo con 3 dígitos
+function generateNextCode(prefix, list) {
+  const pattern = new RegExp(`^${prefix}-(\\d+)$`, 'i')
+  const numbers = list
+    .map((r) => r.code?.match(pattern)?.[1])
+    .filter(Boolean)
+    .map(Number)
+  const max = numbers.length ? Math.max(...numbers) : 0
+  return `${prefix.toUpperCase()}-${String(max + 1).padStart(3, '0')}`
+}
+
 const emptyForm = {
   code: '',
   name: '',
@@ -57,10 +80,13 @@ const emptyForm = {
   servings: 1,
   yield_quantity: '',
   yield_unit: 'g',
-  prep_time_min: 0,
-  cook_time_min: 0,
+  prep_time_value: 0,
+  prep_time_unit: 'min',
+  cook_time_value: 0,
+  cook_time_unit: 'min',
   shelf_life_value: '',
   shelf_life_unit: 'dias',
+  observations: '',
   ingredients: [{ ...emptyIngredient }],
   steps: [{ ...emptyStep }],
 }
@@ -74,6 +100,9 @@ function App() {
   const [recipeList, setRecipeList] = useState([])
   const [showList, setShowList] = useState(false)
   const [editingRecipeId, setEditingRecipeId] = useState(null)
+  const [connectionError, setConnectionError] = useState(false)
+  const [codePrefix, setCodePrefix] = useState('LT')
+  const [freshAfterSave, setFreshAfterSave] = useState(null)
 
   const exportRecipeId = new URL(window.location.href).searchParams.get('export')
   const isExportMode = Boolean(exportRecipeId)
@@ -83,9 +112,14 @@ function App() {
 
   const [form, setForm] = useState({ ...emptyForm })
 
+  // Convierte el tiempo a minutos para calcular el total
+  const toMinutes = (value, unit) => {
+    const n = Number(value || 0)
+    return unit === 'h' ? n * 60 : n
+  }
   const totalTime = useMemo(
-    () => Number(form.prep_time_min || 0) + Number(form.cook_time_min || 0),
-    [form.prep_time_min, form.cook_time_min],
+    () => toMinutes(form.prep_time_value, form.prep_time_unit) + toMinutes(form.cook_time_value, form.cook_time_unit),
+    [form.prep_time_value, form.prep_time_unit, form.cook_time_value, form.cook_time_unit],
   )
 
   const updateField = (field, value) => setForm((prev) => ({ ...prev, [field]: value }))
@@ -132,10 +166,13 @@ function App() {
     servings: Number(form.servings || 1),
     yield_quantity: form.yield_quantity ? Number(form.yield_quantity) : null,
     yield_unit: form.yield_unit || 'g',
-    prep_time_min: Number(form.prep_time_min || 0),
-    cook_time_min: Number(form.cook_time_min || 0),
+    prep_time_value: Number(form.prep_time_value || 0),
+    prep_time_unit: form.prep_time_unit || 'min',
+    cook_time_value: Number(form.cook_time_value || 0),
+    cook_time_unit: form.cook_time_unit || 'min',
     shelf_life_value: form.shelf_life_value ? Number(form.shelf_life_value) : null,
     shelf_life_unit: form.shelf_life_unit || 'dias',
+    observations: form.observations,
     ingredients: form.ingredients
       .filter((item) => item.ingredient_name.trim())
       .map((item, index) => ({
@@ -153,12 +190,21 @@ function App() {
   })
 
   const resetForm = () => {
+    // Si hay datos frescos del último guardado, usarlos para el siguiente código
+    const list = freshAfterSave?.list ?? recipeList
+    const prefix = freshAfterSave?.prefix ?? codePrefix
     setSavedRecipeId(null)
     setEditingRecipeId(null)
+    setFreshAfterSave(null)
     setPhotoFile(null)
     if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl)
     setPhotoPreviewUrl(null)
-    setForm({ ...emptyForm, ingredients: [{ ...emptyIngredient }], steps: [{ ...emptyStep }] })
+    setForm({
+      ...emptyForm,
+      code: generateNextCode(prefix, list),
+      ingredients: [{ ...emptyIngredient }],
+      steps: [{ ...emptyStep }],
+    })
     setMessage('')
   }
 
@@ -169,13 +215,26 @@ function App() {
     setPhotoPreviewUrl(file ? URL.createObjectURL(file) : null)
   }
 
+  // Devuelve la lista actualizada para que quien la llame pueda usarla de inmediato
   const fetchRecipeList = async () => {
     try {
       const res = await fetch(`${API_BASE}/recipes/`)
+      if (!res.ok) throw new Error(`El servidor respondió con error ${res.status}`)
       const data = await res.json()
       setRecipeList(data)
-    } catch {
-      // silencioso
+      setConnectionError(false)
+      const detected = detectPrefix(data)
+      setCodePrefix(detected)
+      return { list: data, prefix: detected }
+    } catch (err) {
+      const isNetworkError = err instanceof TypeError
+      setConnectionError(true)
+      setMessage(
+        isNetworkError
+          ? `No se pudo conectar con el servidor (${API_BASE}). ¿Está el backend corriendo? Ejecuta "python manage.py runserver".`
+          : `Error al cargar las recetas: ${err.message}`,
+      )
+      return null
     }
   }
 
@@ -198,10 +257,13 @@ function App() {
         servings: data.servings || 1,
         yield_quantity: data.yield_quantity ?? '',
         yield_unit: data.yield_unit || 'g',
-        prep_time_min: data.prep_time_min || 0,
-        cook_time_min: data.cook_time_min || 0,
+        prep_time_value: data.prep_time_value || 0,
+        prep_time_unit: data.prep_time_unit || 'min',
+        cook_time_value: data.cook_time_value || 0,
+        cook_time_unit: data.cook_time_unit || 'min',
         shelf_life_value: data.shelf_life_value ?? '',
         shelf_life_unit: data.shelf_life_unit || 'dias',
+        observations: data.observations || '',
         ingredients: data.ingredients?.length
           ? data.ingredients.map((ing) => ({
               group_name: ing.group_name || '',
@@ -245,7 +307,31 @@ function App() {
 
   useEffect(() => {
     if (!exportRecipeId) {
-      fetchRecipeList()
+      // Cargar recetas y luego auto-generar el código inicial del formulario
+      const init = async () => {
+        try {
+          const res = await fetch(`${API_BASE}/recipes/`)
+          if (!res.ok) throw new Error(`Error ${res.status}`)
+          const data = await res.json()
+          setRecipeList(data)
+          setConnectionError(false)
+          const detected = detectPrefix(data)
+          setCodePrefix(detected)
+          // Auto-rellenar el código en el formulario vacío inicial
+          setForm((prev) => ({
+            ...prev,
+            code: prev.code || generateNextCode(detected, data),
+          }))
+        } catch (err) {
+          setConnectionError(true)
+          setMessage(
+            err instanceof TypeError
+              ? `No se pudo conectar con el servidor (${API_BASE}). ¿Está el backend corriendo? Ejecuta "python manage.py runserver".`
+              : `Error al cargar las recetas: ${err.message}`,
+          )
+        }
+      }
+      init()
       return
     }
     const loadExportRecipe = async () => {
@@ -317,7 +403,10 @@ function App() {
           ? `Receta actualizada: ${data.code} - ${data.name} (${revLabel})`
           : `Receta guardada: ${data.code} - ${data.name}`,
       )
-      fetchRecipeList()
+      // Traer la lista actualizada (incluye la receta recién guardada)
+      // y guardarla en un ref para que resetForm pueda calcular el siguiente código
+      const fresh = await fetchRecipeList()
+      if (fresh) setFreshAfterSave(fresh)
     } catch (error) {
       setMessage(`Error al guardar. ${error.message}`)
     } finally {
@@ -344,7 +433,28 @@ function App() {
   return (
     <main className="mx-auto min-h-screen w-full p-6 md:p-8">
       <section className="rounded-2xl border border-stone-300 bg-white p-6 shadow-sm md:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">RecipeForge</p>
+        {connectionError && (
+          <div className="mb-5 flex items-start gap-3 rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3">
+            <span className="text-xl leading-none">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-red-800">Sin conexión con el servidor</p>
+              <p className="mt-1 text-sm text-red-700">
+                No se pudo contactar con el backend en <code className="rounded bg-red-100 px-1 font-mono text-xs">{API_BASE}</code>.
+                Asegúrate de que el servidor Django esté corriendo
+                (<code className="rounded bg-red-100 px-1 font-mono text-xs">python manage.py runserver</code>).
+                Tus recetas no se han perdido, solo no se pueden mostrar mientras el servidor esté apagado.
+              </p>
+              <button
+                type="button"
+                onClick={fetchRecipeList}
+                className="mt-2 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+              >
+                Reintentar conexión
+              </button>
+            </div>
+          </div>
+        )}
+        <img src={rfLogo} alt="RecipeForge" className="h-10 w-auto object-contain" />
         <h1 className="mt-3 text-3xl font-bold text-stone-900">
           {editingRecipeId ? `Editando: ${form.code} — ${form.name}` : 'Nueva ficha técnica'}
         </h1>
@@ -359,16 +469,37 @@ function App() {
 
             {/* ── INFO BÁSICA ── */}
             <div className="grid gap-4 md:grid-cols-3">
-              <label className="flex flex-col gap-1 text-sm text-stone-700">
-                Código
-                <input
-                  required
-                  value={form.code}
-                  onChange={(e) => updateField('code', e.target.value)}
-                  className="rounded-md border border-stone-300 px-3 py-2"
-                  placeholder="FT-001"
-                />
-              </label>
+              <div className="flex flex-col gap-1 text-sm text-stone-700">
+                <span>Código</span>
+                {/* Prefijo + código en una sola fila, contenida */}
+                <div className="flex gap-1 items-center min-w-0">
+                  <input
+                    value={codePrefix}
+                    onChange={(e) => setCodePrefix(e.target.value.toUpperCase())}
+                    className="w-10 shrink-0 rounded-md border border-stone-300 px-1 py-2 text-center font-mono text-sm uppercase"
+                    placeholder="LT"
+                    title="Prefijo (ej. LT = Leche de Tigre)"
+                    disabled={Boolean(editingRecipeId)}
+                  />
+                  <input
+                    required
+                    value={form.code}
+                    onChange={(e) => updateField('code', e.target.value.toUpperCase())}
+                    className="w-full min-w-0 rounded-md border border-stone-300 px-2 py-2 font-mono text-sm"
+                    placeholder="LT-001"
+                  />
+                </div>
+                {/* Botón Auto debajo, solo en modo nuevo */}
+                {!editingRecipeId && (
+                  <button
+                    type="button"
+                    onClick={() => updateField('code', generateNextCode(codePrefix, recipeList))}
+                    className="self-start text-xs text-amber-700 underline hover:text-amber-900"
+                  >
+                    ↻ Generar automáticamente
+                  </button>
+                )}
+              </div>
               <label className="flex flex-col gap-1 text-sm text-stone-700 md:col-span-2">
                 Nombre de receta
                 <input
@@ -425,24 +556,46 @@ function App() {
                 </div>
               </label>
               <label className="flex flex-col gap-1 text-sm text-stone-700">
-                Prep (min)
-                <input
-                  type="number"
-                  min="0"
-                  value={form.prep_time_min}
-                  onChange={(e) => updateField('prep_time_min', e.target.value)}
-                  className="rounded-md border border-stone-300 px-3 py-2"
-                />
+                Preparación
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.prep_time_value}
+                    onChange={(e) => updateField('prep_time_value', e.target.value)}
+                    className="flex-1 rounded-md border border-stone-300 px-3 py-2"
+                    placeholder="0"
+                  />
+                  <select
+                    value={form.prep_time_unit}
+                    onChange={(e) => updateField('prep_time_unit', e.target.value)}
+                    className="rounded-md border border-stone-300 px-3 py-2 bg-white"
+                  >
+                    <option value="min">min</option>
+                    <option value="h">horas</option>
+                  </select>
+                </div>
               </label>
               <label className="flex flex-col gap-1 text-sm text-stone-700">
-                Cocción (min)
-                <input
-                  type="number"
-                  min="0"
-                  value={form.cook_time_min}
-                  onChange={(e) => updateField('cook_time_min', e.target.value)}
-                  className="rounded-md border border-stone-300 px-3 py-2"
-                />
+                Cocción
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    value={form.cook_time_value}
+                    onChange={(e) => updateField('cook_time_value', e.target.value)}
+                    className="flex-1 rounded-md border border-stone-300 px-3 py-2"
+                    placeholder="0"
+                  />
+                  <select
+                    value={form.cook_time_unit}
+                    onChange={(e) => updateField('cook_time_unit', e.target.value)}
+                    className="rounded-md border border-stone-300 px-3 py-2 bg-white"
+                  >
+                    <option value="min">min</option>
+                    <option value="h">horas</option>
+                  </select>
+                </div>
               </label>
               <label className="flex flex-col gap-1 text-sm text-stone-700">
                 Vida útil
@@ -466,7 +619,9 @@ function App() {
                 </div>
               </label>
               <div className="flex items-end rounded-md border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-600">
-                Tiempo total: {totalTime} min
+                Tiempo total: {totalTime >= 60
+                  ? `${Math.floor(totalTime / 60)}h ${totalTime % 60 > 0 ? `${totalTime % 60}min` : ''}`.trim()
+                  : `${totalTime} min`}
               </div>
             </div>
 
@@ -591,6 +746,18 @@ function App() {
               ))}
             </section>
 
+            {/* ── OBSERVACIONES ── */}
+            <label className="flex flex-col gap-1 text-sm text-stone-700">
+              Observaciones
+              <textarea
+                rows="2"
+                value={form.observations}
+                onChange={(e) => updateField('observations', e.target.value)}
+                className="rounded-md border border-stone-300 px-3 py-2"
+                placeholder="Ej: Al momento de producir, hacer la receta x5"
+              />
+            </label>
+
             {/* ── FOTO ── */}
             <label className="flex flex-col gap-1 text-sm text-stone-700">
               Foto del plato final
@@ -617,9 +784,13 @@ function App() {
               <button
                 type="button"
                 onClick={resetForm}
-                className="rounded-md border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700"
+                className={`rounded-md border px-4 py-2 text-sm font-medium ${
+                  savedRecipeId && !editingRecipeId
+                    ? 'border-green-400 bg-green-50 text-green-800 hover:bg-green-100'
+                    : 'border-stone-300 text-stone-700 hover:bg-stone-50'
+                }`}
               >
-                {editingRecipeId ? 'Cancelar edición' : 'Limpiar formulario'}
+                {editingRecipeId ? 'Cancelar edición' : savedRecipeId ? '+ Crear nueva receta' : 'Limpiar formulario'}
               </button>
               {savedRecipeId && (
                 <button

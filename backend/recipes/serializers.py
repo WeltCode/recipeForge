@@ -20,7 +20,8 @@ class RecipeListSerializer(serializers.ModelSerializer):
         model = models.Recipe
         fields = [
             'id', 'code', 'name', 'category', 'revision',
-            'servings', 'prep_time_min', 'cook_time_min',
+            'servings', 'prep_time_value', 'prep_time_unit',
+            'cook_time_value', 'cook_time_unit',
             'created_at', 'updated_at',
         ]
 
@@ -36,8 +37,10 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'code', 'name', 'category', 'description', 'revision',
             'servings', 'yield_quantity', 'yield_unit',
-            'prep_time_min', 'cook_time_min',
+            'prep_time_value', 'prep_time_unit',
+            'cook_time_value', 'cook_time_unit',
             'shelf_life_value', 'shelf_life_unit',
+            'observations',
             'final_photo', 'ingredients', 'steps',
             'created_at', 'updated_at',
         ]

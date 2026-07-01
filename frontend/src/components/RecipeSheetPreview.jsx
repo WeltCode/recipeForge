@@ -99,8 +99,8 @@ function RecipeSheetPreview({ recipe }) {
         {[
           [recipe.servings || '—', 'Raciones'],
           [yieldDisplay, 'Rendimiento'],
-          [recipe.prep_time_min ? `${recipe.prep_time_min} min` : '—', 'Preparación'],
-          [recipe.cook_time_min ? `${recipe.cook_time_min} min` : '—', 'Cocción'],
+          [recipe.prep_time_value ? `${recipe.prep_time_value} ${recipe.prep_time_unit || 'min'}` : '—', 'Preparación'],
+          [recipe.cook_time_value ? `${recipe.cook_time_value} ${recipe.cook_time_unit || 'min'}` : '—', 'Cocción'],
           [shelfLife, 'Vida útil'],
         ].map(([value, label], i, arr) => (
           <div
@@ -117,7 +117,7 @@ function RecipeSheetPreview({ recipe }) {
       <div className="grid flex-1 border-b-[2.5px] border-[#1a1a18]" style={{ gridTemplateColumns: '185px 1fr' }}>
 
         {/* INGREDIENTES */}
-        <aside className="border-r-[2.5px] border-[#1a1a18] bg-white px-[10px] py-[9px] overflow-hidden">
+        <aside className="border-r-[2.5px] border-[#1a1a18] bg-white px-[10px] py-[9px] overflow-hidden flex flex-col">
           <div className="rf-mono mb-[8px] flex items-center gap-[4px] text-[9.5px] font-medium uppercase tracking-[0.1em] text-[#1a1a18]">
             Ingredientes
             <span className="h-[0.5px] flex-1 bg-[#cccccc]" />
@@ -154,6 +154,20 @@ function RecipeSheetPreview({ recipe }) {
               <p className="rf-mono text-[11px] text-[#bbbbbb]">Los ingredientes aparecerán aquí</p>
             )}
           </div>
+
+          {/* OBSERVACIONES — pegado al fondo de la columna */}
+          {recipe.observations?.trim() ? (
+            <div className="mt-auto pt-[8px]">
+              <div className="border-t-[1.5px] border-[#1a1a18] pt-[6px]">
+                <p className="rf-mono mb-[3px] text-[8px] font-medium uppercase tracking-[0.12em] text-[#1a1a18]">
+                  Observaciones
+                </p>
+                <p className="text-[10px] leading-[1.4] text-[#333333]">
+                  {recipe.observations}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </aside>
 
         {/* PASOS */}
