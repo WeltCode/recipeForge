@@ -1,0 +1,16 @@
+name: Mantener backend despierto
+
+# Hace ping al backend en Render para evitar que el plan gratuito se duerma.
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # cada 10 minutos
+  workflow_dispatch:            # permite ejecutarlo a mano desde GitHub
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping health endpoint
+        run: |
+          echo "Ping a RecipeForge API..."
+          curl -sS -m 40 https://recipeforge-api.onrender.com/api/health/ || true
