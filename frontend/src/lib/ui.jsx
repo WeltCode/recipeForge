@@ -1,5 +1,21 @@
 // Helpers visuales compartidos de RecipeForge.
 
+// Convierte texto (con coma o punto) a número; '' o inválido -> null.
+export function parseDecimal(v) {
+  if (v === '' || v == null) return null
+  const n = parseFloat(String(v).replace(',', '.'))
+  return isNaN(n) ? null : n
+}
+
+// Formatea un número para mostrar: coma decimal, sin ceros sobrantes.
+// 5.5 -> "5,5" | 20 -> "20" | "1.30" -> "1,3"
+export function fmtDecimal(v) {
+  if (v === '' || v == null) return ''
+  const n = parseFloat(String(v).replace(',', '.'))
+  if (isNaN(n)) return String(v)
+  return String(n).replace('.', ',')
+}
+
 export function greeting() {
   const h = new Date().getHours()
   if (h < 6) return 'Buenas noches'

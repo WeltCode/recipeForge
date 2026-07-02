@@ -18,9 +18,9 @@ class Recipe(models.Model):
     yield_quantity = models.DecimalField(max_digits=10, decimal_places=3, null=True, blank=True)
     yield_unit = models.CharField(max_length=2, choices=YIELD_UNITS, default='g')
     TIME_UNITS = [('min', 'Minutos'), ('h', 'Horas')]
-    prep_time_value = models.PositiveIntegerField(default=0)
+    prep_time_value = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     prep_time_unit = models.CharField(max_length=3, choices=TIME_UNITS, default='min')
-    cook_time_value = models.PositiveIntegerField(default=0)
+    cook_time_value = models.DecimalField(max_digits=6, decimal_places=2, default=0)
     cook_time_unit = models.CharField(max_length=3, choices=TIME_UNITS, default='min')
     shelf_life_value = models.PositiveIntegerField(null=True, blank=True)
     shelf_life_unit = models.CharField(max_length=6, choices=SHELF_LIFE_UNITS, default='dias')

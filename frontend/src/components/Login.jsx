@@ -5,7 +5,7 @@ import wokVideo from '../assets/wokvideo.mp4'
 import { User, Lock, Eye, EyeOff, Flame } from './icons'
 import PoweredByWeltBrave from './branding/PoweredByWeltBrave'
 
-function Login({ onSuccess }) {
+function Login({ onSuccess, notice }) {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPass, setShowPass] = useState(false)
@@ -68,6 +68,12 @@ function Login({ onSuccess }) {
             Inicia sesión para gestionar tus fichas técnicas
           </p>
         </div>
+
+        {notice && (
+          <p className="mt-5 rounded-xl border border-amber-400/30 bg-amber-500/15 px-3 py-2.5 text-center text-sm text-amber-100">
+            {notice}
+          </p>
+        )}
 
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <div>

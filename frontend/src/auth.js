@@ -9,7 +9,11 @@ const KEYS = {
   restaurant: 'rf_restaurant',
   restaurantName: 'rf_restaurant_name',
   restaurantPrefix: 'rf_restaurant_prefix',
+  lastActivity: 'rf_last_activity',
 }
+
+// Minutos de inactividad tras los que se cierra la sesión automáticamente.
+export const IDLE_LIMIT_MS = 15 * 60 * 1000
 
 export function getAccess() {
   return localStorage.getItem(KEYS.access)

@@ -1,4 +1,5 @@
 import ldtLogo from '../assets/LDTlogo.png'
+import { fmtDecimal, parseDecimal } from '../lib/ui'
 
 function groupIngredients(ingredients) {
   const grouped = new Map()
@@ -11,11 +12,11 @@ function groupIngredients(ingredients) {
   return Array.from(grouped.entries())
 }
 
-// Muestra la cantidad como entero, quitando decimales innecesarios
+// Muestra la cantidad con decimales (coma), sin ceros sobrantes.
 function fmtQty(val) {
-  const n = parseFloat(val)
-  if (isNaN(n)) return val || 'c/s'
-  return String(Math.round(n))
+  if (val === '' || val == null) return 'c/s'
+  const s = fmtDecimal(val)
+  return s === '' ? 'c/s' : s
 }
 
 function RecipeSheetPreview({ recipe }) {
@@ -99,8 +100,8 @@ function RecipeSheetPreview({ recipe }) {
         {[
           [recipe.servings || '—', 'Raciones'],
           [yieldDisplay, 'Rendimiento'],
-          [recipe.prep_time_value ? `${recipe.prep_time_value} ${recipe.prep_time_unit || 'min'}` : '—', 'Preparación'],
-          [recipe.cook_time_value ? `${recipe.cook_time_value} ${recipe.cook_time_unit || 'min'}` : '—', 'Cocción'],
+          [parseDecimal(recipe.prep_time_value) ? `${fmtDecimal(recipe.prep_time_value)} ${recipe.prep_time_unit || 'min'}` : '—', 'Preparación'],
+          [parseDecimal(recipe.cook_time_value) ? `${fmtDecimal(recipe.cook_time_value)} ${recipe.cook_time_unit || 'min'}` : '—', 'Cocción'],
           [shelfLife, 'Vida útil'],
         ].map(([value, label], i, arr) => (
           <div

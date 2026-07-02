@@ -4,7 +4,8 @@ import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
 import { ArrowLeft } from './components/icons'
-import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, getRestaurantPrefix, logout } from './auth'
+import { parseDecimal, fmtDecimal } from './lib/ui'
+import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, getRestaurantPrefix, logout, IDLE_LIMIT_MS } from './auth'
 import rfLogo from './assets/logorecipe.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -44,7 +45,7 @@ const INGREDIENT_GROUPS = [
 const emptyIngredient = {
   group_name: '',
   ingredient_name: '',
-  quantity: '0',
+  quantity: '',
   unit: 'g',
   note: '',
 }
@@ -85,9 +86,9 @@ const emptyForm = {
   servings: 1,
   yield_quantity: '',
   yield_unit: 'g',
-  prep_time_value: 0,
+  prep_time_value: '',
   prep_time_unit: 'min',
-  cook_time_value: 0,
+  cook_time_value: '',
   cook_time_unit: 'min',
   shelf_life_value: '',
   shelf_life_unit: 'dias',
@@ -113,6 +114,7 @@ function App() {
   const [role, setRole] = useState(getRole())
   const [view, setView] = useState('dashboard') // 'dashboard' | 'editor'
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
+  const [sessionExpired, setSessionExpired] = useState(() => localStorage.getItem('rf_logout_reason') === 'idle')
   const username = getUsername()
   const restaurantName = getRestaurantName()
   const isSuperAdmin = role === 'superadmin'
@@ -121,10 +123,12 @@ function App() {
 
   const handleLogout = () => {
     logout()
+    localStorage.removeItem('rf_logout_reason')
     setAuthed(false)
     setRole(null)
     setView('dashboard')
     setSelectedRestaurantId(null)
+    setSessionExpired(false)
   }
 
   // ── Navegación panel ↔ editor ──
@@ -145,6 +149,52 @@ function App() {
     window.scrollTo({ top: 0 })
   }
 
+  // ── Cierre de sesión por inactividad (15 min sin interacción) ──
+  useEffect(() => {
+    if (!authed) return
+    const key = 'rf_last_activity'
+
+    const forceLogout = () => {
+      logout()
+      localStorage.setItem('rf_logout_reason', 'idle')
+      setAuthed(false)
+      setRole(null)
+      setView('dashboard')
+      setSelectedRestaurantId(null)
+      setSessionExpired(true)
+    }
+
+    // Si al (re)cargar ya se superó el límite (p.ej. recarga tras estar ausente)
+    const last = Number(localStorage.getItem(key) || 0)
+    if (last && Date.now() - last > IDLE_LIMIT_MS) {
+      forceLogout()
+      return
+    }
+
+    const mark = () => localStorage.setItem(key, String(Date.now()))
+    mark()
+    let lastMark = Date.now()
+    const onActivity = () => {
+      const now = Date.now()
+      if (now - lastMark > 5000) {
+        lastMark = now
+        mark()
+      }
+    }
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click']
+    events.forEach((e) => window.addEventListener(e, onActivity, { passive: true }))
+
+    const interval = setInterval(() => {
+      const l = Number(localStorage.getItem(key) || 0)
+      if (l && Date.now() - l > IDLE_LIMIT_MS) forceLogout()
+    }, 20000)
+
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, onActivity))
+      clearInterval(interval)
+    }
+  }, [authed])
+
   const exportRecipeId = new URL(window.location.href).searchParams.get('export')
   const isExportMode = Boolean(exportRecipeId)
   const [exportRecipe, setExportRecipe] = useState(null)
@@ -153,9 +203,9 @@ function App() {
 
   const [form, setForm] = useState({ ...emptyForm })
 
-  // Convierte el tiempo a minutos para calcular el total
+  // Convierte el tiempo a minutos para calcular el total (admite decimales con coma)
   const toMinutes = (value, unit) => {
-    const n = Number(value || 0)
+    const n = parseDecimal(value) || 0
     return unit === 'h' ? n * 60 : n
   }
   const totalTime = useMemo(
@@ -209,11 +259,11 @@ function App() {
     category: form.category,
     description: form.description,
     servings: Number(form.servings || 1),
-    yield_quantity: form.yield_quantity ? Number(form.yield_quantity) : null,
+    yield_quantity: parseDecimal(form.yield_quantity),
     yield_unit: form.yield_unit || 'g',
-    prep_time_value: Number(form.prep_time_value || 0),
+    prep_time_value: parseDecimal(form.prep_time_value) ?? 0,
     prep_time_unit: form.prep_time_unit || 'min',
-    cook_time_value: Number(form.cook_time_value || 0),
+    cook_time_value: parseDecimal(form.cook_time_value) ?? 0,
     cook_time_unit: form.cook_time_unit || 'min',
     shelf_life_value: form.shelf_life_value ? Number(form.shelf_life_value) : null,
     shelf_life_unit: form.shelf_life_unit || 'dias',
@@ -222,7 +272,7 @@ function App() {
       .filter((item) => item.ingredient_name.trim())
       .map((item, index) => ({
         ...item,
-        quantity: Number(item.quantity || 0),
+        quantity: parseDecimal(item.quantity) ?? 0,
         order: index + 1,
       })),
     steps: form.steps
@@ -300,11 +350,11 @@ function App() {
         category: data.category || '',
         description: data.description || '',
         servings: data.servings || 1,
-        yield_quantity: data.yield_quantity ?? '',
+        yield_quantity: fmtDecimal(data.yield_quantity),
         yield_unit: data.yield_unit || 'g',
-        prep_time_value: data.prep_time_value || 0,
+        prep_time_value: fmtDecimal(data.prep_time_value),
         prep_time_unit: data.prep_time_unit || 'min',
-        cook_time_value: data.cook_time_value || 0,
+        cook_time_value: fmtDecimal(data.cook_time_value),
         cook_time_unit: data.cook_time_unit || 'min',
         shelf_life_value: data.shelf_life_value ?? '',
         shelf_life_unit: data.shelf_life_unit || 'dias',
@@ -313,7 +363,7 @@ function App() {
           ? data.ingredients.map((ing) => ({
               group_name: ing.group_name || '',
               ingredient_name: ing.ingredient_name || '',
-              quantity: String(ing.quantity || 0),
+              quantity: fmtDecimal(ing.quantity),
               unit: ing.unit || 'g',
               note: ing.note || '',
             }))
@@ -465,10 +515,13 @@ function App() {
   if (!authed) {
     return (
       <Login
+        notice={sessionExpired ? 'Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.' : ''}
         onSuccess={(data) => {
+          localStorage.removeItem('rf_logout_reason')
           setAuthed(true)
           setRole(data.role)
           setView('dashboard')
+          setSessionExpired(false)
         }}
       />
     )
@@ -686,11 +739,10 @@ function App() {
                 Rendimiento
                 <div className="flex gap-2">
                   <input
-                    type="number"
-                    min="0"
-                    step="0.001"
+                    type="text"
+                    inputMode="decimal"
                     value={form.yield_quantity}
-                    onChange={(e) => updateField('yield_quantity', e.target.value)}
+                    onChange={(e) => updateField('yield_quantity', e.target.value.replace(/[^\d.,]/g, ''))}
                     className="flex-1 rounded-md border border-stone-300 px-3 py-2"
                     placeholder="0"
                   />
@@ -708,10 +760,10 @@ function App() {
                 Preparación
                 <div className="flex gap-2">
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={form.prep_time_value}
-                    onChange={(e) => updateField('prep_time_value', e.target.value)}
+                    onChange={(e) => updateField('prep_time_value', e.target.value.replace(/[^\d.,]/g, ''))}
                     className="flex-1 rounded-md border border-stone-300 px-3 py-2"
                     placeholder="0"
                   />
@@ -729,10 +781,10 @@ function App() {
                 Cocción
                 <div className="flex gap-2">
                   <input
-                    type="number"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     value={form.cook_time_value}
-                    onChange={(e) => updateField('cook_time_value', e.target.value)}
+                    onChange={(e) => updateField('cook_time_value', e.target.value.replace(/[^\d.,]/g, ''))}
                     className="flex-1 rounded-md border border-stone-300 px-3 py-2"
                     placeholder="0"
                   />
@@ -768,9 +820,14 @@ function App() {
                 </div>
               </label>
               <div className="flex items-end rounded-md border border-dashed border-stone-300 px-3 py-2 text-sm text-stone-600">
-                Tiempo total: {totalTime >= 60
-                  ? `${Math.floor(totalTime / 60)}h ${totalTime % 60 > 0 ? `${totalTime % 60}min` : ''}`.trim()
-                  : `${totalTime} min`}
+                Tiempo total: {(() => {
+                  const t = Math.round(totalTime)
+                  if (t >= 60) {
+                    const m = t % 60
+                    return `${Math.floor(t / 60)}h ${m > 0 ? `${m}min` : ''}`.trim()
+                  }
+                  return `${t} min`
+                })()}
               </div>
             </div>
 
@@ -817,13 +874,12 @@ function App() {
                     onChange={(e) => updateIngredient(index, 'ingredient_name', e.target.value)}
                   />
                   <input
-                    type="number"
-                    step="1"
-                    min="0"
+                    type="text"
+                    inputMode="decimal"
                     className="rounded-md border border-stone-300 px-3 py-2 text-sm md:col-span-2"
                     placeholder="Cantidad"
                     value={item.quantity}
-                    onChange={(e) => updateIngredient(index, 'quantity', e.target.value)}
+                    onChange={(e) => updateIngredient(index, 'quantity', e.target.value.replace(/[^\d.,]/g, ''))}
                   />
                   <input
                     className="rounded-md border border-stone-300 px-3 py-2 text-sm md:col-span-1"
