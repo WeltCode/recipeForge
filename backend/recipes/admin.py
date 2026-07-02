@@ -15,6 +15,7 @@ class StepInline(admin.TabularInline):
 
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
-    list_display = ['code', 'name', 'category', 'servings', 'updated_at']
+    list_display = ['code', 'name', 'restaurant', 'category', 'servings', 'revision', 'updated_at']
+    list_filter = ['restaurant', 'category']
     search_fields = ['code', 'name', 'category']
     inlines = [IngredientInline, StepInline]

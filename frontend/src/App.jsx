@@ -5,7 +5,7 @@ import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
 import { ArrowLeft } from './components/icons'
 import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, logout } from './auth'
-import rfLogo from './assets/lockup-color.png'
+import rfLogo from './assets/logorecipe.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 

@@ -1,0 +1,25 @@
+# Configuración de despliegue para Render (backend Django).
+# La base de datos (Neon) y el frontend (Netlify) se gestionan aparte.
+services:
+  - type: web
+    name: recipeforge-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn config.wsgi:application"
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: PYTHON_VERSION
+        value: "3.12.6"

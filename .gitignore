@@ -30,5 +30,8 @@ frontend/dist/
 # Media uploads
 backend/media/
 
+# Archivos estáticos recolectados (se generan en el deploy)
+backend/staticfiles/
+
 # Documentación de planificación interna
 PlanEscalabeRecipeForge.md

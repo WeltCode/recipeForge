@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import rfLogoWhite from '../assets/lockup-white-on-dark.png'
+import rfLogo from '../assets/logorecipe.png'
 import UserManager from './UserManager'
 import {
   Search, Plus, Pencil, Trash, Doc, Cloche, Sparkle, Book,
@@ -61,7 +61,9 @@ function Dashboard({
         <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-6 md:px-8">
           {/* barra superior */}
           <div className="flex items-center justify-between">
-            <img src={rfLogoWhite} alt="RecipeForge" className="h-9 w-auto object-contain" />
+            <div className="rounded-xl bg-white/95 px-3 py-1.5 shadow-sm">
+              <img src={rfLogo} alt="RecipeForge" className="h-7 w-auto object-contain" />
+            </div>
             <button
               onClick={onLogout}
               className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/20"

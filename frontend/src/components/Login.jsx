@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { login } from '../auth'
-import rfLogoWhite from '../assets/lockup-white-on-dark.png'
+import rfLogo from '../assets/logorecipe.png'
 import wokVideo from '../assets/wokvideo.mp4'
 import { User, Lock, Eye, EyeOff, Flame } from './icons'
 import PoweredByWeltBrave from './branding/PoweredByWeltBrave'
@@ -56,7 +56,9 @@ function Login({ onSuccess }) {
         style={{ animation: 'rf-in .6s cubic-bezier(.2,.8,.2,1) both' }}
       >
         <div className="flex flex-col items-center">
-          <img src={rfLogoWhite} alt="RecipeForge" className="h-12 w-auto object-contain" />
+          <div className="rounded-2xl bg-white/95 px-5 py-3 shadow-lg">
+            <img src={rfLogo} alt="RecipeForge" className="h-11 w-auto object-contain" />
+          </div>
           <div className="mt-5 flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-500/10 px-3 py-1 text-xs font-medium text-orange-200">
             <Flame size={14} />
             Panel de cocina profesional

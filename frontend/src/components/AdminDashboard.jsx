@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import rfLogoWhite from '../assets/lockup-white-on-dark.png'
+import rfLogo from '../assets/logorecipe.png'
 import { authFetch } from '../auth'
 import RestaurantDetail from './RestaurantDetail'
 import {
@@ -102,7 +102,9 @@ function AdminDashboard({
         </div>
         <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-6 md:px-8">
           <div className="flex items-center justify-between">
-            <img src={rfLogoWhite} alt="RecipeForge" className="h-9 w-auto object-contain" />
+            <div className="rounded-xl bg-white/95 px-3 py-1.5 shadow-sm">
+              <img src={rfLogo} alt="RecipeForge" className="h-7 w-auto object-contain" />
+            </div>
             <div className="flex items-center gap-3">
               <span className="hidden items-center gap-1 rounded-full bg-indigo-400/25 px-3 py-1 text-xs font-medium text-indigo-100 sm:flex">
                 <Sparkle size={12} /> Super Admin

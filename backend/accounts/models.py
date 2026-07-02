@@ -46,9 +46,13 @@ class UserProfile(models.Model):
 
 
 @receiver(post_save, sender=User)
-def ensure_profile(sender, instance, created, **kwargs):
-    """Crea automáticamente un perfil (rol básico) al crear un usuario."""
-    if created:
+def ensure_profile(sender, instance, created, raw=False, **kwargs):
+    """Crea automáticamente un perfil (rol básico) al crear un usuario.
+
+    'raw' es True durante loaddata (importación de fixtures): en ese caso no
+    creamos el perfil para no duplicar el que ya viene en los datos importados.
+    """
+    if created and not raw:
         UserProfile.objects.create(user=instance)
 
 
