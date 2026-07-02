@@ -3,7 +3,7 @@ name: Mantener backend despierto
 # Hace ping al backend en Render para evitar que el plan gratuito se duerma.
 on:
   schedule:
-    - cron: "*/10 * * * *"   # cada 10 minutos
+    - cron: "*/14 * * * *"   # cada 14 minutos (justo por debajo del sueño de 15 min de Render)
   workflow_dispatch:            # permite ejecutarlo a mano desde GitHub
 
 jobs:
