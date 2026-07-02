@@ -1,5 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import RecipeSheetPreview from './components/RecipeSheetPreview'
+import Login from './components/Login'
+import Dashboard from './components/Dashboard'
+import AdminDashboard from './components/AdminDashboard'
+import { ArrowLeft } from './components/icons'
+import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, logout } from './auth'
 import rfLogo from './assets/lockup-color.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -98,11 +103,45 @@ function App() {
   const [photoFile, setPhotoFile] = useState(null)
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState(null)
   const [recipeList, setRecipeList] = useState([])
-  const [showList, setShowList] = useState(false)
   const [editingRecipeId, setEditingRecipeId] = useState(null)
   const [connectionError, setConnectionError] = useState(false)
   const [codePrefix, setCodePrefix] = useState('LT')
   const [freshAfterSave, setFreshAfterSave] = useState(null)
+
+  // ── Sesión / rol ──
+  const [authed, setAuthed] = useState(isAuthenticated())
+  const [role, setRole] = useState(getRole())
+  const [view, setView] = useState('dashboard') // 'dashboard' | 'editor'
+  const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
+  const username = getUsername()
+  const restaurantName = getRestaurantName()
+  const isSuperAdmin = role === 'superadmin'
+  const canCreate = role === 'premium' || role === 'superadmin'
+  const canDelete = canCreate
+
+  const handleLogout = () => {
+    logout()
+    setAuthed(false)
+    setRole(null)
+    setView('dashboard')
+    setSelectedRestaurantId(null)
+  }
+
+  // ── Navegación panel ↔ editor ──
+  const openNewRecipe = () => {
+    resetForm()
+    setView('editor')
+    window.scrollTo({ top: 0 })
+  }
+  const openRecipe = async (id) => {
+    await loadRecipeForEdit(id)
+    setView('editor')
+  }
+  const backToDashboard = () => {
+    fetchRecipeList()
+    setView('dashboard')
+    window.scrollTo({ top: 0 })
+  }
 
   const exportRecipeId = new URL(window.location.href).searchParams.get('export')
   const isExportMode = Boolean(exportRecipeId)
@@ -159,6 +198,10 @@ function App() {
     })
 
   const buildPayload = () => ({
+    // El super admin crea recetas dentro del restaurante que está gestionando
+    ...(isSuperAdmin && selectedRestaurantId && !editingRecipeId
+      ? { restaurant: selectedRestaurantId }
+      : {}),
     code: form.code,
     name: form.name,
     category: form.category,
@@ -218,7 +261,7 @@ function App() {
   // Devuelve la lista actualizada para que quien la llame pueda usarla de inmediato
   const fetchRecipeList = async () => {
     try {
-      const res = await fetch(`${API_BASE}/recipes/`)
+      const res = await authFetch(`${API_BASE}/recipes/`)
       if (!res.ok) throw new Error(`El servidor respondió con error ${res.status}`)
       const data = await res.json()
       setRecipeList(data)
@@ -241,7 +284,7 @@ function App() {
   const loadRecipeForEdit = async (recipeId) => {
     setMessage('')
     try {
-      const res = await fetch(`${API_BASE}/recipes/${recipeId}/`)
+      const res = await authFetch(`${API_BASE}/recipes/${recipeId}/`)
       if (!res.ok) throw new Error('No se pudo cargar la receta')
       const data = await res.json()
       setEditingRecipeId(recipeId)
@@ -291,7 +334,7 @@ function App() {
   const deleteRecipe = async (recipeId, recipeName) => {
     if (!window.confirm(`¿Eliminar "${recipeName}"? Esta acción no se puede deshacer.`)) return
     try {
-      const res = await fetch(`${API_BASE}/recipes/${recipeId}/`, { method: 'DELETE' })
+      const res = await authFetch(`${API_BASE}/recipes/${recipeId}/`, { method: 'DELETE' })
       if (!res.ok) throw new Error('Error al eliminar')
       setMessage(`Receta "${recipeName}" eliminada.`)
       fetchRecipeList()
@@ -306,11 +349,12 @@ function App() {
   }
 
   useEffect(() => {
+    if (!authed) return
     if (!exportRecipeId) {
       // Cargar recetas y luego auto-generar el código inicial del formulario
       const init = async () => {
         try {
-          const res = await fetch(`${API_BASE}/recipes/`)
+          const res = await authFetch(`${API_BASE}/recipes/`)
           if (!res.ok) throw new Error(`Error ${res.status}`)
           const data = await res.json()
           setRecipeList(data)
@@ -337,7 +381,7 @@ function App() {
     const loadExportRecipe = async () => {
       setExportLoading(true)
       try {
-        const response = await fetch(`${API_BASE}/recipes/${exportRecipeId}/`)
+        const response = await authFetch(`${API_BASE}/recipes/${exportRecipeId}/`)
         if (!response.ok) throw new Error('No se encontró la receta')
         const data = await response.json()
         setExportRecipe({ ...data, photoPreviewUrl: data.final_photo || null })
@@ -348,7 +392,7 @@ function App() {
       }
     }
     loadExportRecipe()
-  }, [exportRecipeId])
+  }, [exportRecipeId, authed])
 
   useEffect(() => {
     if (isExportMode && exportRecipe && !exportLoading && !printScheduled) {
@@ -380,9 +424,9 @@ function App() {
             formData.append(key, value)
           }
         })
-        response = await fetch(url, { method, body: formData })
+        response = await authFetch(url, { method, body: formData })
       } else {
-        response = await fetch(url, {
+        response = await authFetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(buildPayload()),
@@ -414,6 +458,19 @@ function App() {
     }
   }
 
+  // ── SIN SESIÓN: pantalla de login ─────────────────────────────────────────
+  if (!authed) {
+    return (
+      <Login
+        onSuccess={(data) => {
+          setAuthed(true)
+          setRole(data.role)
+          setView('dashboard')
+        }}
+      />
+    )
+  }
+
   // ── MODO EXPORTACIÓN ──────────────────────────────────────────────────────
   if (isExportMode) {
     return (
@@ -429,10 +486,76 @@ function App() {
     )
   }
 
-  // ── MODO NORMAL ───────────────────────────────────────────────────────────
+  // ── DASHBOARD (pantalla de inicio tras login) ─────────────────────────────
+  if (view === 'dashboard') {
+    return (
+      <>
+        {connectionError && (
+          <div className="mx-auto max-w-6xl px-5 pt-4 md:px-8">
+            <div className="flex items-start gap-3 rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3">
+              <span className="text-xl leading-none">⚠️</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-800">Sin conexión con el servidor</p>
+                <p className="mt-1 text-sm text-red-700">
+                  No se pudo contactar con el backend. Tus recetas no se han perdido, solo no se
+                  pueden mostrar mientras el servidor esté apagado.
+                </p>
+                <button
+                  type="button"
+                  onClick={fetchRecipeList}
+                  className="mt-2 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
+                >
+                  Reintentar conexión
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {isSuperAdmin ? (
+          <AdminDashboard
+            username={username}
+            recipes={recipeList}
+            canDelete={canDelete}
+            onLogout={handleLogout}
+            selectedRestaurantId={selectedRestaurantId}
+            onSelectRestaurant={setSelectedRestaurantId}
+            onBackToRestaurants={() => setSelectedRestaurantId(null)}
+            onOpenRecipe={openRecipe}
+            onNewRecipe={openNewRecipe}
+            onDeleteRecipe={deleteRecipe}
+            onDownloadPDF={downloadPDF}
+          />
+        ) : (
+          <Dashboard
+            username={username}
+            role={role}
+            restaurantName={restaurantName}
+            recipes={recipeList}
+            canCreate={canCreate}
+            canDelete={canDelete}
+            onNew={openNewRecipe}
+            onEdit={openRecipe}
+            onDelete={deleteRecipe}
+            onDownloadPDF={downloadPDF}
+            onLogout={handleLogout}
+          />
+        )}
+      </>
+    )
+  }
+
+  // ── EDITOR (crear / editar ficha) ─────────────────────────────────────────
   return (
     <main className="mx-auto min-h-screen w-full p-6 md:p-8">
       <section className="rounded-2xl border border-stone-300 bg-white p-6 shadow-sm md:p-8">
+        {/* Volver al panel */}
+        <button
+          type="button"
+          onClick={backToDashboard}
+          className="mb-5 flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
+        >
+          <ArrowLeft size={17} /> Volver al panel
+        </button>
         {connectionError && (
           <div className="mb-5 flex items-start gap-3 rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3">
             <span className="text-xl leading-none">⚠️</span>
@@ -454,7 +577,30 @@ function App() {
             </div>
           </div>
         )}
-        <img src={rfLogo} alt="RecipeForge" className="h-10 w-auto object-contain" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <img src={rfLogo} alt="RecipeForge" className="h-10 w-auto object-contain" />
+          <div className="flex items-center gap-3 text-sm">
+            <span className="text-stone-600">
+              {username}
+              <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
+                role === 'superadmin'
+                  ? 'bg-indigo-100 text-indigo-800'
+                  : role === 'premium'
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-stone-200 text-stone-700'
+              }`}>
+                {role === 'superadmin' ? 'Super Admin' : role === 'premium' ? 'Premium' : 'Básico'}
+              </span>
+            </span>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-md border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
         <h1 className="mt-3 text-3xl font-bold text-stone-900">
           {editingRecipeId ? `Editando: ${form.code} — ${form.name}` : 'Nueva ficha técnica'}
         </h1>
@@ -773,25 +919,35 @@ function App() {
             </label>
 
             {/* ── ACCIONES ── */}
+            {!canCreate && !editingRecipeId && (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                Tu rol (Básico) solo permite <strong>ver y editar</strong> recetas existentes.
+                Selecciona una ficha de la lista para editarla.
+              </p>
+            )}
             <div className="flex flex-wrap items-center gap-3">
-              <button
-                type="submit"
-                disabled={loading}
-                className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
-              >
-                {loading ? 'Guardando...' : editingRecipeId ? 'Actualizar receta' : 'Guardar receta'}
-              </button>
-              <button
-                type="button"
-                onClick={resetForm}
-                className={`rounded-md border px-4 py-2 text-sm font-medium ${
-                  savedRecipeId && !editingRecipeId
-                    ? 'border-green-400 bg-green-50 text-green-800 hover:bg-green-100'
-                    : 'border-stone-300 text-stone-700 hover:bg-stone-50'
-                }`}
-              >
-                {editingRecipeId ? 'Cancelar edición' : savedRecipeId ? '+ Crear nueva receta' : 'Limpiar formulario'}
-              </button>
+              {(editingRecipeId || canCreate) && (
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                >
+                  {loading ? 'Guardando...' : editingRecipeId ? 'Actualizar receta' : 'Guardar receta'}
+                </button>
+              )}
+              {(editingRecipeId || canCreate) && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className={`rounded-md border px-4 py-2 text-sm font-medium ${
+                    savedRecipeId && !editingRecipeId
+                      ? 'border-green-400 bg-green-50 text-green-800 hover:bg-green-100'
+                      : 'border-stone-300 text-stone-700 hover:bg-stone-50'
+                  }`}
+                >
+                  {editingRecipeId ? 'Cancelar edición' : savedRecipeId ? '+ Crear nueva receta' : 'Limpiar formulario'}
+                </button>
+              )}
               {savedRecipeId && (
                 <button
                   type="button"
@@ -821,72 +977,6 @@ function App() {
             {message}
           </p>
         )}
-
-        {/* ── LISTA DE FICHAS ── */}
-        <section className="mt-10">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold text-stone-900">Fichas creadas</h2>
-            <button
-              type="button"
-              onClick={() => { fetchRecipeList(); setShowList((v) => !v) }}
-              className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-800"
-            >
-              {showList ? 'Ocultar lista' : `Ver lista (${recipeList.length})`}
-            </button>
-          </div>
-
-          {showList && (
-            <div className="mt-4 overflow-hidden rounded-2xl border border-stone-200">
-              {recipeList.length === 0 ? (
-                <p className="px-5 py-4 text-sm text-stone-500">No hay fichas guardadas aún.</p>
-              ) : (
-                <table className="w-full text-sm">
-                  <thead className="bg-stone-100 text-left text-xs font-semibold uppercase tracking-[0.16em] text-stone-500">
-                    <tr>
-                      <th className="px-4 py-3">Código</th>
-                      <th className="px-4 py-3">Nombre</th>
-                      <th className="px-4 py-3">Categoría</th>
-                      <th className="px-4 py-3">Rev.</th>
-                      <th className="px-4 py-3">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-stone-100">
-                    {recipeList.map((r) => (
-                      <tr key={r.id} className="hover:bg-stone-50">
-                        <td className="px-4 py-3 font-mono text-xs text-stone-700">{r.code}</td>
-                        <td className="px-4 py-3 font-medium text-stone-900">{r.name}</td>
-                        <td className="px-4 py-3 text-stone-600">{r.category || '—'}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-stone-500">0.{r.revision}</td>
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => downloadPDF(r.id)}
-                              className="rounded bg-amber-100 px-2 py-1 text-xs font-medium text-amber-900 hover:bg-amber-200"
-                            >
-                              PDF
-                            </button>
-                            <button
-                              onClick={() => loadRecipeForEdit(r.id)}
-                              className="rounded bg-stone-100 px-2 py-1 text-xs font-medium text-stone-700 hover:bg-stone-200"
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => deleteRecipe(r.id, r.name)}
-                              className="rounded bg-red-50 px-2 py-1 text-xs font-medium text-red-700 hover:bg-red-100"
-                            >
-                              Eliminar
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          )}
-        </section>
       </section>
     </main>
   )

@@ -8,15 +8,26 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
 
+from accounts.models import (
+    Restaurant,
+    UserProfile,
+    get_user_restaurant,
+    get_user_role,
+)
+
 from .models import Recipe
+from .permissions import RecipeRolePermission
 from .serializers import RecipeDetailSerializer, RecipeListSerializer
 
 
 class HealthCheckView(APIView):
+    permission_classes = [AllowAny]
+
     def get(self, _request):
         return Response({'status': 'ok', 'service': 'recipeforge-api'})
 
@@ -24,6 +35,27 @@ class HealthCheckView(APIView):
 class RecipeViewSet(ModelViewSet):
     queryset = Recipe.objects.prefetch_related('ingredients', 'steps').all()
     parser_classes = [JSONParser, MultiPartParser, FormParser]
+    permission_classes = [RecipeRolePermission]
+
+    def get_queryset(self):
+        qs = Recipe.objects.prefetch_related('ingredients', 'steps').all()
+        user = self.request.user
+        if get_user_role(user) == UserProfile.ROLE_SUPERADMIN:
+            # El super admin ve todo; puede filtrar por ?restaurant=<id>
+            restaurant_id = self.request.query_params.get('restaurant')
+            return qs.filter(restaurant_id=restaurant_id) if restaurant_id else qs
+        # Los usuarios normales solo ven las recetas de su restaurante
+        return qs.filter(restaurant=get_user_restaurant(user))
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        restaurant = get_user_restaurant(user)
+        if get_user_role(user) == UserProfile.ROLE_SUPERADMIN:
+            # El super admin indica el restaurante destino
+            rid = self.request.data.get('restaurant')
+            if rid:
+                restaurant = Restaurant.objects.filter(pk=rid).first()
+        serializer.save(restaurant=restaurant)
 
     def get_serializer_class(self):
         if self.action == 'list':

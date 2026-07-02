@@ -19,10 +19,10 @@ class RecipeListSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Recipe
         fields = [
-            'id', 'code', 'name', 'category', 'revision',
+            'id', 'code', 'name', 'category', 'description', 'revision',
             'servings', 'prep_time_value', 'prep_time_unit',
             'cook_time_value', 'cook_time_unit',
-            'created_at', 'updated_at',
+            'final_photo', 'restaurant', 'created_at', 'updated_at',
         ]
 
 

@@ -5,7 +5,11 @@ class Recipe(models.Model):
     SHELF_LIFE_UNITS = [('dias', 'Días'), ('meses', 'Meses')]
     YIELD_UNITS = [('g', 'Gramos'), ('kg', 'Kilos')]
 
-    code = models.CharField(max_length=32, unique=True)
+    restaurant = models.ForeignKey(
+        'accounts.Restaurant', null=True, blank=True,
+        on_delete=models.CASCADE, related_name='recipes',
+    )
+    code = models.CharField(max_length=32)
     name = models.CharField(max_length=180)
     category = models.CharField(max_length=120, blank=True)
     description = models.TextField(blank=True)
@@ -27,6 +31,11 @@ class Recipe(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['restaurant', 'code'], name='unique_code_per_restaurant',
+            )
+        ]
 
     def __str__(self):
         return f'{self.code} - {self.name}'
