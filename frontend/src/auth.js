@@ -8,6 +8,7 @@ const KEYS = {
   username: 'rf_username',
   restaurant: 'rf_restaurant',
   restaurantName: 'rf_restaurant_name',
+  restaurantPrefix: 'rf_restaurant_prefix',
 }
 
 export function getAccess() {
@@ -22,17 +23,21 @@ export function getUsername() {
 export function getRestaurantName() {
   return localStorage.getItem(KEYS.restaurantName)
 }
+export function getRestaurantPrefix() {
+  return localStorage.getItem(KEYS.restaurantPrefix)
+}
 export function isAuthenticated() {
   return Boolean(getAccess())
 }
 
-function storeSession({ access, refresh, role, username, restaurant, restaurant_name }) {
+function storeSession({ access, refresh, role, username, restaurant, restaurant_name, restaurant_prefix }) {
   if (access) localStorage.setItem(KEYS.access, access)
   if (refresh) localStorage.setItem(KEYS.refresh, refresh)
   if (role) localStorage.setItem(KEYS.role, role)
   if (username) localStorage.setItem(KEYS.username, username)
   if (restaurant != null) localStorage.setItem(KEYS.restaurant, String(restaurant))
   if (restaurant_name) localStorage.setItem(KEYS.restaurantName, restaurant_name)
+  if (restaurant_prefix) localStorage.setItem(KEYS.restaurantPrefix, restaurant_prefix)
 }
 
 export function clearSession() {
@@ -62,6 +67,7 @@ export async function login(username, password) {
     username: data.username,
     restaurant: data.restaurant,
     restaurant_name: data.restaurant_name,
+    restaurant_prefix: data.restaurant_prefix,
   })
   return data
 }

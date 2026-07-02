@@ -8,6 +8,10 @@ class Restaurant(models.Model):
     """Cliente/tenant de la plataforma: un restaurante con sus propias recetas."""
 
     name = models.CharField(max_length=180)
+    code_prefix = models.CharField(
+        max_length=12, blank=True,
+        help_text='Prefijo para los códigos de receta, ej. LT o CV103.',
+    )
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=40, blank=True)
     address = models.CharField(max_length=255, blank=True)

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { authFetch } from '../auth'
 import UserManager from './UserManager'
 import { RecipeCard } from './Dashboard'
+import { Embers, initials } from '../lib/ui'
 import { ArrowLeft, Book, User, Plus, Search, Cloche, Pencil } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -21,6 +22,7 @@ function RestaurantDetail({
 
   const [form, setForm] = useState({
     name: restaurant.name || '',
+    code_prefix: restaurant.code_prefix || '',
     contact_email: restaurant.contact_email || '',
     contact_phone: restaurant.contact_phone || '',
     address: restaurant.address || '',
@@ -65,9 +67,10 @@ function RestaurantDetail({
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f4ef]">
+    <div className="min-h-screen bg-[#f5f1ea]">
       {/* Cabecera del restaurante */}
-      <header className="relative overflow-hidden bg-gradient-to-br from-[#1b1613] via-[#2a201a] to-[#41260f]">
+      <header className="rf-mesh rf-grain relative overflow-hidden">
+        <Embers count={12} />
         <div className="relative mx-auto max-w-6xl px-5 py-6 md:px-8">
           <button
             onClick={onBack}
@@ -77,16 +80,16 @@ function RestaurantDetail({
           </button>
 
           <div className="mt-6 flex items-center gap-5">
-            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10">
+            <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-2xl border-2 border-white/25 bg-white p-1.5 shadow-lg">
               {restaurant.logo ? (
-                <img src={restaurant.logo} alt={restaurant.name} className="h-full w-full object-cover" />
+                <img src={restaurant.logo} alt={restaurant.name} className="h-full w-full object-contain" />
               ) : (
-                <Cloche size={40} className="text-white/40" />
+                <span className="text-2xl font-bold text-stone-400">{initials(restaurant.name)}</span>
               )}
             </div>
             <div>
-              <p className="text-sm font-medium text-orange-200/90">Restaurante</p>
-              <h1 className="text-3xl font-bold text-white md:text-4xl">{restaurant.name}</h1>
+              <p className="flex items-center gap-1.5 text-sm font-medium text-orange-200/90">Restaurante</p>
+              <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">{restaurant.name}</h1>
               <div className="mt-2 flex flex-wrap gap-4 text-sm text-white/60">
                 <span className="flex items-center gap-1.5"><Book size={15} /> {recipes.length} recetas</span>
                 <span className="flex items-center gap-1.5"><User size={15} /> {restaurant.member_count} usuarios</span>
@@ -95,7 +98,7 @@ function RestaurantDetail({
           </div>
 
           {/* Tabs */}
-          <div className="mt-6 flex gap-1">
+          <div className="mt-7 flex gap-1">
             {TABS.map((t) => {
               const Icon = t.icon
               return (
@@ -103,7 +106,7 @@ function RestaurantDetail({
                   key={t.id}
                   onClick={() => setTab(t.id)}
                   className={`flex items-center gap-2 rounded-t-xl px-4 py-2.5 text-sm font-medium transition ${
-                    tab === t.id ? 'bg-[#f7f4ef] text-stone-900' : 'text-white/70 hover:bg-white/10'
+                    tab === t.id ? 'bg-[#f5f1ea] text-stone-900' : 'text-white/70 hover:bg-white/10'
                   }`}
                 >
                   <Icon size={16} /> {t.label}
@@ -131,7 +134,7 @@ function RestaurantDetail({
                 />
               </div>
               <button
-                onClick={onNewRecipe}
+                onClick={() => onNewRecipe(restaurant.code_prefix)}
                 className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-orange-500 hover:to-amber-400"
               >
                 <Plus size={18} /> Nueva receta
@@ -178,15 +181,28 @@ function RestaurantDetail({
           <form onSubmit={saveInfo} className="max-w-2xl space-y-5 rounded-2xl border border-stone-200 bg-white p-6">
             <h2 className="text-xl font-bold text-stone-900">Información de contacto</h2>
 
-            <label className="flex flex-col gap-1 text-sm text-stone-700">
-              Nombre del restaurante
-              <input
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                className="rounded-lg border border-stone-300 px-3 py-2"
-              />
-            </label>
+            <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
+              <label className="flex flex-col gap-1 text-sm text-stone-700">
+                Nombre del restaurante
+                <input
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  className="rounded-lg border border-stone-300 px-3 py-2"
+                />
+              </label>
+              <label className="flex flex-col gap-1 text-sm text-stone-700">
+                Prefijo de código
+                <input
+                  value={form.code_prefix}
+                  onChange={(e) => setForm({ ...form, code_prefix: e.target.value.toUpperCase() })}
+                  className="w-28 rounded-lg border border-stone-300 px-3 py-2 font-mono uppercase"
+                  placeholder="LT"
+                  maxLength={12}
+                />
+                <span className="text-xs font-normal text-stone-400">Ej: recetas como {form.code_prefix || 'LT'}-001</span>
+              </label>
+            </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm text-stone-700">
                 Email de contacto

@@ -12,11 +12,12 @@ class MeSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     restaurant = serializers.SerializerMethodField()
     restaurant_name = serializers.SerializerMethodField()
+    restaurant_prefix = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'role', 'restaurant', 'restaurant_name']
+                  'role', 'restaurant', 'restaurant_name', 'restaurant_prefix']
 
     def get_role(self, obj):
         return get_user_role(obj)
@@ -28,6 +29,10 @@ class MeSerializer(serializers.ModelSerializer):
     def get_restaurant_name(self, obj):
         r = get_user_restaurant(obj)
         return r.name if r else None
+
+    def get_restaurant_prefix(self, obj):
+        r = get_user_restaurant(obj)
+        return r.code_prefix if r else None
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -47,6 +52,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         r = get_user_restaurant(self.user)
         data['restaurant'] = r.id if r else None
         data['restaurant_name'] = r.name if r else None
+        data['restaurant_prefix'] = r.code_prefix if r else None
         return data
 
 
@@ -129,7 +135,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ['id', 'name', 'contact_email', 'contact_phone', 'address', 'logo',
+        fields = ['id', 'name', 'code_prefix', 'contact_email', 'contact_phone', 'address', 'logo',
                   'created_at', 'recipe_count', 'member_count', 'members',
                   'owner_username', 'owner_password', 'owner_role']
 

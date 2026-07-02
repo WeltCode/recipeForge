@@ -4,7 +4,7 @@ import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
 import { ArrowLeft } from './components/icons'
-import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, logout } from './auth'
+import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, getRestaurantPrefix, logout } from './auth'
 import rfLogo from './assets/logorecipe.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -105,7 +105,7 @@ function App() {
   const [recipeList, setRecipeList] = useState([])
   const [editingRecipeId, setEditingRecipeId] = useState(null)
   const [connectionError, setConnectionError] = useState(false)
-  const [codePrefix, setCodePrefix] = useState('LT')
+  const [codePrefix, setCodePrefix] = useState(getRestaurantPrefix() || 'LT')
   const [freshAfterSave, setFreshAfterSave] = useState(null)
 
   // ── Sesión / rol ──
@@ -128,8 +128,10 @@ function App() {
   }
 
   // ── Navegación panel ↔ editor ──
-  const openNewRecipe = () => {
-    resetForm()
+  const openNewRecipe = (prefix) => {
+    const p = prefix || getRestaurantPrefix() || codePrefix
+    setCodePrefix(p)
+    resetForm(p)
     setView('editor')
     window.scrollTo({ top: 0 })
   }
@@ -232,10 +234,10 @@ function App() {
       })),
   })
 
-  const resetForm = () => {
+  const resetForm = (prefixOverride) => {
     // Si hay datos frescos del último guardado, usarlos para el siguiente código
     const list = freshAfterSave?.list ?? recipeList
-    const prefix = freshAfterSave?.prefix ?? codePrefix
+    const prefix = prefixOverride ?? freshAfterSave?.prefix ?? codePrefix
     setSavedRecipeId(null)
     setEditingRecipeId(null)
     setFreshAfterSave(null)
@@ -244,7 +246,7 @@ function App() {
     setPhotoPreviewUrl(null)
     setForm({
       ...emptyForm,
-      code: generateNextCode(prefix, list),
+      code: prefix ? generateNextCode(prefix, list) : '',
       ingredients: [{ ...emptyIngredient }],
       steps: [{ ...emptyStep }],
     })
@@ -359,12 +361,13 @@ function App() {
           const data = await res.json()
           setRecipeList(data)
           setConnectionError(false)
-          const detected = detectPrefix(data)
+          // Prefijo del restaurante del usuario; si no, se deduce de las recetas
+          const detected = getRestaurantPrefix() || detectPrefix(data)
           setCodePrefix(detected)
           // Auto-rellenar el código en el formulario vacío inicial
           setForm((prev) => ({
             ...prev,
-            code: prev.code || generateNextCode(detected, data),
+            code: prev.code || (detected ? generateNextCode(detected, data) : ''),
           }))
         } catch (err) {
           setConnectionError(true)

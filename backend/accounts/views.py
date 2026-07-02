@@ -1,4 +1,5 @@
 from django.contrib.auth.models import User
+from django.db.models import Q
 from rest_framework import viewsets
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
@@ -42,6 +43,11 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         restaurant_id = self.request.query_params.get('restaurant')
         if restaurant_id:
             qs = qs.filter(profile__restaurant_id=restaurant_id)
+        role = self.request.query_params.get('role')
+        if role == 'superadmin':
+            qs = qs.filter(Q(profile__role='superadmin') | Q(is_superuser=True))
+        elif role:
+            qs = qs.filter(profile__role=role)
         return qs
 
 

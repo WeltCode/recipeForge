@@ -33,5 +33,8 @@ backend/media/
 # Archivos estáticos recolectados (se generan en el deploy)
 backend/staticfiles/
 
+# Respaldos de la base de datos (contienen datos; no subir a git)
+backend/backups/
+
 # Documentación de planificación interna
 PlanEscalabeRecipeForge.md
