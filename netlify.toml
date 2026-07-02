@@ -1,0 +1,14 @@
+# Configuración de despliegue del frontend en Netlify.
+[build]
+  base = "frontend"
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# La app es SPA: cualquier ruta se sirve desde index.html.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

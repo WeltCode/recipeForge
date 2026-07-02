@@ -19,3 +19,7 @@ whitenoise==6.12.0
 dj-database-url==3.1.2
 psycopg[binary]==3.3.4
 python-dotenv==1.2.2
+
+# Almacenamiento de archivos en Cloudflare R2 (S3-compatible)
+django-storages==1.14.6
+boto3==1.43.39

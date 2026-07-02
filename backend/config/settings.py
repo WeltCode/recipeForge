@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
+    'storages',
     'accounts',
     'recipes',
 ]
@@ -155,6 +156,23 @@ STORAGES = {
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+
+# Almacenamiento de archivos (fotos/logos) en Cloudflare R2.
+# Si hay credenciales R2, se usa R2; si no, se guardan en disco local (MEDIA_ROOT).
+R2_ACCESS_KEY_ID = os.environ.get('R2_ACCESS_KEY_ID')
+if R2_ACCESS_KEY_ID:
+    AWS_ACCESS_KEY_ID = R2_ACCESS_KEY_ID
+    AWS_SECRET_ACCESS_KEY = os.environ.get('R2_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.environ.get('R2_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = os.environ.get('R2_ENDPOINT_URL')
+    # Dominio público del bucket (sin https://), ej: pub-xxxx.r2.dev
+    AWS_S3_CUSTOM_DOMAIN = os.environ.get('R2_PUBLIC_DOMAIN')
+    AWS_S3_REGION_NAME = 'auto'
+    AWS_S3_SIGNATURE_VERSION = 's3v4'
+    AWS_DEFAULT_ACL = None
+    AWS_QUERYSTRING_AUTH = False   # URLs públicas sin firma
+    AWS_S3_FILE_OVERWRITE = False  # no sobreescribir si coincide el nombre
+    STORAGES['default'] = {'BACKEND': 'storages.backends.s3.S3Storage'}
 
 # CORS: en local se permite todo; en producción solo los orígenes indicados.
 if DEBUG:
