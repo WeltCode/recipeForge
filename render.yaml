@@ -6,7 +6,7 @@ services:
     runtime: python
     rootDir: backend
     plan: free
-    buildCommand: "./build.sh"
+    buildCommand: "bash build.sh"
     startCommand: "gunicorn config.wsgi:application"
     envVars:
       - key: DEBUG
