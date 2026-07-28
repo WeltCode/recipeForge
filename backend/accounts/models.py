@@ -4,10 +4,22 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 
+# Plantillas de ficha técnica disponibles (diseños de exportación/impresión).
+TEMPLATE_CHOICES = [
+    ('formal', 'Formal'),
+    ('moderna', 'Moderna'),
+    ('tradicional', 'Tradicional'),
+    ('llamativa', 'Llamativa'),
+]
+
+
 class Restaurant(models.Model):
     """Cliente/tenant de la plataforma: un restaurante con sus propias recetas."""
 
     name = models.CharField(max_length=180)
+    default_template = models.CharField(
+        max_length=20, choices=TEMPLATE_CHOICES, default='formal',
+    )
     code_prefix = models.CharField(
         max_length=12, blank=True,
         help_text='Prefijo para los códigos de receta, ej. LT o CV103.',

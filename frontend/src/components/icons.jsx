@@ -208,3 +208,19 @@ export const X = (p) => (
     <path d="M6 6l12 12M18 6 6 18" />
   </Svg>
 )
+
+export const Scale = (p) => (
+  <Svg {...p}>
+    <path d="M12 3.5v16M7.5 20.5h9" />
+    <path d="M12 6.5 5 8l2.4 5a2.6 2.6 0 0 1-4.8 0L5 8" />
+    <path d="M12 6.5 19 8l-2.4 5a2.6 2.6 0 0 0 4.8 0L19 8" />
+  </Svg>
+)
+
+export const Calendar = (p) => (
+  <Svg {...p}>
+    <rect x="4" y="5.5" width="16" height="15" rx="2" />
+    <path d="M4 9.5h16M8 3.5v4M16 3.5v4" />
+    <path d="M8 13h2M12 13h2M16 13h.5M8 16.5h2M12 16.5h2" />
+  </Svg>
+)

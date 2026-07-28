@@ -1,5 +1,7 @@
 from django.db import models
 
+from accounts.models import TEMPLATE_CHOICES
+
 
 class Recipe(models.Model):
     SHELF_LIFE_UNITS = [('dias', 'Días'), ('meses', 'Meses')]
@@ -11,6 +13,8 @@ class Recipe(models.Model):
     )
     code = models.CharField(max_length=32)
     name = models.CharField(max_length=180)
+    template = models.CharField(max_length=20, choices=TEMPLATE_CHOICES, default='formal')
+    accent_color = models.CharField(max_length=9, blank=True)  # color de acento personalizado (hex); vacío = por defecto
     category = models.CharField(max_length=120, blank=True)
     description = models.TextField(blank=True)
     revision = models.PositiveIntegerField(default=1)

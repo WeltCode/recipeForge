@@ -13,11 +13,14 @@ class MeSerializer(serializers.ModelSerializer):
     restaurant = serializers.SerializerMethodField()
     restaurant_name = serializers.SerializerMethodField()
     restaurant_prefix = serializers.SerializerMethodField()
+    restaurant_logo = serializers.SerializerMethodField()
+    restaurant_default_template = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'role', 'restaurant', 'restaurant_name', 'restaurant_prefix']
+                  'role', 'restaurant', 'restaurant_name', 'restaurant_prefix',
+                  'restaurant_logo', 'restaurant_default_template']
 
     def get_role(self, obj):
         return get_user_role(obj)
@@ -33,6 +36,18 @@ class MeSerializer(serializers.ModelSerializer):
     def get_restaurant_prefix(self, obj):
         r = get_user_restaurant(obj)
         return r.code_prefix if r else None
+
+    def get_restaurant_logo(self, obj):
+        r = get_user_restaurant(obj)
+        if r and r.logo:
+            request = self.context.get('request')
+            url = r.logo.url
+            return request.build_absolute_uri(url) if request else url
+        return None
+
+    def get_restaurant_default_template(self, obj):
+        r = get_user_restaurant(obj)
+        return r.default_template if r else None
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -53,6 +68,12 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['restaurant'] = r.id if r else None
         data['restaurant_name'] = r.name if r else None
         data['restaurant_prefix'] = r.code_prefix if r else None
+        data['restaurant_default_template'] = r.default_template if r else None
+        logo = None
+        if r and r.logo:
+            request = self.context.get('request')
+            logo = request.build_absolute_uri(r.logo.url) if request else r.logo.url
+        data['restaurant_logo'] = logo
         return data
 
 
@@ -135,7 +156,8 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ['id', 'name', 'code_prefix', 'contact_email', 'contact_phone', 'address', 'logo',
+        fields = ['id', 'name', 'code_prefix', 'default_template',
+                  'contact_email', 'contact_phone', 'address', 'logo',
                   'created_at', 'recipe_count', 'member_count', 'members',
                   'owner_username', 'owner_password', 'owner_role']
 

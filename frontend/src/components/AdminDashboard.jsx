@@ -167,7 +167,7 @@ function AdminDashboard({
               return (
                 <button
                   key={r.id}
-                  onClick={() => onSelectRestaurant(r.id)}
+                  onClick={() => onSelectRestaurant(r)}
                   className="rf-rise group flex flex-col overflow-hidden rounded-2xl border border-stone-200/80 bg-white text-left shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-stone-300/40"
                   style={{ animationDelay: `${Math.min(i * 50, 400)}ms` }}
                 >

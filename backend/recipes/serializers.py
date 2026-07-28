@@ -19,7 +19,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.Recipe
         fields = [
-            'id', 'code', 'name', 'category', 'description', 'revision',
+            'id', 'code', 'name', 'template', 'accent_color', 'category', 'description', 'revision',
             'servings', 'prep_time_value', 'prep_time_unit',
             'cook_time_value', 'cook_time_unit',
             'final_photo', 'restaurant', 'created_at', 'updated_at',
@@ -31,20 +31,33 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
     steps = ProductionStepSerializer(many=True, required=False)
     final_photo = serializers.ImageField(required=False, allow_null=True)
     revision = serializers.IntegerField(read_only=True)
+    restaurant_name = serializers.SerializerMethodField()
+    restaurant_logo = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Recipe
         fields = [
-            'id', 'code', 'name', 'category', 'description', 'revision',
+            'id', 'code', 'name', 'template', 'accent_color', 'category', 'description', 'revision',
             'servings', 'yield_quantity', 'yield_unit',
             'prep_time_value', 'prep_time_unit',
             'cook_time_value', 'cook_time_unit',
             'shelf_life_value', 'shelf_life_unit',
             'observations',
-            'final_photo', 'ingredients', 'steps',
+            'final_photo', 'restaurant_name', 'restaurant_logo',
+            'ingredients', 'steps',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['revision', 'created_at', 'updated_at']
+
+    def get_restaurant_name(self, obj):
+        return obj.restaurant.name if obj.restaurant else None
+
+    def get_restaurant_logo(self, obj):
+        if obj.restaurant and obj.restaurant.logo:
+            request = self.context.get('request')
+            url = obj.restaurant.logo.url
+            return request.build_absolute_uri(url) if request else url
+        return None
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients', [])

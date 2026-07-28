@@ -38,3 +38,6 @@ backend/backups/
 
 # Documentación de planificación interna
 PlanEscalabeRecipeForge.md
+
+# Herramienta de diseño Impeccable (caché y capturas)
+.impeccable/

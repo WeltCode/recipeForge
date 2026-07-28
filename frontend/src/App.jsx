@@ -5,7 +5,8 @@ import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
 import { ArrowLeft } from './components/icons'
 import { parseDecimal, fmtDecimal } from './lib/ui'
-import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, getRestaurantPrefix, logout, IDLE_LIMIT_MS } from './auth'
+import { TEMPLATES, templateMeta } from './templates'
+import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, IDLE_LIMIT_MS } from './auth'
 import rfLogo from './assets/logorecipe.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -81,6 +82,8 @@ function generateNextCode(prefix, list) {
 const emptyForm = {
   code: '',
   name: '',
+  template: 'formal',
+  accent_color: '',
   category: '',
   description: '',
   servings: 1,
@@ -114,6 +117,11 @@ function App() {
   const [role, setRole] = useState(getRole())
   const [view, setView] = useState('dashboard') // 'dashboard' | 'editor'
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
+  const [activeRestaurant, setActiveRestaurant] = useState({
+    name: getRestaurantName(),
+    logo: getRestaurantLogo(),
+    defaultTemplate: getRestaurantDefaultTemplate() || 'formal',
+  })
   const [sessionExpired, setSessionExpired] = useState(() => localStorage.getItem('rf_logout_reason') === 'idle')
   const username = getUsername()
   const restaurantName = getRestaurantName()
@@ -147,6 +155,11 @@ function App() {
     fetchRecipeList()
     setView('dashboard')
     window.scrollTo({ top: 0 })
+  }
+  // El super admin entra a un restaurante: guardamos su logo/plantilla para la ficha
+  const selectRestaurant = (r) => {
+    setSelectedRestaurantId(r.id)
+    setActiveRestaurant({ name: r.name, logo: r.logo, defaultTemplate: r.default_template || 'formal' })
   }
 
   // ── Cierre de sesión por inactividad (15 min sin interacción) ──
@@ -256,6 +269,8 @@ function App() {
       : {}),
     code: form.code,
     name: form.name,
+    template: form.template || 'formal',
+    accent_color: form.accent_color || '',
     category: form.category,
     description: form.description,
     servings: Number(form.servings || 1),
@@ -297,6 +312,7 @@ function App() {
     setForm({
       ...emptyForm,
       code: prefix ? generateNextCode(prefix, list) : '',
+      template: activeRestaurant.defaultTemplate || 'formal',
       ingredients: [{ ...emptyIngredient }],
       steps: [{ ...emptyStep }],
     })
@@ -347,6 +363,8 @@ function App() {
       setForm({
         code: data.code || '',
         name: data.name || '',
+        template: data.template || 'formal',
+        accent_color: data.accent_color || '',
         category: data.category || '',
         description: data.description || '',
         servings: data.servings || 1,
@@ -376,7 +394,11 @@ function App() {
             }))
           : [{ ...emptyStep }],
       })
-      setShowList(false)
+      setActiveRestaurant((prev) => ({
+        ...prev,
+        name: data.restaurant_name || prev.name,
+        logo: data.restaurant_logo || prev.logo,
+      }))
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
       setMessage(`Error al cargar la receta: ${err.message}`)
@@ -574,7 +596,7 @@ function App() {
             canDelete={canDelete}
             onLogout={handleLogout}
             selectedRestaurantId={selectedRestaurantId}
-            onSelectRestaurant={setSelectedRestaurantId}
+            onSelectRestaurant={selectRestaurant}
             onBackToRestaurants={() => setSelectedRestaurantId(null)}
             onOpenRecipe={openRecipe}
             onNewRecipe={openNewRecipe}
@@ -1023,11 +1045,58 @@ function App() {
           <div className="space-y-4">
             <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
               <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Vista previa A4</p>
-              <p className="mt-1 text-sm text-stone-600">
-                La ficha refleja el formulario en vivo con una estructura lista para impresión.
-              </p>
+              {canCreate ? (
+                <>
+                  <p className="mt-1 text-sm text-stone-600">Elige la plantilla de la ficha:</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    {TEMPLATES.map((t) => {
+                      const active = (form.template || 'formal') === t.id
+                      return (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => updateField('template', t.id)}
+                          title={t.desc}
+                          className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
+                            active
+                              ? 'border-orange-400 bg-orange-50 ring-2 ring-orange-500/20'
+                              : 'border-stone-200 bg-white hover:border-stone-300'
+                          }`}
+                        >
+                          <span className={`block font-semibold ${active ? 'text-orange-700' : 'text-stone-800'}`}>{t.label}</span>
+                          <span className="mt-0.5 block leading-tight text-stone-400">{t.desc}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {templateMeta(form.template).customizable && (
+                    <div className="mt-3 flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2">
+                      <label className="flex items-center gap-2 text-xs font-medium text-stone-600">
+                        Color de la plantilla
+                        <input
+                          type="color"
+                          value={form.accent_color || templateMeta(form.template).defaultAccent}
+                          onChange={(e) => updateField('accent_color', e.target.value)}
+                          className="h-7 w-10 cursor-pointer rounded border border-stone-300 bg-white p-0.5"
+                        />
+                      </label>
+                      {form.accent_color ? (
+                        <button type="button" onClick={() => updateField('accent_color', '')} className="text-xs text-stone-500 underline hover:text-stone-700">
+                          Restablecer al original
+                        </button>
+                      ) : (
+                        <span className="text-xs text-stone-400">Color por defecto</span>
+                      )}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <p className="mt-1 text-sm text-stone-600">
+                  La ficha refleja el formulario en vivo, lista para impresión.
+                </p>
+              )}
             </div>
-            <RecipeSheetPreview recipe={{ ...form, photoPreviewUrl }} />
+            <RecipeSheetPreview recipe={{ ...form, photoPreviewUrl, restaurant_name: activeRestaurant.name, restaurant_logo: activeRestaurant.logo }} />
           </div>
         </div>
 

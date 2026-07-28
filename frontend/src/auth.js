@@ -9,6 +9,8 @@ const KEYS = {
   restaurant: 'rf_restaurant',
   restaurantName: 'rf_restaurant_name',
   restaurantPrefix: 'rf_restaurant_prefix',
+  restaurantLogo: 'rf_restaurant_logo',
+  restaurantDefaultTemplate: 'rf_restaurant_template',
   lastActivity: 'rf_last_activity',
 }
 
@@ -30,11 +32,17 @@ export function getRestaurantName() {
 export function getRestaurantPrefix() {
   return localStorage.getItem(KEYS.restaurantPrefix)
 }
+export function getRestaurantLogo() {
+  return localStorage.getItem(KEYS.restaurantLogo)
+}
+export function getRestaurantDefaultTemplate() {
+  return localStorage.getItem(KEYS.restaurantDefaultTemplate)
+}
 export function isAuthenticated() {
   return Boolean(getAccess())
 }
 
-function storeSession({ access, refresh, role, username, restaurant, restaurant_name, restaurant_prefix }) {
+function storeSession({ access, refresh, role, username, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template }) {
   if (access) localStorage.setItem(KEYS.access, access)
   if (refresh) localStorage.setItem(KEYS.refresh, refresh)
   if (role) localStorage.setItem(KEYS.role, role)
@@ -42,6 +50,8 @@ function storeSession({ access, refresh, role, username, restaurant, restaurant_
   if (restaurant != null) localStorage.setItem(KEYS.restaurant, String(restaurant))
   if (restaurant_name) localStorage.setItem(KEYS.restaurantName, restaurant_name)
   if (restaurant_prefix) localStorage.setItem(KEYS.restaurantPrefix, restaurant_prefix)
+  if (restaurant_logo) localStorage.setItem(KEYS.restaurantLogo, restaurant_logo)
+  if (restaurant_default_template) localStorage.setItem(KEYS.restaurantDefaultTemplate, restaurant_default_template)
 }
 
 export function clearSession() {
@@ -72,6 +82,8 @@ export async function login(username, password) {
     restaurant: data.restaurant,
     restaurant_name: data.restaurant_name,
     restaurant_prefix: data.restaurant_prefix,
+    restaurant_logo: data.restaurant_logo,
+    restaurant_default_template: data.restaurant_default_template,
   })
   return data
 }

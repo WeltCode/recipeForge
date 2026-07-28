@@ -55,7 +55,11 @@ class RecipeViewSet(ModelViewSet):
             rid = self.request.data.get('restaurant')
             if rid:
                 restaurant = Restaurant.objects.filter(pk=rid).first()
-        serializer.save(restaurant=restaurant)
+        extra = {'restaurant': restaurant}
+        # Si no se indicó plantilla, usar la por defecto del restaurante
+        if not self.request.data.get('template') and restaurant:
+            extra['template'] = restaurant.default_template
+        serializer.save(**extra)
 
     def get_serializer_class(self):
         if self.action == 'list':

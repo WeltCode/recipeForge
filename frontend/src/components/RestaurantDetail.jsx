@@ -3,6 +3,7 @@ import { authFetch } from '../auth'
 import UserManager from './UserManager'
 import { RecipeCard } from './Dashboard'
 import { Embers, initials } from '../lib/ui'
+import { TEMPLATES } from '../templates'
 import { ArrowLeft, Book, User, Plus, Search, Cloche, Pencil } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -23,6 +24,7 @@ function RestaurantDetail({
   const [form, setForm] = useState({
     name: restaurant.name || '',
     code_prefix: restaurant.code_prefix || '',
+    default_template: restaurant.default_template || 'formal',
     contact_email: restaurant.contact_email || '',
     contact_phone: restaurant.contact_phone || '',
     address: restaurant.address || '',
@@ -242,6 +244,29 @@ function RestaurantDetail({
                 className="rounded-lg border border-stone-300 px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-stone-900 file:px-3 file:py-1 file:text-xs file:font-medium file:text-white"
               />
             </label>
+
+            <div className="flex flex-col gap-1 text-sm text-stone-700">
+              Plantilla por defecto de las fichas
+              <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {TEMPLATES.map((t) => {
+                  const active = form.default_template === t.id
+                  return (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setForm({ ...form, default_template: t.id })}
+                      title={t.desc}
+                      className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
+                        active ? 'border-orange-400 bg-orange-50 ring-2 ring-orange-500/20' : 'border-stone-200 bg-white hover:border-stone-300'
+                      }`}
+                    >
+                      <span className={`block font-semibold ${active ? 'text-orange-700' : 'text-stone-800'}`}>{t.label}</span>
+                      <span className="mt-0.5 block leading-tight text-stone-400">{t.desc}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
 
             <div className="flex items-center gap-3">
               <button
