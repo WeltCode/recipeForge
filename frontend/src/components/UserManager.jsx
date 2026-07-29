@@ -99,12 +99,12 @@ function UserManager({ restaurantId, admins = false }) {
       {/* Crear usuario */}
       <form onSubmit={createUser} className={`grid gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4 ${admins ? 'sm:grid-cols-3' : 'md:grid-cols-4'}`}>
         <input required value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-          className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none" placeholder="Usuario" autoComplete="off" />
+          className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none" placeholder="Usuario" autoComplete="off" />
         <input required type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-          className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none" placeholder="Contraseña" autoComplete="new-password" />
+          className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none" placeholder="Contraseña" autoComplete="new-password" />
         {!admins && (
           <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-            className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-orange-400 focus:outline-none">
+            className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none">
             <option value="basic">Básico (ver y editar)</option>
             <option value="premium">Premium (crear, editar, eliminar)</option>
           </select>

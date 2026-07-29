@@ -1059,11 +1059,11 @@ function App() {
                           title={t.desc}
                           className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
                             active
-                              ? 'border-orange-400 bg-orange-50 ring-2 ring-orange-500/20'
+                              ? 'border-[#c84b00] bg-[#fbf1e6] ring-2 ring-[#c84b00]/20'
                               : 'border-stone-200 bg-white hover:border-stone-300'
                           }`}
                         >
-                          <span className={`block font-semibold ${active ? 'text-orange-700' : 'text-stone-800'}`}>{t.label}</span>
+                          <span className={`block font-semibold ${active ? 'text-[#b5470a]' : 'text-stone-800'}`}>{t.label}</span>
                           <span className="mt-0.5 block leading-tight text-stone-400">{t.desc}</span>
                         </button>
                       )

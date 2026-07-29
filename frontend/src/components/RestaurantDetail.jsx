@@ -90,7 +90,7 @@ function RestaurantDetail({
               )}
             </div>
             <div>
-              <p className="flex items-center gap-1.5 text-sm font-medium text-orange-200/90">Restaurante</p>
+              <p className="flex items-center gap-1.5 text-sm font-medium text-[#e2b06a]/90">Restaurante</p>
               <h1 className="text-3xl font-bold tracking-tight text-white md:text-4xl">{restaurant.name}</h1>
               <div className="mt-2 flex flex-wrap gap-4 text-sm text-white/60">
                 <span className="flex items-center gap-1.5"><Book size={15} /> {recipes.length} recetas</span>
@@ -132,12 +132,12 @@ function RestaurantDetail({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Buscar receta…"
-                  className="w-full rounded-xl border border-stone-300 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-500/20"
+                  className="w-full rounded-xl border border-stone-300 bg-white py-2.5 pl-10 pr-3 text-sm outline-none focus:border-[#c84b00] focus:ring-2 focus:ring-[#c84b00]/20"
                 />
               </div>
               <button
                 onClick={() => onNewRecipe(restaurant.code_prefix)}
-                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-orange-500 hover:to-amber-400"
+                className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#c84b00] to-[#d98a1e] px-4 py-2.5 text-sm font-semibold text-white shadow-md transition hover:from-[#d9591a] hover:to-[#e2a63a]"
               >
                 <Plus size={18} /> Nueva receta
               </button>
@@ -257,10 +257,10 @@ function RestaurantDetail({
                       onClick={() => setForm({ ...form, default_template: t.id })}
                       title={t.desc}
                       className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
-                        active ? 'border-orange-400 bg-orange-50 ring-2 ring-orange-500/20' : 'border-stone-200 bg-white hover:border-stone-300'
+                        active ? 'border-[#c84b00] bg-[#fbf1e6] ring-2 ring-[#c84b00]/20' : 'border-stone-200 bg-white hover:border-stone-300'
                       }`}
                     >
-                      <span className={`block font-semibold ${active ? 'text-orange-700' : 'text-stone-800'}`}>{t.label}</span>
+                      <span className={`block font-semibold ${active ? 'text-[#b5470a]' : 'text-stone-800'}`}>{t.label}</span>
                       <span className="mt-0.5 block leading-tight text-stone-400">{t.desc}</span>
                     </button>
                   )

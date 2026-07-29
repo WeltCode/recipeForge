@@ -97,7 +97,7 @@ function AdminDashboard({
         <Embers count={16} />
         <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-6 md:px-8">
           <div className="flex items-center justify-between gap-3">
-            <div className="rounded-xl bg-white/95 px-3 py-1.5 shadow-sm">
+            <div className="relative overflow-hidden rounded-xl rf-steel rf-edge px-3 py-1.5 shadow-md">
               <img src={rfLogo} alt="RecipeForge" className="h-7 w-auto object-contain" />
             </div>
             <div className="flex items-center gap-2.5">
@@ -111,11 +111,11 @@ function AdminDashboard({
           </div>
 
           <div className="mt-10">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-300/25 bg-orange-500/15 px-3 py-1 text-xs font-medium text-orange-100">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e2a63a]/25 bg-[#c84b00]/18 px-3 py-1 text-xs font-medium text-[#eecfa0]">
               <Flame size={13} /> Panel de administración
             </span>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-white md:text-5xl">
-              {greeting()}, <span className="bg-gradient-to-r from-orange-300 to-amber-200 bg-clip-text text-transparent">{username}</span>
+              {greeting()}, <span className="bg-gradient-to-r from-[#e2b06a] to-[#e2a63a] bg-clip-text text-transparent">{username}</span>
             </h1>
             <p className="mt-2 text-sm text-white/55">Gestiona los restaurantes de la plataforma.</p>
           </div>
@@ -143,10 +143,10 @@ function AdminDashboard({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar restaurante…"
-                className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-500/20"
+                className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm outline-none focus:border-[#c84b00] focus:ring-2 focus:ring-[#c84b00]/20"
               />
             </div>
-            <button onClick={() => setShowCreate(true)} className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/20 transition hover:-translate-y-0.5">
+            <button onClick={() => setShowCreate(true)} className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#c84b00] to-[#d98a1e] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/20 transition hover:-translate-y-0.5">
               <Plus size={18} /> Nuevo restaurante
             </button>
           </div>
@@ -156,7 +156,7 @@ function AdminDashboard({
 
         {filtered.length === 0 ? (
           <div className="mt-8 flex flex-col items-center rounded-3xl border border-dashed border-stone-300 bg-white/50 py-20 text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg"><Cloche size={32} /></div>
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#c84b00] to-[#d98a1e] text-white shadow-lg"><Cloche size={32} /></div>
             <p className="mt-4 text-lg font-bold text-stone-800">Aún no hay restaurantes</p>
             <p className="mt-1 text-sm text-stone-500">Crea el primero para empezar.</p>
           </div>
@@ -194,7 +194,7 @@ function AdminDashboard({
                     <div className="mt-4 flex items-center gap-4 border-t border-stone-100 pt-3 text-sm text-stone-500">
                       <span className="flex items-center gap-1.5"><Book size={15} /> {r.recipe_count} recetas</span>
                       <span className="flex items-center gap-1.5"><User size={15} /> {r.member_count} usuarios</span>
-                      <span className="ml-auto text-stone-300 transition group-hover:translate-x-0.5 group-hover:text-orange-500">→</span>
+                      <span className="ml-auto text-stone-300 transition group-hover:translate-x-0.5 group-hover:text-[#c84b00]">→</span>
                     </div>
                   </div>
                 </button>
@@ -221,12 +221,12 @@ function AdminDashboard({
                 <label className="flex flex-col gap-1 text-sm text-stone-700">
                   Nombre del restaurante
                   <input required value={nuevo.name} onChange={(e) => setNuevo({ ...nuevo, name: e.target.value })}
-                    className="rounded-lg border border-stone-300 px-3 py-2 focus:border-orange-400 focus:outline-none" placeholder="Ceviche 103" />
+                    className="rounded-lg border border-stone-300 px-3 py-2 focus:border-[#c84b00] focus:outline-none" placeholder="Ceviche 103" />
                 </label>
                 <label className="flex flex-col gap-1 text-sm text-stone-700">
                   Prefijo código
                   <input value={nuevo.code_prefix} onChange={(e) => setNuevo({ ...nuevo, code_prefix: e.target.value.toUpperCase() })}
-                    className="w-28 rounded-lg border border-stone-300 px-3 py-2 font-mono uppercase focus:border-orange-400 focus:outline-none" placeholder="CV103" maxLength={12} />
+                    className="w-28 rounded-lg border border-stone-300 px-3 py-2 font-mono uppercase focus:border-[#c84b00] focus:outline-none" placeholder="CV103" maxLength={12} />
                 </label>
               </div>
 
@@ -234,12 +234,12 @@ function AdminDashboard({
                 <p className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-stone-500"><User size={13} /> Usuario de acceso</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <input required value={nuevo.owner_username} onChange={(e) => setNuevo({ ...nuevo, owner_username: e.target.value })}
-                    className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none" placeholder="Usuario" autoComplete="off" />
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none" placeholder="Usuario" autoComplete="off" />
                   <input required type="password" value={nuevo.owner_password} onChange={(e) => setNuevo({ ...nuevo, owner_password: e.target.value })}
-                    className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none" placeholder="Contraseña" autoComplete="new-password" />
+                    className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none" placeholder="Contraseña" autoComplete="new-password" />
                 </div>
                 <select value={nuevo.owner_role} onChange={(e) => setNuevo({ ...nuevo, owner_role: e.target.value })}
-                  className="mt-3 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-orange-400 focus:outline-none">
+                  className="mt-3 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none">
                   <option value="premium">Premium (crear, editar y eliminar recetas)</option>
                   <option value="basic">Básico (solo ver y editar recetas)</option>
                 </select>
@@ -247,16 +247,16 @@ function AdminDashboard({
 
               <div className="grid gap-3 sm:grid-cols-2">
                 <input value={nuevo.contact_email} onChange={(e) => setNuevo({ ...nuevo, contact_email: e.target.value })}
-                  className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none" placeholder="Email (opcional)" type="email" />
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none" placeholder="Email (opcional)" type="email" />
                 <input value={nuevo.contact_phone} onChange={(e) => setNuevo({ ...nuevo, contact_phone: e.target.value })}
-                  className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-orange-400 focus:outline-none" placeholder="Teléfono (opcional)" />
+                  className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none" placeholder="Teléfono (opcional)" />
               </div>
 
               {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
               <div className="flex justify-end gap-2 pt-1">
                 <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg border border-stone-300 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50">Cancelar</button>
-                <button type="submit" disabled={creating} className="rounded-lg bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+                <button type="submit" disabled={creating} className="rounded-lg bg-gradient-to-r from-[#c84b00] to-[#d98a1e] px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
                   {creating ? 'Creando…' : 'Crear restaurante'}
                 </button>
               </div>
@@ -288,9 +288,9 @@ function AdminDashboard({
 
 function StatCard({ icon, value, label, tint }) {
   const tints = {
-    orange: 'from-orange-500 to-amber-500',
-    violet: 'from-violet-500 to-fuchsia-500',
-    amber: 'from-amber-500 to-yellow-500',
+    orange: 'from-[#c84b00] to-[#d98a1e]',
+    violet: 'from-[#c8871a] to-[#e2a63a]',
+    amber: 'from-[#5b6570] to-[#8a95a0]',
   }
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition hover:shadow-md">

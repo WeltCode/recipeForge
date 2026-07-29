@@ -6,13 +6,24 @@ body,
   min-height: 100%;
 }
 
-body {
-  margin: 0;
-  background: #f3f0ea;
-  color: #1f1d1a;
+/* ===== "La Sala del Maestro" — paleta de fragua ===== */
+:root {
+  --rf-char: #141008;      /* carbón volcánico */
+  --rf-char-2: #201811;
+  --rf-brown: #3d2e22;     /* marrón forjado */
+  --rf-gold: #c8871a;      /* oro de fragua */
+  --rf-gold-lt: #e2a63a;
+  --rf-ember: #c84b00;     /* brasa (color de acción) */
+  --rf-ember-lt: #e86a1e;
+  --rf-stone: #d4cbbe;     /* piedra pulida */
+  --rf-steel: #cfd4d9;     /* acero inoxidable */
 }
 
-/* ===== Sistema visual RecipeForge "forja culinaria" ===== */
+body {
+  margin: 0;
+  background: #eeece6;     /* piedra pulida clara, superficie limpia */
+  color: #201811;
+}
 
 /* Textura de grano fina para que las superficies no se vean planas */
 .rf-grain::before {
@@ -20,31 +31,47 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.5;
+  opacity: 0.55;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
 }
 
-/* Malla de gradiente animada (fondos oscuros de los hero) */
+/* Malla oscura de fragua: carbón con brasas y oro (fondos de hero) */
 .rf-mesh {
   background:
-    radial-gradient(60% 80% at 15% 10%, rgba(234, 91, 36, 0.28), transparent 60%),
-    radial-gradient(50% 70% at 90% 0%, rgba(245, 158, 11, 0.22), transparent 55%),
-    radial-gradient(80% 90% at 50% 120%, rgba(194, 65, 12, 0.30), transparent 60%),
-    linear-gradient(135deg, #1c1512 0%, #241a14 50%, #2c1c12 100%);
+    radial-gradient(55% 75% at 12% 6%, rgba(200, 75, 0, 0.32), transparent 60%),
+    radial-gradient(45% 62% at 88% 2%, rgba(200, 135, 26, 0.20), transparent 55%),
+    radial-gradient(95% 100% at 50% 124%, rgba(200, 75, 0, 0.38), transparent 62%),
+    linear-gradient(160deg, #141008 0%, #201811 55%, #2a1c10 100%);
   background-size: 200% 200%;
-  animation: rf-mesh-move 18s ease-in-out infinite;
+  animation: rf-mesh-move 20s ease-in-out infinite;
 }
 @keyframes rf-mesh-move {
   0%, 100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 0%; }
   50% { background-position: 20% 10%, 80% 20%, 40% 90%, 100% 100%; }
 }
 
-/* Brasas ascendentes */
+/* Acero inoxidable cepillado (superficies metálicas) */
+.rf-steel {
+  background:
+    linear-gradient(180deg, #f4f6f7 0%, #d3d8dc 47%, #e9edef 53%, #c3c9ce 100%);
+}
+.rf-steel-brush::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.45) 0 1px, rgba(20,16,8,0.03) 1px 2.5px);
+}
+/* Fina línea de brillo superior tipo canto de acero */
+.rf-edge { box-shadow: inset 0 1px 0 rgba(255,255,255,0.6); }
+
+/* Brasas ascendentes vivas */
 @keyframes rf-ember {
   0% { transform: translateY(0) scale(1); opacity: 0; }
-  15% { opacity: 0.9; }
-  100% { transform: translateY(-120px) scale(0.4); opacity: 0; }
+  15% { opacity: 1; }
+  100% { transform: translateY(-130px) scale(0.35); opacity: 0; }
 }
 .rf-ember {
   position: absolute;
@@ -52,8 +79,9 @@ body {
   width: 5px;
   height: 5px;
   border-radius: 9999px;
-  background: radial-gradient(circle, #ffd9a0, #f97316 60%, transparent 70%);
-  filter: blur(0.4px);
+  background: radial-gradient(circle, #ffcf8a 10%, #e86a1e 55%, #c84b00 78%, transparent 82%);
+  box-shadow: 0 0 6px rgba(232, 106, 30, 0.7);
+  filter: blur(0.3px);
   animation: rf-ember linear infinite;
 }
 

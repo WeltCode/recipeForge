@@ -59,7 +59,7 @@ function Login({ onSuccess, notice }) {
           <div className="rounded-2xl bg-white/95 px-5 py-3 shadow-lg">
             <img src={rfLogo} alt="RecipeForge" className="h-11 w-auto object-contain" />
           </div>
-          <div className="mt-5 flex items-center gap-2 rounded-full border border-orange-400/30 bg-orange-500/10 px-3 py-1 text-xs font-medium text-orange-200">
+          <div className="mt-5 flex items-center gap-2 rounded-full border border-[#c84b00]/30 bg-[#c84b00]/12 px-3 py-1 text-xs font-medium text-[#e2b06a]">
             <Flame size={14} />
             Panel de cocina profesional
           </div>
@@ -89,7 +89,7 @@ function Login({ onSuccess, notice }) {
                 onChange={(e) => setUsername(e.target.value)}
                 autoComplete="username"
                 placeholder="tu usuario"
-                className="w-full rounded-xl border border-white/15 bg-white/10 py-3 pl-11 pr-4 text-white placeholder-white/40 outline-none transition focus:border-orange-400/60 focus:bg-white/[.14] focus:ring-2 focus:ring-orange-500/30"
+                className="w-full rounded-xl border border-white/15 bg-white/10 py-3 pl-11 pr-4 text-white placeholder-white/40 outline-none transition focus:border-[#c84b00]/60 focus:bg-white/[.14] focus:ring-2 focus:ring-[#c84b00]/30"
               />
             </div>
           </div>
@@ -107,7 +107,7 @@ function Login({ onSuccess, notice }) {
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="current-password"
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-white/15 bg-white/10 py-3 pl-11 pr-11 text-white placeholder-white/40 outline-none transition focus:border-orange-400/60 focus:bg-white/[.14] focus:ring-2 focus:ring-orange-500/30"
+                className="w-full rounded-xl border border-white/15 bg-white/10 py-3 pl-11 pr-11 text-white placeholder-white/40 outline-none transition focus:border-[#c84b00]/60 focus:bg-white/[.14] focus:ring-2 focus:ring-[#c84b00]/30"
               />
               <button
                 type="button"
@@ -129,7 +129,7 @@ function Login({ onSuccess, notice }) {
           <button
             type="submit"
             disabled={loading}
-            className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/40 transition hover:from-orange-500 hover:to-amber-400 disabled:opacity-60"
+            className="group relative w-full overflow-hidden rounded-xl bg-gradient-to-r from-[#c84b00] to-[#d98a1e] px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/40 transition hover:from-[#d9591a] hover:to-[#e2a63a] disabled:opacity-60"
           >
             {loading ? 'Entrando…' : 'Entrar a la cocina'}
           </button>

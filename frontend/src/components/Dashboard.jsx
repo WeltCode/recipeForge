@@ -59,12 +59,12 @@ function Dashboard({
         <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-6 md:px-8">
           {/* barra superior */}
           <div className="flex items-center justify-between gap-3">
-            <div className="rounded-xl bg-white/95 px-3 py-1.5 shadow-sm">
+            <div className="relative overflow-hidden rounded-xl rf-steel rf-edge px-3 py-1.5 shadow-md">
               <img src={rfLogo} alt="RecipeForge" className="h-7 w-auto object-contain" />
             </div>
             <div className="flex items-center gap-2.5">
               <div className="hidden items-center gap-2.5 rounded-full border border-white/15 bg-white/10 py-1.5 pl-1.5 pr-4 backdrop-blur sm:flex">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-orange-500 to-amber-400 text-xs font-bold text-white">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#d9591a] to-[#e2a63a] text-xs font-bold text-white">
                   {initials(username)}
                 </span>
                 <span className="text-sm font-medium text-white/90">{username}</span>
@@ -81,12 +81,12 @@ function Dashboard({
           {/* saludo */}
           <div className="mt-10">
             {restaurantName && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-orange-300/25 bg-orange-500/15 px-3 py-1 text-xs font-medium text-orange-100">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e2a63a]/25 bg-[#c84b00]/18 px-3 py-1 text-xs font-medium text-[#eecfa0]">
                 <Flame size={13} /> {restaurantName}
               </span>
             )}
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-white md:text-5xl">
-              {greeting()}, <span className="bg-gradient-to-r from-orange-300 to-amber-200 bg-clip-text text-transparent">{username}</span>
+              {greeting()}, <span className="bg-gradient-to-r from-[#e2b06a] to-[#e2a63a] bg-clip-text text-transparent">{username}</span>
             </h1>
             <p className="mt-2 flex items-center gap-2 text-sm text-white/55">
               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.chip}`}>
@@ -126,13 +126,13 @@ function Dashboard({
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Buscar receta…"
-                  className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm outline-none transition focus:border-orange-400 focus:ring-2 focus:ring-orange-500/20"
+                  className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm outline-none transition focus:border-[#c84b00] focus:ring-2 focus:ring-[#c84b00]/20"
                 />
               </div>
               {canCreate && (
                 <button
                   onClick={onNew}
-                  className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/20 transition hover:-translate-y-0.5 hover:shadow-orange-900/30"
+                  className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#c84b00] to-[#d98a1e] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/20 transition hover:-translate-y-0.5 hover:shadow-orange-900/30"
                 >
                   <Plus size={18} /> Nueva receta
                 </button>
@@ -152,7 +152,7 @@ function Dashboard({
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 shadow-sm outline-none focus:border-orange-400"
+                className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 shadow-sm outline-none focus:border-[#c84b00]"
               >
                 <option value="recientes">Recientes</option>
                 <option value="nombre">Nombre A–Z</option>
@@ -222,9 +222,9 @@ function Chip({ active, onClick, label, count, style }) {
 
 function StatCard({ icon, value, label, tint, small }) {
   const tints = {
-    orange: 'from-orange-500 to-amber-500',
-    violet: 'from-violet-500 to-fuchsia-500',
-    amber: 'from-amber-500 to-yellow-500',
+    orange: 'from-[#c84b00] to-[#d98a1e]',
+    violet: 'from-[#c8871a] to-[#e2a63a]',
+    amber: 'from-[#5b6570] to-[#8a95a0]',
   }
   return (
     <div className="group relative overflow-hidden rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition hover:shadow-md">
@@ -335,7 +335,7 @@ function EmptyState({ hasRecipes, query, cat, canCreate, onNew }) {
   const filtering = hasRecipes && (query || cat)
   return (
     <div className="mt-8 flex flex-col items-center rounded-3xl border border-dashed border-stone-300 bg-white/50 py-20 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#c84b00] to-[#d98a1e] text-white shadow-lg">
         {filtering ? <Search size={30} /> : <ChefHat size={32} />}
       </div>
       <p className="mt-4 text-lg font-bold text-stone-800">
@@ -349,7 +349,7 @@ function EmptyState({ hasRecipes, query, cat, canCreate, onNew }) {
             : 'Cuando se creen recetas, aparecerán aquí.'}
       </p>
       {!filtering && canCreate && (
-        <button onClick={onNew} className="mt-5 flex items-center gap-2 rounded-xl bg-gradient-to-r from-orange-600 to-amber-500 px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5">
+        <button onClick={onNew} className="mt-5 flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#c84b00] to-[#d98a1e] px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5">
           <Plus size={18} /> Crear la primera receta
         </button>
       )}
