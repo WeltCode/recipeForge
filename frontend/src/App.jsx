@@ -651,7 +651,7 @@ function App() {
   // ── EDITOR (crear / editar ficha) ─────────────────────────────────────────
   return (
     <main className="rf-steel-surface min-h-screen w-full p-4 md:p-8">
-      <section className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-[#b1b9c0] bg-white shadow-[0_18px_44px_-22px_rgba(20,16,8,0.55)]">
+      <section className="mx-auto max-w-[1680px] overflow-hidden rounded-2xl border border-[#b1b9c0] bg-white shadow-[0_18px_44px_-22px_rgba(20,16,8,0.55)]">
         {/* Barra superior: zona caliente */}
         <div className="rf-hot rf-grain rf-pass-edge relative flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 md:px-7">
           <button
@@ -661,7 +661,7 @@ function App() {
           >
             <ArrowLeft size={17} /> Volver al panel
           </button>
-          <img src={rfLogo} alt="RecipeForge" className="hidden h-10 w-auto object-contain drop-shadow-[0_2px_8px_rgba(232,83,31,0.35)] sm:block" />
+          <img src={rfLogo} alt="RecipeForge" className="hidden h-14 w-auto object-contain drop-shadow-[0_2px_10px_rgba(232,83,31,0.4)] sm:block" />
           <div className="flex items-center gap-3 text-sm">
             <span className="flex items-center gap-2 text-white/80">
               {username}
@@ -716,7 +716,7 @@ function App() {
             : 'Formulario dinámico para registrar receta, ingredientes y proceso de producción.'}
         </p>
 
-        <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
+        <div className="mt-8 grid gap-8 xl:grid-cols-2 xl:gap-10">
           <form className="rf-steel rf-edge space-y-8 rounded-3xl border border-[#c4ccd2] p-5 md:p-6" onSubmit={submitRecipe}>
 
             {/* ── INFO BÁSICA ── */}
