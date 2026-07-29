@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { login } from '../auth'
-import rfLogo from '../assets/icon-white-256.png'
+import rfLogo from '../assets/lockup-white-on-dark.png'
 import wokVideo from '../assets/wokvideo.mp4'
 import { User, Lock, Eye, EyeOff, Flame } from './icons'
 import { Embers } from '../lib/ui'
@@ -53,21 +53,11 @@ function Login({ onSuccess, notice }) {
 
       {/* ── PANEL DE CONTROL DE ACERO ── */}
       <div className="relative z-10 w-full max-w-md" style={{ animation: 'rf-in .6s cubic-bezier(.2,.8,.2,1) both' }}>
-        <div className="rf-steel rf-brush rf-edge overflow-hidden rounded-[24px] border border-[#aeb6bd] shadow-[0_40px_90px_-25px_rgba(0,0,0,.85)]">
+        <div className="rf-steel rf-edge overflow-hidden rounded-[24px] border border-[#aeb6bd] shadow-[0_40px_90px_-25px_rgba(0,0,0,.85)]">
 
-          {/* Cabecera: celda negra de datos (rótulo de la línea) */}
-          <div className="rf-cell relative flex items-center gap-3 px-6 py-4">
-            <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-[#221812] ring-1 ring-white/10">
-              <img src={rfLogo} alt="RecipeForge" className="h-7 w-7 object-contain" />
-            </span>
-            <div className="leading-none">
-              <p className="rf-cond text-lg font-600 uppercase tracking-[0.12em] text-[#f4efe8]" style={{ fontWeight: 600 }}>
-                RecipeForge
-              </p>
-              <p className="rf-cond mt-1 flex items-center gap-1.5 text-[11px] uppercase tracking-[0.32em] text-[#ff9a3d]">
-                <span className="rf-lamp-on inline-block h-1.5 w-1.5 rounded-full" /> La Línea
-              </p>
-            </div>
+          {/* Cabecera: celda negra con el logo */}
+          <div className="rf-cell relative flex items-center px-6 py-5">
+            <img src={rfLogo} alt="RecipeForge" className="h-8 w-auto object-contain" />
           </div>
 
           {/* Cuerpo sobre acero */}

@@ -59,9 +59,7 @@ function Dashboard({
         <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-6 md:px-8">
           {/* rail superior */}
           <div className="flex items-center justify-between gap-3">
-            <div className="rf-steel rf-brush rf-edge flex items-center rounded-lg border border-[#9aa2a9]/60 px-3 py-1.5 shadow-md">
-              <img src={rfLogo} alt="RecipeForge" className="h-6 w-auto object-contain" />
-            </div>
+            <img src={rfLogo} alt="RecipeForge" className="h-9 w-auto object-contain" />
             <div className="flex items-center gap-2.5">
               <div className="hidden items-center gap-2.5 rounded-full border border-white/12 bg-white/[.06] py-1.5 pl-1.5 pr-4 backdrop-blur sm:flex">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-xs font-bold text-white">
@@ -101,7 +99,7 @@ function Dashboard({
       {/* ── SUPERFICIE DE TRABAJO (acero) ── */}
       <main className="relative z-10 mx-auto max-w-6xl px-5 pb-24 md:px-8">
         {/* tira de instrumentos de acero */}
-        <div className="-mt-14 grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-brush rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
+        <div className="-mt-14 grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
           <Readout icon={<Book size={19} />} value={recipes.length} label="Fichas técnicas" />
           <Readout icon={<Layers size={19} />} value={categories.length} label="Categorías" />
           <Readout icon={<Sparkle size={19} />} value={meta.label} label="Tu plan" small />

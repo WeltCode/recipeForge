@@ -694,7 +694,7 @@ function App() {
           <form className="rf-steel rf-edge space-y-8 rounded-3xl border border-[#c4ccd2] p-5 md:p-6" onSubmit={submitRecipe}>
 
             {/* ── INFO BÁSICA ── */}
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-2">
               <div className="flex flex-col gap-1 text-sm text-stone-700">
                 <span>Código</span>
                 {/* Prefijo + código en una sola fila, contenida */}
@@ -767,13 +767,13 @@ function App() {
                     inputMode="decimal"
                     value={form.yield_quantity}
                     onChange={(e) => updateField('yield_quantity', e.target.value.replace(/[^\d.,]/g, ''))}
-                    className="flex-1 rounded-md border border-stone-300 px-3 py-2"
+                    className="w-full min-w-0 flex-1 rounded-md border border-stone-300 px-3 py-2"
                     placeholder="0"
                   />
                   <select
                     value={form.yield_unit}
                     onChange={(e) => updateField('yield_unit', e.target.value)}
-                    className="rounded-md border border-stone-300 px-3 py-2 bg-white"
+                    className="shrink-0 rounded-md border border-stone-300 px-2 py-2 bg-white"
                   >
                     <option value="g">g</option>
                     <option value="kg">kg</option>
@@ -788,13 +788,13 @@ function App() {
                     inputMode="decimal"
                     value={form.prep_time_value}
                     onChange={(e) => updateField('prep_time_value', e.target.value.replace(/[^\d.,]/g, ''))}
-                    className="flex-1 rounded-md border border-stone-300 px-3 py-2"
+                    className="w-full min-w-0 flex-1 rounded-md border border-stone-300 px-3 py-2"
                     placeholder="0"
                   />
                   <select
                     value={form.prep_time_unit}
                     onChange={(e) => updateField('prep_time_unit', e.target.value)}
-                    className="rounded-md border border-stone-300 px-3 py-2 bg-white"
+                    className="shrink-0 rounded-md border border-stone-300 px-2 py-2 bg-white"
                   >
                     <option value="min">min</option>
                     <option value="h">horas</option>
@@ -809,13 +809,13 @@ function App() {
                     inputMode="decimal"
                     value={form.cook_time_value}
                     onChange={(e) => updateField('cook_time_value', e.target.value.replace(/[^\d.,]/g, ''))}
-                    className="flex-1 rounded-md border border-stone-300 px-3 py-2"
+                    className="w-full min-w-0 flex-1 rounded-md border border-stone-300 px-3 py-2"
                     placeholder="0"
                   />
                   <select
                     value={form.cook_time_unit}
                     onChange={(e) => updateField('cook_time_unit', e.target.value)}
-                    className="rounded-md border border-stone-300 px-3 py-2 bg-white"
+                    className="shrink-0 rounded-md border border-stone-300 px-2 py-2 bg-white"
                   >
                     <option value="min">min</option>
                     <option value="h">horas</option>
@@ -836,7 +836,7 @@ function App() {
                   <select
                     value={form.shelf_life_unit}
                     onChange={(e) => updateField('shelf_life_unit', e.target.value)}
-                    className="rounded-md border border-stone-300 px-3 py-2 bg-white"
+                    className="shrink-0 rounded-md border border-stone-300 px-2 py-2 bg-white"
                   >
                     <option value="dias">Días</option>
                     <option value="meses">Meses</option>

@@ -97,9 +97,7 @@ function AdminDashboard({
         <Embers count={14} />
         <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-6 md:px-8">
           <div className="flex items-center justify-between gap-3">
-            <div className="rf-steel rf-brush rf-edge flex items-center rounded-lg border border-[#9aa2a9]/60 px-3 py-1.5 shadow-md">
-              <img src={rfLogo} alt="RecipeForge" className="h-6 w-auto object-contain" />
-            </div>
+            <img src={rfLogo} alt="RecipeForge" className="h-9 w-auto object-contain" />
             <div className="flex items-center gap-2.5">
               <button onClick={() => setShowAdmins(true)} className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[.06] px-4 py-2 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/[.12]">
                 <Sparkle size={15} /> Administradores
@@ -124,7 +122,7 @@ function AdminDashboard({
 
       <main className="relative z-10 mx-auto max-w-6xl px-5 pb-24 md:px-8">
         {/* tira de instrumentos */}
-        <div className="-mt-14 grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-brush rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
+        <div className="-mt-14 grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
           <Readout icon={<Cloche size={19} />} value={totals.restaurants} label="Restaurantes" />
           <Readout icon={<Book size={19} />} value={totals.recipes} label="Recetas totales" />
           <Readout icon={<User size={19} />} value={totals.users} label="Usuarios" />
