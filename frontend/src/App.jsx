@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import RecipeSheetPreview from './components/RecipeSheetPreview'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
@@ -98,6 +98,32 @@ const emptyForm = {
   observations: '',
   ingredients: [{ ...emptyIngredient }],
   steps: [{ ...emptyStep }],
+}
+
+// Escala una hoja A4 (210×297mm ≈ 794×1123px) para que quepa completa en el
+// ancho de su columna, manteniendo proporción. Solo para la vista previa en
+// pantalla; la exportación/impresión usa el tamaño real.
+function ScaledA4({ children }) {
+  const A4_W = 794
+  const A4_H = 1123
+  const ref = useRef(null)
+  const [scale, setScale] = useState(0)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const update = () => setScale(el.clientWidth / A4_W)
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  return (
+    <div ref={ref} className="w-full overflow-hidden" style={{ height: scale ? A4_H * scale : 0 }}>
+      <div style={{ width: A4_W, height: A4_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+        {children}
+      </div>
+    </div>
+  )
 }
 
 function App() {
@@ -635,7 +661,7 @@ function App() {
           >
             <ArrowLeft size={17} /> Volver al panel
           </button>
-          <img src={rfLogo} alt="RecipeForge" className="hidden h-6 w-auto object-contain sm:block" />
+          <img src={rfLogo} alt="RecipeForge" className="hidden h-10 w-auto object-contain drop-shadow-[0_2px_8px_rgba(232,83,31,0.35)] sm:block" />
           <div className="flex items-center gap-3 text-sm">
             <span className="flex items-center gap-2 text-white/80">
               {username}
@@ -1101,7 +1127,9 @@ function App() {
                 </p>
               )}
             </div>
-            <RecipeSheetPreview recipe={{ ...form, photoPreviewUrl, restaurant_name: activeRestaurant.name, restaurant_logo: activeRestaurant.logo }} />
+            <ScaledA4>
+              <RecipeSheetPreview recipe={{ ...form, photoPreviewUrl, restaurant_name: activeRestaurant.name, restaurant_logo: activeRestaurant.logo }} />
+            </ScaledA4>
           </div>
         </div>
 
