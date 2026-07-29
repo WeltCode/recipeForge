@@ -3,11 +3,11 @@ import RecipeSheetPreview from './components/RecipeSheetPreview'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
-import { ArrowLeft } from './components/icons'
+import { ArrowLeft, Doc } from './components/icons'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
 import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, IDLE_LIMIT_MS } from './auth'
-import rfLogo from './assets/logorecipe.png'
+import rfLogo from './assets/lockup-white-on-dark.png'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
@@ -624,72 +624,74 @@ function App() {
 
   // ── EDITOR (crear / editar ficha) ─────────────────────────────────────────
   return (
-    <main className="mx-auto min-h-screen w-full p-6 md:p-8">
-      <section className="rounded-2xl border border-stone-300 bg-white p-6 shadow-sm md:p-8">
-        {/* Volver al panel */}
-        <button
-          type="button"
-          onClick={backToDashboard}
-          className="mb-5 flex items-center gap-2 rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-medium text-stone-700 transition hover:bg-stone-50"
-        >
-          <ArrowLeft size={17} /> Volver al panel
-        </button>
-        {connectionError && (
-          <div className="mb-5 flex items-start gap-3 rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3">
-            <span className="text-xl leading-none">⚠️</span>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-red-800">Sin conexión con el servidor</p>
-              <p className="mt-1 text-sm text-red-700">
-                No se pudo contactar con el backend en <code className="rounded bg-red-100 px-1 font-mono text-xs">{API_BASE}</code>.
-                Asegúrate de que el servidor Django esté corriendo
-                (<code className="rounded bg-red-100 px-1 font-mono text-xs">python manage.py runserver</code>).
-                Tus recetas no se han perdido, solo no se pueden mostrar mientras el servidor esté apagado.
-              </p>
-              <button
-                type="button"
-                onClick={fetchRecipeList}
-                className="mt-2 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-              >
-                Reintentar conexión
-              </button>
-            </div>
-          </div>
-        )}
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <img src={rfLogo} alt="RecipeForge" className="h-10 w-auto object-contain" />
+    <main className="rf-steel-surface min-h-screen w-full p-4 md:p-8">
+      <section className="mx-auto max-w-6xl overflow-hidden rounded-2xl border border-[#b1b9c0] bg-white shadow-[0_18px_44px_-22px_rgba(20,16,8,0.55)]">
+        {/* Barra superior: zona caliente */}
+        <div className="rf-hot rf-grain rf-pass-edge relative flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 md:px-7">
+          <button
+            type="button"
+            onClick={backToDashboard}
+            className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[.06] px-3.5 py-1.5 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/[.12]"
+          >
+            <ArrowLeft size={17} /> Volver al panel
+          </button>
+          <img src={rfLogo} alt="RecipeForge" className="hidden h-6 w-auto object-contain sm:block" />
           <div className="flex items-center gap-3 text-sm">
-            <span className="text-stone-600">
+            <span className="flex items-center gap-2 text-white/80">
               {username}
-              <span className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
+              <span className={`rf-cond rounded-full px-2 py-0.5 text-[11px] font-600 uppercase tracking-wide ${
                 role === 'superadmin'
-                  ? 'bg-indigo-100 text-indigo-800'
+                  ? 'bg-[#e8531f]/22 text-[#ffbf9b]'
                   : role === 'premium'
-                    ? 'bg-amber-100 text-amber-800'
-                    : 'bg-stone-200 text-stone-700'
-              }`}>
+                    ? 'bg-[#ff9a3d]/18 text-[#ffcf9e]'
+                    : 'bg-white/12 text-white/85'
+              }`} style={{ fontWeight: 600 }}>
                 {role === 'superadmin' ? 'Super Admin' : role === 'premium' ? 'Premium' : 'Básico'}
               </span>
             </span>
             <button
               type="button"
               onClick={handleLogout}
-              className="rounded-md border border-stone-300 px-3 py-1.5 text-xs font-medium text-stone-700 hover:bg-stone-50"
+              className="rounded-full border border-white/12 bg-white/[.06] px-3 py-1.5 text-xs font-medium text-white/85 backdrop-blur hover:bg-white/[.12]"
             >
               Cerrar sesión
             </button>
           </div>
         </div>
-        <h1 className="mt-3 text-3xl font-bold text-stone-900">
-          {editingRecipeId ? `Editando: ${form.code} — ${form.name}` : 'Nueva ficha técnica'}
+
+        <div className="p-5 md:p-8">
+        {connectionError && (
+          <div className="mb-5 flex items-start gap-3 rounded-lg border-2 border-[#b03418]/30 bg-[#fbeae5] px-4 py-3">
+            <span className="text-xl leading-none">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-[#8f2c12]">Sin conexión con el servidor</p>
+              <p className="mt-1 text-sm text-[#a4331a]">
+                No se pudo contactar con el backend en <code className="rf-mono rounded bg-[#f6d9d1] px-1 text-xs">{API_BASE}</code>.
+                Asegúrate de que el servidor Django esté corriendo
+                (<code className="rf-mono rounded bg-[#f6d9d1] px-1 text-xs">python manage.py runserver</code>).
+                Tus recetas no se han perdido, solo no se pueden mostrar mientras el servidor esté apagado.
+              </p>
+              <button
+                type="button"
+                onClick={fetchRecipeList}
+                className="mt-2 rounded-md border border-[#b03418]/30 bg-white px-3 py-1.5 text-xs font-medium text-[#a4331a] hover:bg-[#f6d9d1]"
+              >
+                Reintentar conexión
+              </button>
+            </div>
+          </div>
+        )}
+        <h1 className="rf-cond text-3xl font-600 uppercase tracking-[0.04em] text-[#1c1611] md:text-4xl" style={{ fontWeight: 600 }}>
+          {editingRecipeId ? `Editando · ${form.code}` : 'Nueva ficha técnica'}
         </h1>
-        <p className="mt-2 text-stone-700">
+        <p className="mt-2 text-[#6a635c]">
           {editingRecipeId
-            ? 'Modifica los campos y guarda para actualizar la revisión automáticamente.'
+            ? `${form.name} — modifica los campos y guarda para actualizar la revisión automáticamente.`
             : 'Formulario dinámico para registrar receta, ingredientes y proceso de producción.'}
         </p>
 
         <div className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
-          <form className="space-y-8 rounded-3xl border border-stone-200 bg-stone-50 p-5 md:p-6" onSubmit={submitRecipe}>
+          <form className="rf-steel rf-edge space-y-8 rounded-3xl border border-[#c4ccd2] p-5 md:p-6" onSubmit={submitRecipe}>
 
             {/* ── INFO BÁSICA ── */}
             <div className="grid gap-4 md:grid-cols-3">
@@ -718,7 +720,7 @@ function App() {
                   <button
                     type="button"
                     onClick={() => updateField('code', generateNextCode(codePrefix, recipeList))}
-                    className="self-start text-xs text-amber-700 underline hover:text-amber-900"
+                    className="self-start text-xs font-medium text-[#b5420f] underline hover:text-[#8a3d15]"
                   >
                     ↻ Generar automáticamente
                   </button>
@@ -866,13 +868,13 @@ function App() {
             {/* ── INGREDIENTES ── */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-stone-900">Ingredientes</h2>
+                <h2 className="rf-cond text-xl font-600 uppercase tracking-wide text-[#1c1611]" style={{ fontWeight: 600 }}>Ingredientes</h2>
                 <button
                   type="button"
                   onClick={addIngredient}
-                  className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-800"
+                  className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-1.5 text-sm font-medium text-[#3a352f] hover:bg-[#f1f3f4]"
                 >
-                  Agregar insumo
+                  + Agregar insumo
                 </button>
               </div>
               {form.ingredients.map((item, index) => (
@@ -929,19 +931,19 @@ function App() {
             {/* ── PASOS ── */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-stone-900">Proceso paso a paso</h2>
+                <h2 className="rf-cond text-xl font-600 uppercase tracking-wide text-[#1c1611]" style={{ fontWeight: 600 }}>Proceso paso a paso</h2>
                 <button
                   type="button"
                   onClick={addStep}
-                  className="rounded-md border border-stone-300 px-3 py-1.5 text-sm text-stone-800"
+                  className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-1.5 text-sm font-medium text-[#3a352f] hover:bg-[#f1f3f4]"
                 >
-                  Agregar paso
+                  + Agregar paso
                 </button>
               </div>
               {form.steps.map((item, index) => (
                 <div key={`step-${index}`} className="space-y-3 rounded-lg border border-stone-200 p-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-semibold text-stone-800">Paso {index + 1}</p>
+                    <p className="rf-cond text-sm font-600 uppercase tracking-wide text-[#8a3d15]" style={{ fontWeight: 600 }}>Paso {index + 1}</p>
                     <button
                       type="button"
                       onClick={() => removeStep(index)}
@@ -1001,7 +1003,7 @@ function App() {
 
             {/* ── ACCIONES ── */}
             {!canCreate && !editingRecipeId && (
-              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <p className="rounded-md border border-[#ff9a3d]/30 bg-[#fff3ea] px-3 py-2 text-sm text-[#8a3d15]">
                 Tu rol (Básico) solo permite <strong>ver y editar</strong> recetas existentes.
                 Selecciona una ficha de la lista para editarla.
               </p>
@@ -1011,7 +1013,8 @@ function App() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="rounded-md bg-stone-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                  className="rf-ember-btn rf-cond rounded-lg px-5 py-2.5 text-sm font-600 uppercase tracking-wide text-white disabled:opacity-60"
+                  style={{ fontWeight: 600 }}
                 >
                   {loading ? 'Guardando...' : editingRecipeId ? 'Actualizar receta' : 'Guardar receta'}
                 </button>
@@ -1020,10 +1023,10 @@ function App() {
                 <button
                   type="button"
                   onClick={resetForm}
-                  className={`rounded-md border px-4 py-2 text-sm font-medium ${
+                  className={`rounded-lg border px-4 py-2.5 text-sm font-medium ${
                     savedRecipeId && !editingRecipeId
-                      ? 'border-green-400 bg-green-50 text-green-800 hover:bg-green-100'
-                      : 'border-stone-300 text-stone-700 hover:bg-stone-50'
+                      ? 'border-[#e8531f]/40 bg-[#fff3ea] text-[#b5420f] hover:bg-[#ffe7d6]'
+                      : 'border-[#b9c0c6] bg-white text-[#3a352f] hover:bg-[#f1f3f4]'
                   }`}
                 >
                   {editingRecipeId ? 'Cancelar edición' : savedRecipeId ? '+ Crear nueva receta' : 'Limpiar formulario'}
@@ -1033,9 +1036,9 @@ function App() {
                 <button
                   type="button"
                   onClick={() => downloadPDF(savedRecipeId)}
-                  className="rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+                  className="flex items-center gap-1.5 rounded-lg border border-[#c4ccd2] bg-white px-4 py-2.5 text-sm font-medium text-[#3a352f] hover:bg-[#f1f3f4]"
                 >
-                  Descargar PDF
+                  <Doc size={16} /> Descargar PDF
                 </button>
               )}
             </div>
@@ -1043,11 +1046,13 @@ function App() {
 
           {/* ── PREVIEW ── */}
           <div className="space-y-4">
-            <div className="rounded-3xl border border-stone-200 bg-stone-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Vista previa A4</p>
+            <div className="rf-steel rf-edge rounded-3xl border border-[#c4ccd2] p-4">
+              <p className="rf-cond flex items-center gap-2 text-xs font-600 uppercase tracking-[0.16em] text-[#7a736b]" style={{ fontWeight: 600 }}>
+                <span className="rf-lamp-on inline-block h-1.5 w-1.5 rounded-full" /> Vista previa A4
+              </p>
               {canCreate ? (
                 <>
-                  <p className="mt-1 text-sm text-stone-600">Elige la plantilla de la ficha:</p>
+                  <p className="mt-1 text-sm text-[#6a635c]">Elige la plantilla de la ficha:</p>
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {TEMPLATES.map((t) => {
                       const active = (form.template || 'formal') === t.id
@@ -1059,19 +1064,19 @@ function App() {
                           title={t.desc}
                           className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
                             active
-                              ? 'border-[#c84b00] bg-[#fbf1e6] ring-2 ring-[#c84b00]/20'
-                              : 'border-stone-200 bg-white hover:border-stone-300'
+                              ? 'border-[#e8531f] bg-[#fff3ea] ring-2 ring-[#e8531f]/20'
+                              : 'border-[#c4ccd2] bg-white hover:border-[#9aa2a9]'
                           }`}
                         >
-                          <span className={`block font-semibold ${active ? 'text-[#b5470a]' : 'text-stone-800'}`}>{t.label}</span>
-                          <span className="mt-0.5 block leading-tight text-stone-400">{t.desc}</span>
+                          <span className={`block font-semibold ${active ? 'text-[#b5420f]' : 'text-[#3a352f]'}`}>{t.label}</span>
+                          <span className="mt-0.5 block leading-tight text-[#9a9188]">{t.desc}</span>
                         </button>
                       )
                     })}
                   </div>
                   {templateMeta(form.template).customizable && (
-                    <div className="mt-3 flex items-center gap-3 rounded-lg border border-stone-200 bg-white px-3 py-2">
-                      <label className="flex items-center gap-2 text-xs font-medium text-stone-600">
+                    <div className="mt-3 flex items-center gap-3 rounded-lg border border-[#c4ccd2] bg-white px-3 py-2">
+                      <label className="flex items-center gap-2 text-xs font-medium text-[#5a5650]">
                         Color de la plantilla
                         <input
                           type="color"
@@ -1081,17 +1086,17 @@ function App() {
                         />
                       </label>
                       {form.accent_color ? (
-                        <button type="button" onClick={() => updateField('accent_color', '')} className="text-xs text-stone-500 underline hover:text-stone-700">
+                        <button type="button" onClick={() => updateField('accent_color', '')} className="text-xs text-[#8a3d15] underline hover:text-[#5a5650]">
                           Restablecer al original
                         </button>
                       ) : (
-                        <span className="text-xs text-stone-400">Color por defecto</span>
+                        <span className="text-xs text-[#9a9188]">Color por defecto</span>
                       )}
                     </div>
                   )}
                 </>
               ) : (
-                <p className="mt-1 text-sm text-stone-600">
+                <p className="mt-1 text-sm text-[#6a635c]">
                   La ficha refleja el formulario en vivo, lista para impresión.
                 </p>
               )}
@@ -1101,10 +1106,11 @@ function App() {
         </div>
 
         {message && (
-          <p className="mt-5 rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700">
+          <p className="rf-steel rf-edge mt-5 rounded-md border border-[#c4ccd2] px-3 py-2 text-sm text-[#5a5650]">
             {message}
           </p>
         )}
+        </div>
       </section>
     </main>
   )

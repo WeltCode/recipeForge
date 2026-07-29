@@ -1,17 +1,17 @@
 import { useMemo, useState } from 'react'
-import rfLogo from '../assets/logorecipe.png'
+import rfLogo from '../assets/lockup-white-on-dark.png'
 import recipeIcon from '../assets/icon-white-256.png'
 import UserManager from './UserManager'
-import { greeting, initials, totalTimeLabel, Embers } from '../lib/ui'
+import { greeting, initials, totalTimeLabel, Embers, StatusLamp } from '../lib/ui'
 import {
   Search, Plus, Pencil, Trash, Doc, Sparkle, Book,
   Clock, Fork, ChefHat, LogOut, Flame, Grid, List, Layers,
 } from './icons'
 
 const ROLE_META = {
-  basic: { label: 'Básico', desc: 'Puedes ver y editar las fichas técnicas.', chip: 'bg-white/15 text-white ring-1 ring-white/20' },
-  premium: { label: 'Premium', desc: 'Puedes crear, editar y eliminar fichas.', chip: 'bg-amber-400/20 text-amber-100 ring-1 ring-amber-300/30' },
-  superadmin: { label: 'Super Admin', desc: 'Control total y gestión de usuarios.', chip: 'bg-indigo-400/20 text-indigo-100 ring-1 ring-indigo-300/30' },
+  basic: { label: 'Básico', desc: 'Puedes ver y editar las fichas técnicas.', chip: 'bg-white/12 text-white/90 ring-1 ring-white/20' },
+  premium: { label: 'Premium', desc: 'Puedes crear, editar y eliminar fichas.', chip: 'bg-[#ff9a3d]/18 text-[#ffcf9e] ring-1 ring-[#ff9a3d]/35' },
+  superadmin: { label: 'Super Admin', desc: 'Control total y gestión de usuarios.', chip: 'bg-[#e8531f]/20 text-[#ffbf9b] ring-1 ring-[#e8531f]/35' },
 }
 
 const SORTS = {
@@ -52,26 +52,26 @@ function Dashboard({
   }, [recipes, query, cat, sort])
 
   return (
-    <div className="min-h-screen bg-[#f5f1ea]">
-      {/* ── HERO ── */}
-      <header className="rf-mesh rf-grain relative overflow-hidden">
-        <Embers count={16} />
+    <div className="rf-steel-surface min-h-screen">
+      {/* ── ZONA CALIENTE (cabecera) ── */}
+      <header className="rf-hot rf-grain rf-pass-edge relative overflow-hidden">
+        <Embers count={14} />
         <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-6 md:px-8">
-          {/* barra superior */}
+          {/* rail superior */}
           <div className="flex items-center justify-between gap-3">
-            <div className="relative overflow-hidden rounded-xl rf-steel rf-edge px-3 py-1.5 shadow-md">
-              <img src={rfLogo} alt="RecipeForge" className="h-7 w-auto object-contain" />
+            <div className="rf-steel rf-brush rf-edge flex items-center rounded-lg border border-[#9aa2a9]/60 px-3 py-1.5 shadow-md">
+              <img src={rfLogo} alt="RecipeForge" className="h-6 w-auto object-contain" />
             </div>
             <div className="flex items-center gap-2.5">
-              <div className="hidden items-center gap-2.5 rounded-full border border-white/15 bg-white/10 py-1.5 pl-1.5 pr-4 backdrop-blur sm:flex">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#d9591a] to-[#e2a63a] text-xs font-bold text-white">
+              <div className="hidden items-center gap-2.5 rounded-full border border-white/12 bg-white/[.06] py-1.5 pl-1.5 pr-4 backdrop-blur sm:flex">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-xs font-bold text-white">
                   {initials(username)}
                 </span>
                 <span className="text-sm font-medium text-white/90">{username}</span>
               </div>
               <button
                 onClick={onLogout}
-                className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/20"
+                className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[.06] px-4 py-2 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/[.12]"
               >
                 <LogOut size={17} /> Salir
               </button>
@@ -81,14 +81,14 @@ function Dashboard({
           {/* saludo */}
           <div className="mt-10">
             {restaurantName && (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#e2a63a]/25 bg-[#c84b00]/18 px-3 py-1 text-xs font-medium text-[#eecfa0]">
+              <span className="rf-cond inline-flex items-center gap-1.5 rounded-full border border-[#ff9a3d]/25 bg-[#e8531f]/15 px-3 py-1 text-xs font-medium uppercase tracking-[0.12em] text-[#ffcf9e]">
                 <Flame size={13} /> {restaurantName}
               </span>
             )}
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-white md:text-5xl">
-              {greeting()}, <span className="bg-gradient-to-r from-[#e2b06a] to-[#e2a63a] bg-clip-text text-transparent">{username}</span>
+              {greeting()}, <span className="text-[#ff9a3d]">{username}</span>
             </h1>
-            <p className="mt-2 flex items-center gap-2 text-sm text-white/55">
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/55">
               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.chip}`}>
                 {role !== 'basic' && <Sparkle size={11} />} {meta.label}
               </span>
@@ -98,41 +98,42 @@ function Dashboard({
         </div>
       </header>
 
-      {/* ── CONTENIDO ── */}
+      {/* ── SUPERFICIE DE TRABAJO (acero) ── */}
       <main className="relative z-10 mx-auto max-w-6xl px-5 pb-24 md:px-8">
-        {/* stats flotantes */}
-        <div className="-mt-14 grid gap-4 sm:grid-cols-3">
-          <StatCard icon={<Book size={20} />} tint="orange" value={recipes.length} label="Fichas técnicas" />
-          <StatCard icon={<Layers size={20} />} tint="violet" value={categories.length} label="Categorías" />
-          <StatCard icon={<Sparkle size={20} />} tint="amber" value={meta.label} label="Tu plan" small />
+        {/* tira de instrumentos de acero */}
+        <div className="-mt-14 grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-brush rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
+          <Readout icon={<Book size={19} />} value={recipes.length} label="Fichas técnicas" />
+          <Readout icon={<Layers size={19} />} value={categories.length} label="Categorías" />
+          <Readout icon={<Sparkle size={19} />} value={meta.label} label="Tu plan" small />
         </div>
 
         {/* toolbar */}
         <div className="mt-10 flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div>
-              <h2 className="text-2xl font-bold tracking-tight text-stone-900">Recetario</h2>
-              <p className="text-sm text-stone-500">
+              <h2 className="rf-cond text-3xl font-600 uppercase tracking-[0.06em] text-[#1c1611]" style={{ fontWeight: 600 }}>Recetario</h2>
+              <p className="rf-mono text-xs text-[#6a635c]">
                 {filtered.length} {filtered.length === 1 ? 'ficha' : 'fichas'}
-                {cat && <> en <span className="font-medium text-stone-700">{cat}</span></>}
+                {cat && <> · <span className="font-medium text-[#8a3d15]">{cat}</span></>}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <div className="relative flex-1 sm:w-60">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-stone-400">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9188]">
                   <Search size={18} />
                 </span>
                 <input
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder="Buscar receta…"
-                  className="w-full rounded-xl border border-stone-200 bg-white py-2.5 pl-10 pr-3 text-sm shadow-sm outline-none transition focus:border-[#c84b00] focus:ring-2 focus:ring-[#c84b00]/20"
+                  className="w-full rounded-xl border border-[#b9c0c6] bg-white py-2.5 pl-10 pr-3 text-sm text-[#1c1611] shadow-[inset_0_1px_2px_rgba(20,16,8,0.07)] outline-none transition placeholder:text-[#a8a099] focus:border-[#e8531f] focus:ring-2 focus:ring-[#e8531f]/25"
                 />
               </div>
               {canCreate && (
                 <button
                   onClick={onNew}
-                  className="flex shrink-0 items-center gap-2 rounded-xl bg-gradient-to-r from-[#c84b00] to-[#d98a1e] px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-orange-900/20 transition hover:-translate-y-0.5 hover:shadow-orange-900/30"
+                  className="rf-ember-btn rf-cond flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-600 uppercase tracking-wide text-white transition hover:-translate-y-0.5"
+                  style={{ fontWeight: 600 }}
                 >
                   <Plus size={18} /> Nueva receta
                 </button>
@@ -152,24 +153,24 @@ function Dashboard({
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value)}
-                className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-sm text-stone-700 shadow-sm outline-none focus:border-[#c84b00]"
+                className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm text-[#3a352f] shadow-sm outline-none focus:border-[#e8531f]"
               >
                 <option value="recientes">Recientes</option>
                 <option value="nombre">Nombre A–Z</option>
                 <option value="codigo">Código</option>
               </select>
-              <div className="flex rounded-lg border border-stone-200 bg-white p-0.5 shadow-sm">
+              <div className="rf-steel rf-edge flex rounded-lg border border-[#b9c0c6] p-0.5 shadow-sm">
                 <button
                   onClick={() => setViewPersist('grid')}
-                  className={`rounded-md p-1.5 transition ${view === 'grid' ? 'bg-stone-900 text-white' : 'text-stone-400 hover:text-stone-700'}`}
+                  className={`rounded-md p-1.5 transition ${view === 'grid' ? 'rf-cell text-white' : 'text-[#7a736b] hover:text-[#3a352f]'}`}
                   title="Cuadrícula"
                 >
                   <Grid size={17} />
                 </button>
                 <button
                   onClick={() => setViewPersist('list')}
-                  className={`rounded-md p-1.5 transition ${view === 'list' ? 'bg-stone-900 text-white' : 'text-stone-400 hover:text-stone-700'}`}
-                  title="Lista"
+                  className={`rounded-md p-1.5 transition ${view === 'list' ? 'rf-cell text-white' : 'text-[#7a736b] hover:text-[#3a352f]'}`}
+                  title="Tablero"
                 >
                   <List size={17} />
                 </button>
@@ -189,9 +190,9 @@ function Dashboard({
             ))}
           </div>
         ) : (
-          <div className="mt-6 space-y-2.5">
-            {filtered.map((r) => (
-              <RecipeRow key={r.id} recipe={r} canDelete={canDelete}
+          <div className="mt-6 overflow-hidden rounded-xl border border-[#c4ccd2] shadow-sm">
+            {filtered.map((r, i) => (
+              <RecipeRow key={r.id} recipe={r} index={i} canDelete={canDelete}
                 onEdit={() => onEdit(r.id)} onDelete={() => onDelete(r.id, r.name)} onPDF={() => onDownloadPDF(r.id)} />
             ))}
           </div>
@@ -203,38 +204,32 @@ function Dashboard({
   )
 }
 
-function Chip({ active, onClick, label, count, style }) {
+function Chip({ active, onClick, label, count }) {
   return (
     <button
       onClick={onClick}
       className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
         active
-          ? 'border-stone-900 bg-stone-900 text-white'
-          : 'border-stone-200 bg-white text-stone-600 hover:border-stone-300'
+          ? 'rf-cell border-transparent text-white'
+          : 'rf-steel rf-edge border-[#c2c9ce] text-[#5a5650] hover:border-[#9aa2a9]'
       }`}
     >
-      {style && <span className={`h-2 w-2 rounded-full ${active ? 'bg-white/70' : style.dot}`} />}
       {label}
-      <span className={`rounded-full px-1.5 text-[10px] ${active ? 'bg-white/20' : 'bg-stone-100 text-stone-500'}`}>{count}</span>
+      <span className={`rf-mono rounded-full px-1.5 text-[10px] ${active ? 'bg-white/15 text-white/80' : 'bg-black/[.06] text-[#7a736b]'}`}>{count}</span>
     </button>
   )
 }
 
-function StatCard({ icon, value, label, tint, small }) {
-  const tints = {
-    orange: 'from-[#c84b00] to-[#d98a1e]',
-    violet: 'from-[#c8871a] to-[#e2a63a]',
-    amber: 'from-[#5b6570] to-[#8a95a0]',
-  }
+// Segmento de la tira de instrumentos: lectura tipo readout de fogón.
+function Readout({ icon, value, label, small }) {
   return (
-    <div className="group relative overflow-hidden rounded-2xl border border-stone-200/80 bg-white p-5 shadow-sm transition hover:shadow-md">
-      <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full bg-gradient-to-br ${tints[tint]} opacity-10 blur-xl transition group-hover:opacity-20`} />
-      <div className="flex items-center gap-4">
-        <div className={`flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br ${tints[tint]} text-white shadow-sm`}>{icon}</div>
-        <div>
-          <p className={`font-bold leading-none text-stone-900 ${small ? 'text-lg' : 'text-3xl'}`}>{value}</p>
-          <p className="mt-1 text-xs font-medium uppercase tracking-wide text-stone-500">{label}</p>
-        </div>
+    <div className="flex items-center gap-3.5 px-5 py-4">
+      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2a1c14] to-[#17130f] text-[#ff9a3d] shadow-inner ring-1 ring-black/20">
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className={`rf-cond leading-none text-[#1c1611] ${small ? 'text-xl' : 'text-3xl'}`} style={{ fontWeight: 600 }}>{value}</p>
+        <p className="rf-cond mt-1 truncate text-[11px] font-500 uppercase tracking-[0.14em] text-[#7a736b]" style={{ fontWeight: 500 }}>{label}</p>
       </div>
     </div>
   )
@@ -243,49 +238,53 @@ function StatCard({ icon, value, label, tint, small }) {
 export function RecipeCard({ recipe: r, canDelete, onEdit, onDelete, onPDF, index = 0 }) {
   return (
     <article
-      className="rf-rise group flex flex-col overflow-hidden rounded-2xl border border-stone-200/80 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-stone-300/40"
+      className="rf-steel rf-edge rf-rise group flex flex-col overflow-hidden rounded-2xl border border-[#b1b9c0] shadow-[0_12px_32px_-16px_rgba(20,16,8,0.55)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_44px_-18px_rgba(20,16,8,0.65)]"
       style={{ animationDelay: `${Math.min(index * 45, 400)}ms` }}
     >
-      <div className="relative h-44 overflow-hidden">
+      <div className="relative h-44 overflow-hidden bg-[#17130f]">
         {r.final_photo ? (
-          <img src={r.final_photo} alt={r.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-110" />
+          <img src={r.final_photo} alt={r.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-stone-400 to-stone-500">
-            <img src={recipeIcon} alt="" className="h-16 w-16 object-contain opacity-80" />
+          <div className="rf-hot flex h-full w-full items-center justify-center">
+            <img src={recipeIcon} alt="" className="h-14 w-14 object-contain opacity-70" />
           </div>
         )}
-        <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/70 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent" />
         {r.category && (
-          <span className="absolute left-3 top-3 inline-flex items-center rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-semibold text-stone-700 shadow-sm backdrop-blur">
+          <span className="rf-steel rf-edge absolute left-3 top-3 inline-flex items-center rounded-md border border-white/40 px-2.5 py-1 text-[11px] font-semibold text-[#3a352f] shadow-sm">
             {r.category}
           </span>
         )}
-        <span className="absolute right-3 top-3 rounded-lg bg-white/90 px-2 py-1 font-mono text-[10px] font-semibold text-stone-700 shadow-sm backdrop-blur">
-          Rev. 0.{r.revision}
+        <span className="rf-mono absolute right-3 top-3 rounded-md bg-black/55 px-2 py-1 text-[10px] font-medium text-white/90 backdrop-blur">
+          Rev.0.{r.revision}
         </span>
-        <span className="absolute bottom-2.5 left-3 rounded-md bg-black/45 px-2 py-0.5 font-mono text-[11px] font-medium text-white backdrop-blur">
-          {r.code}
+        {/* celda de código + lámpara de calor */}
+        <span className="absolute bottom-3 left-3 flex items-center gap-2">
+          <span className="rf-cell rf-cond inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-600 uppercase tracking-[0.08em] shadow-md" style={{ fontWeight: 600 }}>
+            <StatusLamp on={Boolean(r.final_photo)} size={7} />
+            <span className="rf-flap" style={{ animationDelay: `${Math.min(index * 45, 400)}ms` }}>{r.code}</span>
+          </span>
         </span>
       </div>
 
       <div className="flex flex-1 flex-col p-4">
-        <h3 className="line-clamp-1 text-base font-bold text-stone-900">{r.name}</h3>
-        {r.description && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-stone-500">{r.description}</p>}
+        <h3 className="line-clamp-1 text-base font-bold text-[#1c1611]">{r.name}</h3>
+        {r.description && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#6a635c]">{r.description}</p>}
 
-        <div className="mt-3 flex items-center gap-4 text-xs text-stone-500">
+        <div className="rf-mono mt-3 flex items-center gap-4 text-xs text-[#6a635c]">
           <span className="flex items-center gap-1"><Fork size={14} /> {r.servings} rac.</span>
           <span className="flex items-center gap-1"><Clock size={14} /> {totalTimeLabel(r)}</span>
         </div>
 
-        <div className="mt-4 flex items-center gap-2 border-t border-stone-100 pt-3">
-          <button onClick={onEdit} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-stone-900 px-3 py-2 text-xs font-semibold text-white transition hover:bg-stone-700">
+        <div className="mt-4 flex items-center gap-2 border-t border-[#c9d0d5] pt-3">
+          <button onClick={onEdit} className="rf-cell rf-cond flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-600 uppercase tracking-wide text-white transition hover:bg-[#241a14]" style={{ fontWeight: 600 }}>
             <Pencil size={15} /> Abrir
           </button>
-          <button onClick={onPDF} title="Descargar PDF" className="flex items-center justify-center rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-2 text-amber-700 transition hover:bg-amber-100">
+          <button onClick={onPDF} title="Descargar PDF" className="flex items-center justify-center rounded-lg border border-[#e8531f]/30 bg-[#fff3ea] px-2.5 py-2 text-[#b5420f] transition hover:bg-[#ffe7d6]">
             <Doc size={16} />
           </button>
           {canDelete && (
-            <button onClick={onDelete} title="Eliminar" className="flex items-center justify-center rounded-lg border border-red-200 bg-red-50 px-2.5 py-2 text-red-600 transition hover:bg-red-100">
+            <button onClick={onDelete} title="Eliminar" className="flex items-center justify-center rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2.5 py-2 text-[#a4331a] transition hover:bg-[#f6d9d1]">
               <Trash size={16} />
             </button>
           )}
@@ -295,36 +294,36 @@ export function RecipeCard({ recipe: r, canDelete, onEdit, onDelete, onPDF, inde
   )
 }
 
-function RecipeRow({ recipe: r, canDelete, onEdit, onDelete, onPDF }) {
+// Fila de tablero de pase (vista lista): celda de código negra sobre acero.
+function RecipeRow({ recipe: r, canDelete, onEdit, onDelete, onPDF, index = 0 }) {
   return (
-    <div className="group flex items-center gap-4 rounded-xl border border-stone-200/80 bg-white p-2.5 pr-3 shadow-sm transition hover:shadow-md">
-      <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg">
+    <div className={`group flex items-center gap-4 border-b border-[#c9d0d5] px-3 py-2.5 transition last:border-b-0 ${index % 2 ? 'bg-white/45' : 'bg-white/15'} hover:bg-[#fff3ea]/70`}>
+      <span className="rf-cell rf-cond inline-flex w-24 shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-600 uppercase tracking-[0.06em] shadow-sm" style={{ fontWeight: 600 }}>
+        <StatusLamp on={Boolean(r.final_photo)} size={7} />
+        <span className="truncate">{r.code}</span>
+      </span>
+      <div className="relative hidden h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-[#c4ccd2] sm:block">
         {r.final_photo ? (
           <img src={r.final_photo} alt={r.name} className="h-full w-full object-cover" />
         ) : (
-          <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-stone-400 to-stone-500">
-            <img src={recipeIcon} alt="" className="h-7 w-7 object-contain opacity-80" />
-          </div>
+          <div className="rf-hot flex h-full w-full items-center justify-center"><img src={recipeIcon} alt="" className="h-6 w-6 object-contain opacity-70" /></div>
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] text-stone-400">{r.code}</span>
-          {r.category && <span className="inline-flex items-center rounded-full bg-stone-100 px-2 py-0.5 text-[10px] font-medium text-stone-600">{r.category}</span>}
-        </div>
-        <h3 className="line-clamp-1 text-sm font-bold text-stone-900">{r.name}</h3>
+        <h3 className="line-clamp-1 text-sm font-bold text-[#1c1611]">{r.name}</h3>
+        {r.category && <span className="text-[11px] text-[#8a3d15]">{r.category}</span>}
       </div>
-      <div className="hidden items-center gap-4 text-xs text-stone-500 md:flex">
+      <div className="rf-mono hidden items-center gap-4 text-xs text-[#6a635c] md:flex">
         <span className="flex items-center gap-1"><Fork size={14} /> {r.servings}</span>
         <span className="flex items-center gap-1"><Clock size={14} /> {totalTimeLabel(r)}</span>
       </div>
       <div className="flex items-center gap-1.5">
-        <button onClick={onEdit} className="flex items-center gap-1.5 rounded-lg bg-stone-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-stone-700">
+        <button onClick={onEdit} className="rf-cell rf-cond flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-600 uppercase tracking-wide text-white transition hover:bg-[#241a14]" style={{ fontWeight: 600 }}>
           <Pencil size={14} /> Abrir
         </button>
-        <button onClick={onPDF} title="PDF" className="rounded-lg border border-amber-200 bg-amber-50 px-2 py-1.5 text-amber-700 hover:bg-amber-100"><Doc size={15} /></button>
+        <button onClick={onPDF} title="PDF" className="rounded-lg border border-[#e8531f]/30 bg-[#fff3ea] px-2 py-1.5 text-[#b5420f] hover:bg-[#ffe7d6]"><Doc size={15} /></button>
         {canDelete && (
-          <button onClick={onDelete} title="Eliminar" className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-red-600 hover:bg-red-100"><Trash size={15} /></button>
+          <button onClick={onDelete} title="Eliminar" className="rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2 py-1.5 text-[#a4331a] hover:bg-[#f6d9d1]"><Trash size={15} /></button>
         )}
       </div>
     </div>
@@ -334,14 +333,14 @@ function RecipeRow({ recipe: r, canDelete, onEdit, onDelete, onPDF }) {
 function EmptyState({ hasRecipes, query, cat, canCreate, onNew }) {
   const filtering = hasRecipes && (query || cat)
   return (
-    <div className="mt-8 flex flex-col items-center rounded-3xl border border-dashed border-stone-300 bg-white/50 py-20 text-center">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#c84b00] to-[#d98a1e] text-white shadow-lg">
+    <div className="rf-steel rf-edge mt-8 flex flex-col items-center rounded-3xl border border-dashed border-[#aeb6bd] py-20 text-center">
+      <div className="rf-ember-btn flex h-16 w-16 items-center justify-center rounded-2xl text-white">
         {filtering ? <Search size={30} /> : <ChefHat size={32} />}
       </div>
-      <p className="mt-4 text-lg font-bold text-stone-800">
+      <p className="mt-4 text-lg font-bold text-[#1c1611]">
         {filtering ? 'Sin resultados' : 'Aún no hay fichas técnicas'}
       </p>
-      <p className="mt-1 max-w-xs text-sm text-stone-500">
+      <p className="mt-1 max-w-xs text-sm text-[#6a635c]">
         {filtering
           ? 'Prueba con otra búsqueda o categoría.'
           : canCreate
@@ -349,7 +348,7 @@ function EmptyState({ hasRecipes, query, cat, canCreate, onNew }) {
             : 'Cuando se creen recetas, aparecerán aquí.'}
       </p>
       {!filtering && canCreate && (
-        <button onClick={onNew} className="mt-5 flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#c84b00] to-[#d98a1e] px-5 py-2.5 text-sm font-semibold text-white shadow-lg transition hover:-translate-y-0.5">
+        <button onClick={onNew} className="rf-ember-btn rf-cond mt-5 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-600 uppercase tracking-wide text-white transition hover:-translate-y-0.5" style={{ fontWeight: 600 }}>
           <Plus size={18} /> Crear la primera receta
         </button>
       )}

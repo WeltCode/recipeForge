@@ -6,68 +6,115 @@ body,
   min-height: 100%;
 }
 
-/* ===== "La Sala del Maestro" — paleta de fragua ===== */
+/* ===== "La Línea" — la línea/pase de una cocina profesional =====
+   Zona caliente oscura (fuego) arriba, sobre superficie de acero
+   inoxidable cepillado donde se trabaja. Voz de tablero split-flap. */
 :root {
-  --rf-char: #141008;      /* carbón volcánico */
-  --rf-char-2: #201811;
-  --rf-brown: #3d2e22;     /* marrón forjado */
-  --rf-gold: #c8871a;      /* oro de fragua */
-  --rf-gold-lt: #e2a63a;
-  --rf-ember: #c84b00;     /* brasa (color de acción) */
-  --rf-ember-lt: #e86a1e;
-  --rf-stone: #d4cbbe;     /* piedra pulida */
-  --rf-steel: #cfd4d9;     /* acero inoxidable */
+  /* Zona caliente (oscura) */
+  --rf-char: #0e0b09;      /* carbón cálido casi negro */
+  --rf-char-2: #1a1310;
+  --rf-lamp: #ff9a3d;      /* lámpara de calor ámbar */
+  --rf-lamp-lt: #ffb066;
+  /* Fuego / acción */
+  --rf-ember: #e8531f;     /* brasa (color de acción) */
+  --rf-ember-lt: #ff6a2c;
+  --rf-ember-dk: #c8371a;
+  --rf-gold: #d89b3a;      /* oro de fragua (detalles finos) */
+  /* Acero inoxidable */
+  --rf-steel-bg: #dfe3e7;
+  --rf-steel-panel: #eef1f3;
+  --rf-steel-line: #c2c9ce;
+  /* Celda de datos (voz del tablero) */
+  --rf-cell: #17130f;
+  --rf-cell-fg: #f4efe8;
+  /* Tinta sobre acero */
+  --rf-ink: #1c1611;
+  --rf-ink-2: #6a635c;
 }
 
 body {
   margin: 0;
-  background: #eeece6;     /* piedra pulida clara, superficie limpia */
-  color: #201811;
+  background: var(--rf-steel-bg);
+  color: var(--rf-ink);
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 
-/* Textura de grano fina para que las superficies no se vean planas */
+/* Voz del tablero de pase: condensada en mayúsculas */
+.rf-cond { font-family: 'Oswald', 'Arial Narrow', sans-serif; }
+.rf-mono { font-family: 'DM Mono', 'Courier New', monospace; }
+
+/* Grano fino para que las superficies oscuras no se vean planas */
 .rf-grain::before {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.5;
   mix-blend-mode: overlay;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
 }
 
-/* Malla oscura de fragua: carbón con brasas y oro (fondos de hero) */
+/* ---- Zona caliente (oscura, fuego): cabeceras, nav, login ---- */
+.rf-hot,
 .rf-mesh {
   background:
-    radial-gradient(55% 75% at 12% 6%, rgba(200, 75, 0, 0.32), transparent 60%),
-    radial-gradient(45% 62% at 88% 2%, rgba(200, 135, 26, 0.20), transparent 55%),
-    radial-gradient(95% 100% at 50% 124%, rgba(200, 75, 0, 0.38), transparent 62%),
-    linear-gradient(160deg, #141008 0%, #201811 55%, #2a1c10 100%);
-  background-size: 200% 200%;
-  animation: rf-mesh-move 20s ease-in-out infinite;
-}
-@keyframes rf-mesh-move {
-  0%, 100% { background-position: 0% 0%, 100% 0%, 50% 100%, 0% 0%; }
-  50% { background-position: 20% 10%, 80% 20%, 40% 90%, 100% 100%; }
+    radial-gradient(60% 80% at 14% 0%, rgba(255, 138, 61, 0.24), transparent 60%),
+    radial-gradient(50% 70% at 86% 3%, rgba(216, 155, 58, 0.15), transparent 58%),
+    radial-gradient(125% 92% at 50% 132%, rgba(232, 83, 31, 0.34), transparent 60%),
+    linear-gradient(165deg, #0e0b09 0%, #1a1310 55%, #241812 100%);
 }
 
-/* Acero inoxidable cepillado (superficies metálicas) */
-.rf-steel {
-  background:
-    linear-gradient(180deg, #f4f6f7 0%, #d3d8dc 47%, #e9edef 53%, #c3c9ce 100%);
+/* Filo del pase: bisel de acero brillante que cierra la zona caliente */
+.rf-pass-edge {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.38),
+    0 4px 14px rgba(0, 0, 0, 0.28);
 }
-.rf-steel-brush::after {
+
+/* ---- Superficie de acero inoxidable cepillado (contenido) ---- */
+.rf-steel-surface {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55), transparent 16%),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.5) 0 1px, rgba(20, 16, 8, 0.014) 1px 3px),
+    var(--rf-steel-bg);
+}
+
+/* Panel / plato de acero (tarjetas, botones secundarios) */
+.rf-steel {
+  background: linear-gradient(180deg, #f6f8f9 0%, #e6eaed 46%, #eff2f4 54%, #dbe0e4 100%);
+}
+.rf-brush { position: relative; }
+.rf-brush::after {
   content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.5;
-  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.45) 0 1px, rgba(20,16,8,0.03) 1px 2.5px);
+  border-radius: inherit;
+  opacity: 0.4;
+  background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.55) 0 1px, rgba(20, 16, 8, 0.02) 1px 3px);
 }
-/* Fina línea de brillo superior tipo canto de acero */
-.rf-edge { box-shadow: inset 0 1px 0 rgba(255,255,255,0.6); }
+/* Bisel de canto de acero (brillo arriba, sombra abajo) */
+.rf-edge { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), inset 0 -1px 0 rgba(20, 16, 8, 0.10); }
 
-/* Brasas ascendentes vivas */
+/* ---- Celda de datos (negro mate, voz split-flap) ---- */
+.rf-cell { background: var(--rf-cell); color: var(--rf-cell-fg); }
+
+/* ---- Fuego ---- */
+.rf-ember-btn {
+  background: linear-gradient(180deg, #f2622c 0%, #e8531f 55%, #d3401a 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28), 0 6px 16px -7px rgba(232, 83, 31, 0.75);
+}
+.rf-ember-btn:hover { background: linear-gradient(180deg, #ff7238 0%, #f2622c 55%, #e8531f 100%); }
+
+/* Lámpara de estado (punto que brilla) */
+.rf-lamp-on {
+  background: radial-gradient(circle at 38% 32%, #ffd7a1, var(--rf-lamp) 58%, #e8531f 100%);
+  box-shadow: 0 0 8px 1px rgba(255, 154, 61, 0.8);
+}
+
+/* Brasas ascendentes vivas (solo zonas calientes) */
 @keyframes rf-ember {
   0% { transform: translateY(0) scale(1); opacity: 0; }
   15% { opacity: 1; }
@@ -79,13 +126,26 @@ body {
   width: 5px;
   height: 5px;
   border-radius: 9999px;
-  background: radial-gradient(circle, #ffcf8a 10%, #e86a1e 55%, #c84b00 78%, transparent 82%);
-  box-shadow: 0 0 6px rgba(232, 106, 30, 0.7);
+  background: radial-gradient(circle, #ffd7a1 10%, #ff8a3d 52%, #e8531f 78%, transparent 82%);
+  box-shadow: 0 0 6px rgba(255, 138, 61, 0.75);
   filter: blur(0.3px);
   animation: rf-ember linear infinite;
 }
 
-/* Entrada suave de tarjetas */
+/* Momento firmado: flip split-flap del código / número al cargar */
+@keyframes rf-flap {
+  0% { transform: rotateX(-90deg); opacity: 0; }
+  55% { transform: rotateX(14deg); opacity: 1; }
+  100% { transform: rotateX(0deg); opacity: 1; }
+}
+.rf-flap {
+  display: inline-block;
+  transform-origin: center bottom;
+  backface-visibility: hidden;
+  animation: rf-flap 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Entrada suave de filas/tarjetas */
 @keyframes rf-rise {
   from { opacity: 0; transform: translateY(14px); }
   to { opacity: 1; transform: translateY(0); }
@@ -97,7 +157,8 @@ body {
 .rf-noscroll { -ms-overflow-style: none; scrollbar-width: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .rf-mesh, .rf-ember, .rf-rise { animation: none !important; }
+  .rf-hot, .rf-mesh, .rf-ember, .rf-rise, .rf-flap { animation: none !important; }
+  .rf-flap { transform: none !important; opacity: 1 !important; }
 }
 
 /* Hoja A4 base para todas las plantillas de ficha técnica */
@@ -109,7 +170,7 @@ body {
   background: #ffffff;
   position: relative;
 }
-.rf-mono { font-family: 'DM Mono', 'Courier New', monospace; }
+/* Fuentes propias de las plantillas de impresión (artefacto aparte) */
 .rf-serif { font-family: 'Lora', Georgia, serif; }
 .rf-display { font-family: 'Playfair Display', Georgia, serif; }
 .rf-condensed { font-family: 'Bebas Neue', 'Arial Narrow', sans-serif; }

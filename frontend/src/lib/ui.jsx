@@ -42,26 +42,38 @@ export function totalTimeLabel(r) {
   return `${t} min`
 }
 
-// Paleta por categoría: tonos cálidos y terrosos (nada estridente).
+// Paleta por categoría en el mundo "La Línea": el punto de estado es cálido
+// (brasa/lámpara/oro); el chip vive sobre acero con tinta oscura.
 // Clases literales para que Tailwind las detecte.
 const CATEGORY_PALETTE = [
-  { chip: 'bg-orange-100/70 text-orange-800', dot: 'bg-orange-400', grad: 'from-orange-300 to-amber-400' },
-  { chip: 'bg-amber-100/70 text-amber-800', dot: 'bg-amber-400', grad: 'from-amber-300 to-yellow-400' },
-  { chip: 'bg-red-100/70 text-red-800', dot: 'bg-red-400', grad: 'from-red-300 to-orange-400' },
-  { chip: 'bg-rose-100/70 text-rose-800', dot: 'bg-rose-400', grad: 'from-rose-300 to-red-300' },
-  { chip: 'bg-yellow-100/70 text-yellow-800', dot: 'bg-yellow-500', grad: 'from-yellow-300 to-amber-400' },
-  { chip: 'bg-orange-200/60 text-orange-900', dot: 'bg-orange-500', grad: 'from-orange-300 to-rose-300' },
-  { chip: 'bg-amber-100 text-amber-900', dot: 'bg-amber-600', grad: 'from-amber-500 to-orange-600' },
-  { chip: 'bg-red-100/60 text-red-900', dot: 'bg-red-500', grad: 'from-red-300 to-amber-400' },
+  { chip: 'bg-[#f0ebe4] text-[#7c3d17]', dot: 'bg-[#e8531f]' },
+  { chip: 'bg-[#efe9e1] text-[#8a5a12]', dot: 'bg-[#ff9a3d]' },
+  { chip: 'bg-[#f0eae2] text-[#8a4a10]', dot: 'bg-[#d89b3a]' },
+  { chip: 'bg-[#f1e9e5] text-[#8f3a20]', dot: 'bg-[#c8371a]' },
+  { chip: 'bg-[#eeeae3] text-[#6a5b1a]', dot: 'bg-[#c8a11a]' },
+  { chip: 'bg-[#f0ebe3] text-[#7a4520]', dot: 'bg-[#f2622c]' },
+  { chip: 'bg-[#ebe9e6] text-[#4a4640]', dot: 'bg-[#8a9098]' },
+  { chip: 'bg-[#f1e9e4] text-[#853118]', dot: 'bg-[#b03418]' },
 ]
 
-const NEUTRAL = { chip: 'bg-stone-200 text-stone-600', dot: 'bg-stone-400', grad: 'from-stone-300 to-stone-400' }
+const NEUTRAL = { chip: 'bg-[#e7e9ec] text-[#5a5650]', dot: 'bg-[#8a9098]' }
 
 export function categoryStyle(cat) {
   if (!cat) return NEUTRAL
   let h = 0
   for (let i = 0; i < cat.length; i++) h = (h * 31 + cat.charCodeAt(i)) >>> 0
   return CATEGORY_PALETTE[h % CATEGORY_PALETTE.length]
+}
+
+// Lámpara de estado (punto que brilla, como la lámpara de calor del pase).
+export function StatusLamp({ on = true, size = 9, className = '' }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`inline-block shrink-0 rounded-full ${on ? 'rf-lamp-on' : 'bg-[#8a9098]'} ${className}`}
+      style={{ width: size, height: size }}
+    />
+  )
 }
 
 // Capa decorativa de brasas ascendentes (para hero oscuros).

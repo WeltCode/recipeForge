@@ -94,50 +94,52 @@ function UserManager({ restaurantId, admins = false }) {
     }
   }
 
+  const inputCls = 'rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20'
+
   return (
     <div className="space-y-4">
       {/* Crear usuario */}
-      <form onSubmit={createUser} className={`grid gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4 ${admins ? 'sm:grid-cols-3' : 'md:grid-cols-4'}`}>
+      <form onSubmit={createUser} className={`rf-steel rf-edge grid gap-3 rounded-xl border border-[#c4ccd2] p-4 ${admins ? 'sm:grid-cols-3' : 'md:grid-cols-4'}`}>
         <input required value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
-          className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none" placeholder="Usuario" autoComplete="off" />
+          className={inputCls} placeholder="Usuario" autoComplete="off" />
         <input required type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
-          className="rounded-lg border border-stone-300 px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none" placeholder="Contraseña" autoComplete="new-password" />
+          className={inputCls} placeholder="Contraseña" autoComplete="new-password" />
         {!admins && (
           <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-            className="rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm focus:border-[#c84b00] focus:outline-none">
+            className={`${inputCls} bg-white`}>
             <option value="basic">Básico (ver y editar)</option>
             <option value="premium">Premium (crear, editar, eliminar)</option>
           </select>
         )}
         <button type="submit" disabled={loading}
-          className="flex items-center justify-center gap-1.5 rounded-lg bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-700 disabled:opacity-60">
+          className="rf-cell rf-cond flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-600 uppercase tracking-wide text-white transition hover:bg-[#241a14] disabled:opacity-60" style={{ fontWeight: 600 }}>
           <Plus size={16} /> {loading ? 'Creando…' : admins ? 'Añadir admin' : 'Añadir usuario'}
         </button>
       </form>
 
       {/* Lista */}
       {users.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-stone-300 px-4 py-6 text-center text-sm text-stone-500">
+        <p className="rounded-lg border border-dashed border-[#c4ccd2] px-4 py-6 text-center text-sm text-[#9a9188]">
           {admins ? 'Aún no hay administradores.' : 'Este restaurante aún no tiene usuarios.'}
         </p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-stone-200">
+        <div className="overflow-hidden rounded-xl border border-[#c4ccd2]">
           <table className="w-full text-sm">
-            <tbody className="divide-y divide-stone-100">
+            <tbody className="divide-y divide-[#d5dade]">
               {users.map((u) => (
-                <tr key={u.id} className="hover:bg-stone-50">
+                <tr key={u.id} className="bg-white/50 hover:bg-[#fff3ea]/60">
                   <td className="px-4 py-3">
-                    <span className="flex items-center gap-2 font-medium text-stone-900">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-200 text-stone-600"><User size={15} /></span>
+                    <span className="flex items-center gap-2 font-medium text-[#1c1611]">
+                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-white"><User size={15} /></span>
                       {u.username}
                     </span>
                   </td>
                   <td className="px-4 py-3">
                     {admins ? (
-                      <span className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700">Super Admin</span>
+                      <span className="rf-cond inline-flex items-center rounded-full bg-[#e8531f]/12 px-2.5 py-0.5 text-xs font-600 uppercase tracking-wide text-[#b5420f]" style={{ fontWeight: 600 }}>Super Admin</span>
                     ) : (
                       <select value={u.role} onChange={(e) => patchUser(u.id, { role: e.target.value })}
-                        className="rounded-md border border-stone-300 bg-white px-2 py-1 text-xs">
+                        className="rounded-md border border-[#b9c0c6] bg-white px-2 py-1 text-xs">
                         {Object.entries(ROLE_LABELS).map(([value, label]) => (
                           <option key={value} value={value}>{label}</option>
                         ))}
@@ -148,16 +150,16 @@ function UserManager({ restaurantId, admins = false }) {
                     {editingId === u.id ? (
                       <div className="flex items-center justify-end gap-1.5">
                         <input type="password" autoFocus value={editPass} onChange={(e) => setEditPass(e.target.value)}
-                          className="w-36 rounded-md border border-stone-300 px-2 py-1 text-xs" placeholder="Nueva contraseña" />
-                        <button onClick={() => savePassword(u.id, u.username)} className="rounded-md bg-stone-900 px-2 py-1 text-xs font-medium text-white">Guardar</button>
-                        <button onClick={() => { setEditingId(null); setEditPass('') }} className="rounded-md border border-stone-300 px-1.5 py-1 text-stone-500"><X size={14} /></button>
+                          className="w-36 rounded-md border border-[#b9c0c6] px-2 py-1 text-xs" placeholder="Nueva contraseña" />
+                        <button onClick={() => savePassword(u.id, u.username)} className="rf-cell rounded-md px-2 py-1 text-xs font-medium text-white">Guardar</button>
+                        <button onClick={() => { setEditingId(null); setEditPass('') }} className="rounded-md border border-[#b9c0c6] px-1.5 py-1 text-[#7a736b]"><X size={14} /></button>
                       </div>
                     ) : (
                       <div className="flex items-center justify-end gap-1.5">
                         <button onClick={() => { setEditingId(u.id); setEditPass('') }} title="Cambiar contraseña"
-                          className="flex items-center gap-1 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-600 hover:bg-stone-100"><Pencil size={14} /> Contraseña</button>
+                          className="flex items-center gap-1 rounded-lg border border-[#c4ccd2] bg-white px-2 py-1.5 text-xs text-[#5a5650] hover:bg-[#f1f3f4]"><Pencil size={14} /> Contraseña</button>
                         <button onClick={() => deleteUser(u.id, u.username)} title="Eliminar"
-                          className="rounded-lg border border-red-200 bg-red-50 px-2 py-1.5 text-red-600 hover:bg-red-100"><Trash size={15} /></button>
+                          className="rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2 py-1.5 text-[#a4331a] hover:bg-[#f6d9d1]"><Trash size={15} /></button>
                       </div>
                     )}
                   </td>
@@ -168,7 +170,7 @@ function UserManager({ restaurantId, admins = false }) {
         </div>
       )}
 
-      {message && <p className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-700">{message}</p>}
+      {message && <p className="rounded-lg border border-[#c4ccd2] bg-white/60 px-3 py-2 text-sm text-[#5a5650]">{message}</p>}
     </div>
   )
 }
