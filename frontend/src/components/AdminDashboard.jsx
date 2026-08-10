@@ -284,13 +284,13 @@ function AdminDashboard({
 // Segmento de la tira de instrumentos (readout de fogón).
 function Readout({ icon, value, label }) {
   return (
-    <div className="flex items-center gap-3.5 px-5 py-4">
-      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2a1c14] to-[#17130f] text-[#ff9a3d] shadow-inner ring-1 ring-black/20">
+    <div className="flex items-center gap-3 px-3 py-3 sm:gap-3.5 sm:px-5 sm:py-4">
+      <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2a1c14] to-[#17130f] text-[#ff9a3d] shadow-inner ring-1 ring-black/20 sm:flex">
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="rf-cond text-3xl leading-none text-[#1c1611]" style={{ fontWeight: 600 }}>{value}</p>
-        <p className="rf-cond mt-1 truncate text-[11px] uppercase tracking-[0.14em] text-[#7a736b]" style={{ fontWeight: 500 }}>{label}</p>
+        <p className="rf-cond text-2xl leading-none text-[#1c1611] sm:text-3xl" style={{ fontWeight: 600 }}>{value}</p>
+        <p className="rf-cond mt-1 truncate text-[10px] uppercase tracking-[0.1em] text-[#7a736b] sm:text-[11px] sm:tracking-[0.14em]" style={{ fontWeight: 500 }}>{label}</p>
       </div>
     </div>
   )

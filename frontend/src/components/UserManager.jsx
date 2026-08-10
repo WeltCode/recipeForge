@@ -123,50 +123,42 @@ function UserManager({ restaurantId, admins = false }) {
           {admins ? 'Aún no hay administradores.' : 'Este restaurante aún no tiene usuarios.'}
         </p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-[#c4ccd2]">
-          <table className="w-full text-sm">
-            <tbody className="divide-y divide-[#d5dade]">
-              {users.map((u) => (
-                <tr key={u.id} className="bg-white/50 hover:bg-[#fff3ea]/60">
-                  <td className="px-4 py-3">
-                    <span className="flex items-center gap-2 font-medium text-[#1c1611]">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-white"><User size={15} /></span>
-                      {u.username}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    {admins ? (
-                      <span className="rf-cond inline-flex items-center rounded-full bg-[#e8531f]/12 px-2.5 py-0.5 text-xs font-600 uppercase tracking-wide text-[#b5420f]" style={{ fontWeight: 600 }}>Super Admin</span>
-                    ) : (
-                      <select value={u.role} onChange={(e) => patchUser(u.id, { role: e.target.value })}
-                        className="rounded-md border border-[#b9c0c6] bg-white px-2 py-1 text-xs">
-                        {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                          <option key={value} value={value}>{label}</option>
-                        ))}
-                      </select>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    {editingId === u.id ? (
-                      <div className="flex items-center justify-end gap-1.5">
-                        <input type="password" autoFocus value={editPass} onChange={(e) => setEditPass(e.target.value)}
-                          className="w-36 rounded-md border border-[#b9c0c6] px-2 py-1 text-xs" placeholder="Nueva contraseña" />
-                        <button onClick={() => savePassword(u.id, u.username)} className="rf-cell rounded-md px-2 py-1 text-xs font-medium text-white">Guardar</button>
-                        <button onClick={() => { setEditingId(null); setEditPass('') }} className="rounded-md border border-[#b9c0c6] px-1.5 py-1 text-[#7a736b]"><X size={14} /></button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => { setEditingId(u.id); setEditPass('') }} title="Cambiar contraseña"
-                          className="flex items-center gap-1 rounded-lg border border-[#c4ccd2] bg-white px-2 py-1.5 text-xs text-[#5a5650] hover:bg-[#f1f3f4]"><Pencil size={14} /> Contraseña</button>
-                        <button onClick={() => deleteUser(u.id, u.username)} title="Eliminar"
-                          className="rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2 py-1.5 text-[#a4331a] hover:bg-[#f6d9d1]"><Trash size={15} /></button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="divide-y divide-[#d5dade] overflow-hidden rounded-xl border border-[#c4ccd2]">
+          {users.map((u) => (
+            <div key={u.id} className="flex flex-col gap-3 bg-white/50 px-4 py-3 transition hover:bg-[#fff3ea]/60 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="flex items-center gap-2 font-medium text-[#1c1611]">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-white"><User size={15} /></span>
+                  {u.username}
+                </span>
+                {admins ? (
+                  <span className="rf-cond inline-flex items-center rounded-full bg-[#e8531f]/12 px-2.5 py-0.5 text-xs font-600 uppercase tracking-wide text-[#b5420f]" style={{ fontWeight: 600 }}>Super Admin</span>
+                ) : (
+                  <select value={u.role} onChange={(e) => patchUser(u.id, { role: e.target.value })}
+                    className="rounded-md border border-[#b9c0c6] bg-white px-2 py-1 text-xs">
+                    {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              {editingId === u.id ? (
+                <div className="flex items-center gap-1.5 sm:justify-end">
+                  <input type="password" autoFocus value={editPass} onChange={(e) => setEditPass(e.target.value)}
+                    className="w-full min-w-0 flex-1 rounded-md border border-[#b9c0c6] px-2 py-1 text-xs sm:w-36 sm:flex-none" placeholder="Nueva contraseña" />
+                  <button onClick={() => savePassword(u.id, u.username)} className="rf-cell shrink-0 rounded-md px-2 py-1 text-xs font-medium text-white">Guardar</button>
+                  <button onClick={() => { setEditingId(null); setEditPass('') }} className="shrink-0 rounded-md border border-[#b9c0c6] px-1.5 py-1 text-[#7a736b]"><X size={14} /></button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5 sm:justify-end">
+                  <button onClick={() => { setEditingId(u.id); setEditPass('') }} title="Cambiar contraseña"
+                    className="flex items-center gap-1 rounded-lg border border-[#c4ccd2] bg-white px-2 py-1.5 text-xs text-[#5a5650] hover:bg-[#f1f3f4]"><Pencil size={14} /> Contraseña</button>
+                  <button onClick={() => deleteUser(u.id, u.username)} title="Eliminar"
+                    className="rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2 py-1.5 text-[#a4331a] hover:bg-[#f6d9d1]"><Trash size={15} /></button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       )}
 
