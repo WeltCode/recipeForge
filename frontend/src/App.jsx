@@ -118,7 +118,7 @@ function ScaledA4({ children }) {
     return () => ro.disconnect()
   }, [])
   return (
-    <div ref={ref} className="w-full overflow-hidden" style={{ height: scale ? A4_H * scale : 0 }}>
+    <div ref={ref} className="w-full min-w-0 overflow-hidden" style={{ height: scale ? A4_H * scale : 0 }}>
       <div style={{ width: A4_W, height: A4_H, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
         {children}
       </div>
@@ -716,8 +716,8 @@ function App() {
             : 'Formulario dinámico para registrar receta, ingredientes y proceso de producción.'}
         </p>
 
-        <div className="mt-8 grid gap-8 xl:grid-cols-2 xl:gap-10">
-          <form className="rf-steel rf-edge space-y-8 rounded-3xl border border-[#c4ccd2] p-5 md:p-6" onSubmit={submitRecipe}>
+        <div className="mt-8 grid grid-cols-1 gap-8 xl:grid-cols-2 xl:gap-10">
+          <form className="rf-steel rf-edge min-w-0 space-y-8 rounded-3xl border border-[#c4ccd2] p-5 md:p-6" onSubmit={submitRecipe}>
 
             {/* ── INFO BÁSICA ── */}
             <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-2">
@@ -1071,7 +1071,7 @@ function App() {
           </form>
 
           {/* ── PREVIEW ── */}
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <div className="rf-steel rf-edge rounded-3xl border border-[#c4ccd2] p-4">
               <p className="rf-cond flex items-center gap-2 text-xs font-600 uppercase tracking-[0.16em] text-[#7a736b]" style={{ fontWeight: 600 }}>
                 <span className="rf-lamp-on inline-block h-1.5 w-1.5 rounded-full" /> Vista previa A4
