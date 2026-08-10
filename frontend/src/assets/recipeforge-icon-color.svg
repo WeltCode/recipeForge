@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 72 72">
+<defs>
+<radialGradient id="F" cx="46%" cy="60%" r="62%"><stop offset="0%" stop-color="#FFC750"></stop><stop offset="28%" stop-color="#F9971F"></stop><stop offset="62%" stop-color="#EE5A1C"></stop><stop offset="100%" stop-color="#D4430B"></stop></radialGradient>
+<radialGradient id="H" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#FFF3D0" stop-opacity="0.95"></stop><stop offset="45%" stop-color="#FFCB67" stop-opacity="0.55"></stop><stop offset="100%" stop-color="#FFCB67" stop-opacity="0"></stop></radialGradient>
+<linearGradient id="R" x1="0" y1="-5" x2="0" y2="5" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#42352C"></stop><stop offset="52%" stop-color="#2A211C"></stop><stop offset="100%" stop-color="#141009"></stop></linearGradient>
+<linearGradient id="A" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3A2E26"></stop><stop offset="42%" stop-color="#211B19"></stop><stop offset="100%" stop-color="#100C0A"></stop></linearGradient>
+<filter id="G" x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="2.4"></feGaussianBlur></filter>
+</defs>
+<path d="M12 46 C 11 34, 16 26, 22 22 C 25 27, 28 28, 30 24 C 33 15, 35 11, 38 5 C 41 12, 43 16, 45 20 C 48 16, 51 15, 52 18 C 56 25, 60 35, 60 46 A24 24 0 1 1 12 46 Z" fill="#F97A1E" opacity="0.28" filter="url(#G)"></path>
+<path d="M12 46 C 11 34, 16 26, 22 22 C 25 27, 28 28, 30 24 C 33 15, 35 11, 38 5 C 41 12, 43 16, 45 20 C 48 16, 51 15, 52 18 C 56 25, 60 35, 60 46 A24 24 0 1 1 12 46 Z" fill="url(#F)"></path>
+<ellipse cx="36" cy="45" rx="17" ry="14" fill="url(#H)"></ellipse>
+<g>
+<path d="M25 47 H47 a2.5 2.5 0 0 1 2.5 2.5 v2 a2.5 2.5 0 0 1 -2.5 2.5 H25 L19 50 Z" fill="url(#A)"></path>
+<path d="M30 54 H42 L40 60 H32 Z" fill="url(#A)"></path>
+<path d="M26 60 H46 a2.5 2.5 0 0 1 2.5 2.5 v1.5 a2.5 2.5 0 0 1 -2.5 2.5 H26 a2.5 2.5 0 0 1 -2.5 -2.5 V62.5 a2.5 2.5 0 0 1 2.5 -2.5 Z" fill="url(#A)"></path>
+<path d="M26 47.6 H47 a1.6 1.6 0 0 1 1.6 1.6" stroke="#3A2E26" stroke-width="1.1" stroke-linecap="round" fill="none" opacity="0.7"></path>
+</g>
+<g transform="translate(35,36) rotate(-26)">
+<rect x="-16.5" y="-1.9" width="6.5" height="3.8" rx="1.9" fill="#2A211C" stroke="#C0440E" stroke-width="1.1" stroke-linejoin="round"></rect>
+<rect x="10" y="-1.9" width="6.5" height="3.8" rx="1.9" fill="#2A211C" stroke="#C0440E" stroke-width="1.1" stroke-linejoin="round"></rect>
+<rect x="-11" y="-5" width="22" height="10" rx="5" fill="url(#R)" stroke="#C0440E" stroke-width="1.3" stroke-linejoin="round"></rect>
+<rect x="-8.5" y="-3.4" width="17" height="1.7" rx="0.85" fill="#5A4A3E" opacity="0.7"></rect>
+</g>
+<g stroke="#FBF6EF" stroke-width="2.1" stroke-linecap="round" fill="none">
+<line x1="33" y1="46.5" x2="29" y2="50.5"></line><line x1="37" y1="47" x2="37" y2="52"></line><line x1="41" y1="46.5" x2="46" y2="50"></line><line x1="28.5" y1="44.5" x2="24.5" y2="43"></line><line x1="45" y1="43" x2="49.5" y2="41.5"></line>
+</g></svg>

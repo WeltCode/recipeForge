@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { login } from '../auth'
-import rfLogo from '../assets/lockup-white-on-dark.png'
+import Logo from './Logo'
 import wokVideo from '../assets/wokvideo.mp4'
 import { User, Lock, Eye, EyeOff, Flame } from './icons'
 import { Embers, StatusLamp } from '../lib/ui'
@@ -89,7 +89,7 @@ function Login({ onSuccess, notice }) {
 
         {/* Manifiesto de marca */}
         <div className="order-1" style={{ animation: 'rf-in-l .7s cubic-bezier(.2,.8,.2,1) both' }}>
-          <img src={rfLogo} alt="RecipeForge" className="h-12 w-auto object-contain drop-shadow-[0_3px_14px_rgba(232,83,31,0.45)] md:h-16" />
+          <Logo variant="dark" className="text-4xl drop-shadow-[0_3px_14px_rgba(232,83,31,0.45)] md:text-5xl" />
 
           <span className="rf-cond mt-7 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/[.06] px-3.5 py-1.5 text-[12px] uppercase tracking-[0.2em] text-[#ffcf9e] backdrop-blur-[2px]">
             <StatusLamp size={8} /> Cocina profesional

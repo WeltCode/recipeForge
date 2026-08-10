@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import rfLogo from '../assets/lockup-white-on-dark.png'
-import recipeIcon from '../assets/icon-white-256.png'
+import Logo from './Logo'
+import recipeIcon from '../assets/recipeforge-icon-white.svg'
 import UserManager from './UserManager'
 import { greeting, initials, totalTimeLabel, Embers, StatusLamp } from '../lib/ui'
 import {
@@ -59,7 +59,7 @@ function Dashboard({
         <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-6 md:px-8">
           {/* rail superior */}
           <div className="flex items-center justify-between gap-3">
-            <img src={rfLogo} alt="RecipeForge" className="h-9 w-auto object-contain" />
+            <Logo variant="dark" className="text-2xl" />
             <div className="flex items-center gap-2.5">
               <div className="hidden items-center gap-2.5 rounded-full border border-white/12 bg-white/[.06] py-1.5 pl-1.5 pr-4 backdrop-blur sm:flex">
                 <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-xs font-bold text-white">

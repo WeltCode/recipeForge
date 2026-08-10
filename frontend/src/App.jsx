@@ -7,7 +7,7 @@ import { ArrowLeft, Doc } from './components/icons'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
 import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, IDLE_LIMIT_MS } from './auth'
-import rfLogo from './assets/lockup-white-on-dark.png'
+import Logo from './components/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
@@ -661,7 +661,7 @@ function App() {
           >
             <ArrowLeft size={17} /> Volver al panel
           </button>
-          <img src={rfLogo} alt="RecipeForge" className="hidden h-14 w-auto object-contain drop-shadow-[0_2px_10px_rgba(232,83,31,0.4)] sm:block" />
+          <Logo variant="dark" className="hidden text-3xl drop-shadow-[0_2px_10px_rgba(232,83,31,0.4)] sm:inline-flex md:text-4xl" />
           <div className="flex items-center gap-3 text-sm">
             <span className="flex items-center gap-2 text-white/80">
               {username}

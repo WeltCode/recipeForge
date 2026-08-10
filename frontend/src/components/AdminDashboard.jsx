@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import rfLogo from '../assets/lockup-white-on-dark.png'
+import Logo from './Logo'
 import { authFetch } from '../auth'
 import RestaurantDetail from './RestaurantDetail'
 import UserManager from './UserManager'
@@ -97,7 +97,7 @@ function AdminDashboard({
         <Embers count={14} />
         <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-6 md:px-8">
           <div className="flex items-center justify-between gap-3">
-            <img src={rfLogo} alt="RecipeForge" className="h-9 w-auto object-contain" />
+            <Logo variant="dark" className="text-2xl" />
             <div className="flex items-center gap-2.5">
               <button onClick={() => setShowAdmins(true)} className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[.06] px-4 py-2 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/[.12]">
                 <Sparkle size={15} /> Administradores
