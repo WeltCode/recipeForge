@@ -202,8 +202,8 @@ function AdminDashboard({
       {/* Modal crear restaurante */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
-          <div className="rf-steel rf-edge w-full max-w-lg overflow-hidden rounded-2xl border border-[#aeb6bd] shadow-2xl rf-rise" onClick={(e) => e.stopPropagation()}>
-            <div className="rf-hot rf-grain rf-pass-edge relative flex items-center justify-between px-6 py-5">
+          <div className="rf-steel rf-edge flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#aeb6bd] shadow-2xl rf-rise" onClick={(e) => e.stopPropagation()}>
+            <div className="rf-hot rf-grain rf-pass-edge relative flex shrink-0 items-center justify-between px-6 py-5">
               <div>
                 <h3 className="rf-cond text-lg font-600 uppercase tracking-[0.06em] text-white" style={{ fontWeight: 600 }}>Nuevo restaurante</h3>
                 <p className="text-xs text-white/60">Crea el restaurante y su primer usuario de acceso.</p>
@@ -211,7 +211,7 @@ function AdminDashboard({
               <button onClick={() => setShowCreate(false)} className="text-white/60 hover:text-white"><X size={20} /></button>
             </div>
 
-            <form onSubmit={createRestaurant} className="space-y-4 p-6">
+            <form onSubmit={createRestaurant} className="space-y-4 overflow-y-auto p-6">
               <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
                 <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
                   Nombre del restaurante

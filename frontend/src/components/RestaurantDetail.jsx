@@ -105,14 +105,14 @@ function RestaurantDetail({
           </div>
 
           {/* Tabs */}
-          <div className="mt-7 flex gap-1">
+          <div className="rf-noscroll mt-7 flex gap-1 overflow-x-auto">
             {TABS.map((t) => {
               const Icon = t.icon
               return (
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`rf-cond flex items-center gap-2 rounded-t-xl px-4 py-2.5 text-sm font-500 uppercase tracking-wide transition ${
+                  className={`rf-cond flex shrink-0 items-center gap-2 rounded-t-xl px-3 py-2.5 text-sm font-500 uppercase tracking-wide transition sm:px-4 ${
                     tab === t.id ? 'bg-[#dfe3e7] text-[#1c1611]' : 'text-white/70 hover:bg-white/[.08]'
                   }`}
                   style={{ fontWeight: 500 }}
