@@ -5,6 +5,9 @@ const KEYS = {
   access: 'rf_access',
   refresh: 'rf_refresh',
   role: 'rf_role',
+  permissions: 'rf_permissions',
+  plan: 'rf_plan',
+  title: 'rf_title',
   username: 'rf_username',
   restaurant: 'rf_restaurant',
   restaurantName: 'rf_restaurant_name',
@@ -22,6 +25,22 @@ export function getAccess() {
 }
 export function getRole() {
   return localStorage.getItem(KEYS.role)
+}
+export function getPermissions() {
+  try {
+    return JSON.parse(localStorage.getItem(KEYS.permissions) || '{}')
+  } catch {
+    return {}
+  }
+}
+export function hasPerm(flag) {
+  return Boolean(getPermissions()[flag])
+}
+export function getPlan() {
+  return localStorage.getItem(KEYS.plan)
+}
+export function getTitle() {
+  return localStorage.getItem(KEYS.title)
 }
 export function getUsername() {
   return localStorage.getItem(KEYS.username)
@@ -42,10 +61,13 @@ export function isAuthenticated() {
   return Boolean(getAccess())
 }
 
-function storeSession({ access, refresh, role, username, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template }) {
+function storeSession({ access, refresh, role, permissions, plan, title, username, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template }) {
   if (access) localStorage.setItem(KEYS.access, access)
   if (refresh) localStorage.setItem(KEYS.refresh, refresh)
   if (role) localStorage.setItem(KEYS.role, role)
+  if (permissions) localStorage.setItem(KEYS.permissions, JSON.stringify(permissions))
+  if (plan) localStorage.setItem(KEYS.plan, plan)
+  if (title != null) localStorage.setItem(KEYS.title, title)
   if (username) localStorage.setItem(KEYS.username, username)
   if (restaurant != null) localStorage.setItem(KEYS.restaurant, String(restaurant))
   if (restaurant_name) localStorage.setItem(KEYS.restaurantName, restaurant_name)
@@ -78,6 +100,9 @@ export async function login(username, password) {
     access: data.access,
     refresh: data.refresh,
     role: data.role,
+    permissions: data.permissions,
+    plan: data.restaurant_plan,
+    title: data.title,
     username: data.username,
     restaurant: data.restaurant,
     restaurant_name: data.restaurant_name,
@@ -90,6 +115,32 @@ export async function login(username, password) {
 
 export function logout() {
   clearSession()
+}
+
+// Refresca rol + permisos + plan + datos del restaurante desde /me.
+// Se llama al arrancar la app para que las sesiones ya abiertas (antes de un
+// deploy) obtengan los permisos nuevos sin tener que volver a iniciar sesión.
+export async function refreshMe() {
+  try {
+    const res = await authFetch(`${API_BASE}/auth/me/`)
+    if (!res.ok) return null
+    const data = await res.json()
+    storeSession({
+      role: data.role,
+      permissions: data.permissions,
+      plan: data.restaurant_plan,
+      title: data.title,
+      username: data.username,
+      restaurant: data.restaurant,
+      restaurant_name: data.restaurant_name,
+      restaurant_prefix: data.restaurant_prefix,
+      restaurant_logo: data.restaurant_logo,
+      restaurant_default_template: data.restaurant_default_template,
+    })
+    return data
+  } catch {
+    return null
+  }
 }
 
 async function refreshAccess() {

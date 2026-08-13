@@ -6,7 +6,7 @@ import AdminDashboard from './components/AdminDashboard'
 import { ArrowLeft, Doc } from './components/icons'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
-import { authFetch, isAuthenticated, getRole, getUsername, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, IDLE_LIMIT_MS } from './auth'
+import { authFetch, isAuthenticated, getRole, hasPerm, getPlan, getUsername, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, IDLE_LIMIT_MS } from './auth'
 import Logo from './components/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -100,6 +100,10 @@ const emptyForm = {
   steps: [{ ...emptyStep }],
 }
 
+const ROLE_LABELS = {
+  superadmin: 'Super Admin', owner: 'Owner', manager: 'Manager', editor: 'Editor', viewer: 'Viewer',
+}
+
 // Escala una hoja A4 (210×297mm ≈ 794×1123px) para que quepa completa en el
 // ancho de su columna, manteniendo proporción. Solo para la vista previa en
 // pantalla; la exportación/impresión usa el tamaño real.
@@ -152,8 +156,25 @@ function App() {
   const username = getUsername()
   const restaurantName = getRestaurantName()
   const isSuperAdmin = role === 'superadmin'
-  const canCreate = role === 'premium' || role === 'superadmin'
-  const canDelete = canCreate
+  const canCreate = hasPerm('can_create_recipes')
+  const canDelete = hasPerm('can_delete_recipes')
+  const canEdit = hasPerm('can_edit_recipes')
+
+  // Al arrancar con una sesión ya abierta, refresca rol/permisos/plan desde /me
+  // (para que las sesiones previas al deploy obtengan los permisos nuevos).
+  useEffect(() => {
+    if (!isAuthenticated()) return
+    refreshMe().then((data) => {
+      if (!data) return
+      setRole(data.role)
+      setActiveRestaurant((prev) => ({
+        name: data.restaurant_name ?? prev.name,
+        logo: data.restaurant_logo ?? prev.logo,
+        defaultTemplate: data.restaurant_default_template || prev.defaultTemplate,
+      }))
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleLogout = () => {
     logout()
@@ -633,6 +654,7 @@ function App() {
           <Dashboard
             username={username}
             role={role}
+            plan={getPlan()}
             restaurantName={restaurantName}
             recipes={recipeList}
             canCreate={canCreate}
@@ -666,13 +688,13 @@ function App() {
             <span className="flex items-center gap-2 text-white/80">
               {username}
               <span className={`rf-cond rounded-full px-2 py-0.5 text-[11px] font-600 uppercase tracking-wide ${
-                role === 'superadmin'
+                role === 'superadmin' || role === 'owner'
                   ? 'bg-[#e8531f]/22 text-[#ffbf9b]'
-                  : role === 'premium'
+                  : role === 'manager'
                     ? 'bg-[#ff9a3d]/18 text-[#ffcf9e]'
                     : 'bg-white/12 text-white/85'
               }`} style={{ fontWeight: 600 }}>
-                {role === 'superadmin' ? 'Super Admin' : role === 'premium' ? 'Premium' : 'Básico'}
+                {ROLE_LABELS[role] || role}
               </span>
             </span>
             <button
@@ -1030,7 +1052,7 @@ function App() {
             {/* ── ACCIONES ── */}
             {!canCreate && !editingRecipeId && (
               <p className="rounded-md border border-[#ff9a3d]/30 bg-[#fff3ea] px-3 py-2 text-sm text-[#8a3d15]">
-                Tu rol (Básico) solo permite <strong>ver y editar</strong> recetas existentes.
+                Tu rol solo permite <strong>ver y editar</strong> recetas existentes.
                 Selecciona una ficha de la lista para editarla.
               </p>
             )}

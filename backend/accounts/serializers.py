@@ -156,9 +156,13 @@ class UserAdminSerializer(serializers.ModelSerializer):
         if not password:
             raise serializers.ValidationError({'password': 'La contraseña es obligatoria.'})
         user = User(**validated_data)
+        if role_key == 'superadmin':
+            # Admin de plataforma: se identifica por is_superuser, sin membership.
+            user.is_superuser = True
+            user.is_staff = True
         user.set_password(password)
         user.save()  # el signal crea un UserProfile dormido; usamos Membership
-        if restaurant is not None:
+        if role_key != 'superadmin' and restaurant is not None:
             Membership.objects.create(
                 user=user, restaurant=restaurant,
                 role=self._role_for(restaurant, role_key), title=title,

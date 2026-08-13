@@ -4,13 +4,19 @@ import { Trash, Plus, User, Pencil, X } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
-const ROLE_LABELS = { basic: 'Básico', premium: 'Premium' }
+const ROLE_LABELS = { owner: 'Owner', manager: 'Manager', editor: 'Editor', viewer: 'Viewer' }
+const ROLE_HELP = {
+  owner: 'Dueño: todo + gestión',
+  manager: 'Chef: crear/editar/borrar + coste',
+  editor: 'Jefe de partida: editar (sin crear/borrar)',
+  viewer: 'Cocinero: solo consulta',
+}
 
 // Panel de usuarios. Dos modos:
-//  - restaurantId: usuarios (básico/premium) de un restaurante.
+//  - restaurantId: usuarios (owner/manager/editor/viewer) de un restaurante.
 //  - admins: super administradores de la plataforma (sin restaurante).
 function UserManager({ restaurantId, admins = false }) {
-  const emptyNewUser = { username: '', password: '', role: admins ? 'superadmin' : 'basic' }
+  const emptyNewUser = { username: '', password: '', role: admins ? 'superadmin' : 'viewer', title: '' }
   const [users, setUsers] = useState([])
   const [newUser, setNewUser] = useState({ ...emptyNewUser })
   const [message, setMessage] = useState('')
@@ -99,17 +105,22 @@ function UserManager({ restaurantId, admins = false }) {
   return (
     <div className="space-y-4">
       {/* Crear usuario */}
-      <form onSubmit={createUser} className={`rf-steel rf-edge grid gap-3 rounded-xl border border-[#c4ccd2] p-4 ${admins ? 'sm:grid-cols-3' : 'md:grid-cols-4'}`}>
+      <form onSubmit={createUser} className={`rf-steel rf-edge grid gap-3 rounded-xl border border-[#c4ccd2] p-4 ${admins ? 'sm:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-5'}`}>
         <input required value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
           className={inputCls} placeholder="Usuario" autoComplete="off" />
         <input required type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
           className={inputCls} placeholder="Contraseña" autoComplete="new-password" />
         {!admins && (
-          <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
-            className={`${inputCls} bg-white`}>
-            <option value="basic">Básico (ver y editar)</option>
-            <option value="premium">Premium (crear, editar, eliminar)</option>
-          </select>
+          <>
+            <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+              className={`${inputCls} bg-white`} title={ROLE_HELP[newUser.role]}>
+              {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+            <input value={newUser.title} onChange={(e) => setNewUser({ ...newUser, title: e.target.value })}
+              className={inputCls} placeholder="Cargo (opcional)" autoComplete="off" />
+          </>
         )}
         <button type="submit" disabled={loading}
           className="rf-cell rf-cond flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-600 uppercase tracking-wide text-white transition hover:bg-[#241a14] disabled:opacity-60" style={{ fontWeight: 600 }}>
@@ -134,12 +145,15 @@ function UserManager({ restaurantId, admins = false }) {
                 {admins ? (
                   <span className="rf-cond inline-flex items-center rounded-full bg-[#e8531f]/12 px-2.5 py-0.5 text-xs font-600 uppercase tracking-wide text-[#b5420f]" style={{ fontWeight: 600 }}>Super Admin</span>
                 ) : (
-                  <select value={u.role} onChange={(e) => patchUser(u.id, { role: e.target.value })}
-                    className="rounded-md border border-[#b9c0c6] bg-white px-2 py-1 text-xs">
-                    {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
+                  <div className="flex items-center gap-2">
+                    <select value={u.role || 'viewer'} onChange={(e) => patchUser(u.id, { role: e.target.value })}
+                      className="rounded-md border border-[#b9c0c6] bg-white px-2 py-1 text-xs" title={ROLE_HELP[u.role]}>
+                      {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                    {u.title && <span className="text-xs text-[#8a3d15]">· {u.title}</span>}
+                  </div>
                 )}
               </div>
               {editingId === u.id ? (

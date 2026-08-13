@@ -1,16 +1,18 @@
 import { useState } from 'react'
 import { authFetch } from '../auth'
 import UserManager from './UserManager'
+import RolesManager from './RolesManager'
 import { RecipeCard } from './Dashboard'
 import { Embers, initials } from '../lib/ui'
 import { TEMPLATES } from '../templates'
-import { ArrowLeft, Book, User, Plus, Search, Cloche, Pencil } from './icons'
+import { ArrowLeft, Book, User, Plus, Search, Cloche, Pencil, Lock } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
 const TABS = [
   { id: 'recipes', label: 'Recetas', icon: Book },
   { id: 'users', label: 'Usuarios', icon: User },
+  { id: 'roles', label: 'Roles', icon: Lock },
   { id: 'info', label: 'Información', icon: Pencil },
 ]
 
@@ -183,6 +185,17 @@ function RestaurantDetail({
               Cada usuario solo verá y gestionará las recetas de <strong className="text-[#3a352f]">{restaurant.name}</strong>.
             </p>
             <UserManager restaurantId={restaurant.id} />
+          </div>
+        )}
+
+        {/* ── ROLES Y PERMISOS ── */}
+        {tab === 'roles' && (
+          <div>
+            <h2 className="rf-cond mb-1 text-xl font-600 uppercase tracking-wide text-[#1c1611]" style={{ fontWeight: 600 }}>Roles y permisos</h2>
+            <p className="mb-5 text-sm text-[#6a635c]">
+              Define qué puede hacer cada rol en <strong className="text-[#3a352f]">{restaurant.name}</strong>.
+            </p>
+            <RolesManager restaurantId={restaurant.id} />
           </div>
         )}
 

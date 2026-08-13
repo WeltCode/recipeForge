@@ -9,7 +9,7 @@ import { LogOut, Plus, Search, Book, User, Cloche, Sparkle, X, Flame } from './i
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
 const emptyNew = {
-  name: '', code_prefix: '', owner_username: '', owner_password: '', owner_role: 'premium',
+  name: '', code_prefix: '', owner_username: '', owner_password: '', owner_role: 'owner',
   contact_email: '', contact_phone: '', address: '',
 }
 
@@ -235,8 +235,10 @@ function AdminDashboard({
                 </div>
                 <select value={nuevo.owner_role} onChange={(e) => setNuevo({ ...nuevo, owner_role: e.target.value })}
                   className="mt-3 w-full rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm focus:border-[#e8531f] focus:outline-none">
-                  <option value="premium">Premium (crear, editar y eliminar recetas)</option>
-                  <option value="basic">Básico (solo ver y editar recetas)</option>
+                  <option value="owner">Owner (dueño: todo + gestión)</option>
+                  <option value="manager">Manager (chef: crear/editar/borrar)</option>
+                  <option value="editor">Editor (editar, sin crear/borrar)</option>
+                  <option value="viewer">Viewer (cocina: solo consulta)</option>
                 </select>
               </div>
 

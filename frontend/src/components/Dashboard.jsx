@@ -9,9 +9,17 @@ import {
 } from './icons'
 
 const ROLE_META = {
-  basic: { label: 'Básico', desc: 'Puedes ver y editar las fichas técnicas.', chip: 'bg-white/12 text-white/90 ring-1 ring-white/20' },
-  premium: { label: 'Premium', desc: 'Puedes crear, editar y eliminar fichas.', chip: 'bg-[#ff9a3d]/18 text-[#ffcf9e] ring-1 ring-[#ff9a3d]/35' },
-  superadmin: { label: 'Super Admin', desc: 'Control total y gestión de usuarios.', chip: 'bg-[#e8531f]/20 text-[#ffbf9b] ring-1 ring-[#e8531f]/35' },
+  viewer: { label: 'Viewer', desc: 'Consultas las fichas técnicas en cocina.', chip: 'bg-white/12 text-white/90 ring-1 ring-white/20' },
+  editor: { label: 'Editor', desc: 'Puedes ver y editar las fichas técnicas.', chip: 'bg-white/12 text-white/90 ring-1 ring-white/20' },
+  manager: { label: 'Manager', desc: 'Puedes crear, editar y eliminar fichas.', chip: 'bg-[#ff9a3d]/18 text-[#ffcf9e] ring-1 ring-[#ff9a3d]/35' },
+  owner: { label: 'Owner', desc: 'Control del restaurante y su equipo.', chip: 'bg-[#e8531f]/20 text-[#ffbf9b] ring-1 ring-[#e8531f]/35' },
+  superadmin: { label: 'Super Admin', desc: 'Control total y gestión de restaurantes.', chip: 'bg-[#e8531f]/20 text-[#ffbf9b] ring-1 ring-[#e8531f]/35' },
+}
+
+const PLAN_META = {
+  basico: { label: 'Básico', chip: 'bg-white/12 text-white/85 ring-1 ring-white/20' },
+  pro: { label: 'Pro', chip: 'bg-[#ff9a3d]/18 text-[#ffcf9e] ring-1 ring-[#ff9a3d]/35' },
+  business: { label: 'Business', chip: 'bg-[#e8531f]/20 text-[#ffbf9b] ring-1 ring-[#e8531f]/35' },
 }
 
 const SORTS = {
@@ -21,14 +29,15 @@ const SORTS = {
 }
 
 function Dashboard({
-  username, role, restaurantName, recipes, canCreate, canDelete,
+  username, role, plan, restaurantName, recipes, canCreate, canDelete,
   onNew, onEdit, onDelete, onDownloadPDF, onLogout,
 }) {
   const [query, setQuery] = useState('')
   const [cat, setCat] = useState('')
   const [sort, setSort] = useState('recientes')
   const [view, setView] = useState(() => localStorage.getItem('rf_view') || 'grid')
-  const meta = ROLE_META[role] || ROLE_META.basic
+  const meta = ROLE_META[role] || ROLE_META.viewer
+  const planMeta = plan ? PLAN_META[plan] : null
 
   const setViewPersist = (v) => {
     setView(v)
@@ -88,8 +97,13 @@ function Dashboard({
             </h1>
             <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/55">
               <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.chip}`}>
-                {role !== 'basic' && <Sparkle size={11} />} {meta.label}
+                {(role === 'owner' || role === 'manager' || role === 'superadmin') && <Sparkle size={11} />} {meta.label}
               </span>
+              {planMeta && (
+                <span className={`rf-cond inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-600 uppercase tracking-wide ${planMeta.chip}`} style={{ fontWeight: 600 }}>
+                  Plan {planMeta.label}
+                </span>
+              )}
               {meta.desc}
             </p>
           </div>
@@ -102,7 +116,7 @@ function Dashboard({
         <div className="-mt-14 grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
           <Readout icon={<Book size={19} />} value={recipes.length} label="Fichas técnicas" />
           <Readout icon={<Layers size={19} />} value={categories.length} label="Categorías" />
-          <Readout icon={<Sparkle size={19} />} value={meta.label} label="Tu plan" small />
+          <Readout icon={<Sparkle size={19} />} value={planMeta ? planMeta.label : meta.label} label="Tu plan" small />
         </div>
 
         {/* toolbar */}
