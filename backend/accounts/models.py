@@ -29,6 +29,30 @@ PLAN_STATUS_CHOICES = [
     ('suspended', 'Suspendida'),
 ]
 
+# Techo de funciones por plan (el plan del RESTAURANTE limita qué se puede
+# hacer; el rol reparte esas funciones entre las personas). Permiso efectivo =
+# el plan lo incluye Y el rol lo concede.
+PLAN_FEATURES = {
+    PLAN_BASICO: {
+        'pdf': False, 'templates_custom': False, 'escandallo': False,
+        'allergens': False, 'multiuser': False, 'max_users': 1,
+    },
+    PLAN_PRO: {
+        'pdf': True, 'templates_custom': True, 'escandallo': False,
+        'allergens': False, 'multiuser': True, 'max_users': 8,
+    },
+    PLAN_BUSINESS: {
+        'pdf': True, 'templates_custom': True, 'escandallo': True,
+        'allergens': True, 'multiuser': True, 'max_users': 20,
+    },
+}
+
+
+def plan_features(restaurant):
+    """Funciones incluidas en el plan del restaurante."""
+    plan = restaurant.plan if restaurant else PLAN_BASICO
+    return dict(PLAN_FEATURES.get(plan, PLAN_FEATURES[PLAN_BASICO]))
+
 # Roles por defecto que se crean con cada restaurante. Los flags son EDITABLES
 # por restaurante (el Owner puede cambiarlos). El backend hace cumplir los
 # permisos; el frontend solo refleja lo que el backend permite.
@@ -252,3 +276,19 @@ def user_can(user, flag):
         return True
     m = get_membership(user)
     return bool(getattr(m.role, flag, False)) if (m and m.role) else False
+
+
+def get_user_features(user):
+    """Funciones disponibles según el plan del restaurante del usuario.
+
+    El superadmin tiene todo. Un usuario sin restaurante cae al plan Básico.
+    """
+    if user and user.is_authenticated and user.is_superuser:
+        return {'pdf': True, 'templates_custom': True, 'escandallo': True,
+                'allergens': True, 'multiuser': True, 'max_users': 9999}
+    return plan_features(get_user_restaurant(user))
+
+
+def plan_allows(restaurant, feature):
+    """True si el plan del restaurante incluye la función `feature`."""
+    return bool(plan_features(restaurant).get(feature, False))

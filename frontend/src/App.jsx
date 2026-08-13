@@ -6,7 +6,7 @@ import AdminDashboard from './components/AdminDashboard'
 import { ArrowLeft, Doc } from './components/icons'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
-import { authFetch, isAuthenticated, getRole, hasPerm, getPlan, getUsername, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, IDLE_LIMIT_MS } from './auth'
+import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsername, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, IDLE_LIMIT_MS } from './auth'
 import Logo from './components/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -1080,7 +1080,7 @@ function App() {
                   {editingRecipeId ? 'Cancelar edición' : savedRecipeId ? '+ Crear nueva receta' : 'Limpiar formulario'}
                 </button>
               )}
-              {savedRecipeId && (
+              {savedRecipeId && feat('pdf') && (
                 <button
                   type="button"
                   onClick={() => downloadPDF(savedRecipeId)}
@@ -1098,7 +1098,7 @@ function App() {
               <p className="rf-cond flex items-center gap-2 text-xs font-600 uppercase tracking-[0.16em] text-[#7a736b]" style={{ fontWeight: 600 }}>
                 <span className="rf-lamp-on inline-block h-1.5 w-1.5 rounded-full" /> Vista previa A4
               </p>
-              {canCreate ? (
+              {canCreate && feat('templates_custom') ? (
                 <>
                   <p className="mt-1 text-sm text-[#6a635c]">Elige la plantilla de la ficha:</p>
                   <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">

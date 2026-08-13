@@ -9,9 +9,11 @@ from .models import (
     Role,
     ROLE_ORDER,
     get_membership,
+    get_user_features,
     get_user_permissions,
     get_user_restaurant,
     get_user_role,
+    plan_features,
 )
 
 
@@ -28,6 +30,7 @@ class MeSerializer(serializers.ModelSerializer):
 
     role = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
     restaurant = serializers.SerializerMethodField()
     restaurant_name = serializers.SerializerMethodField()
@@ -39,7 +42,7 @@ class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'role', 'permissions', 'title', 'restaurant', 'restaurant_name',
+                  'role', 'permissions', 'features', 'title', 'restaurant', 'restaurant_name',
                   'restaurant_prefix', 'restaurant_logo', 'restaurant_default_template',
                   'restaurant_plan']
 
@@ -48,6 +51,9 @@ class MeSerializer(serializers.ModelSerializer):
 
     def get_permissions(self, obj):
         return get_user_permissions(obj)
+
+    def get_features(self, obj):
+        return get_user_features(obj)
 
     def get_title(self, obj):
         m = get_membership(obj)
@@ -93,6 +99,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         r = get_user_restaurant(user)
         data['role'] = get_user_role(user)
         data['permissions'] = get_user_permissions(user)
+        data['features'] = get_user_features(user)
         data['username'] = user.username
         m = get_membership(user)
         data['title'] = m.title if m else ''
@@ -155,6 +162,14 @@ class UserAdminSerializer(serializers.ModelSerializer):
         password = validated_data.pop('password', None)
         if not password:
             raise serializers.ValidationError({'password': 'La contraseña es obligatoria.'})
+        # Límite de usuarios por plan del restaurante (no aplica a superadmins).
+        if role_key != 'superadmin' and restaurant is not None:
+            max_users = plan_features(restaurant)['max_users']
+            if restaurant.memberships.count() >= max_users:
+                raise serializers.ValidationError({
+                    'plan': f'El plan {restaurant.get_plan_display()} permite hasta '
+                            f'{max_users} usuario(s). Sube de plan para añadir más.'
+                })
         user = User(**validated_data)
         if role_key == 'superadmin':
             # Admin de plataforma: se identifica por is_superuser, sin membership.

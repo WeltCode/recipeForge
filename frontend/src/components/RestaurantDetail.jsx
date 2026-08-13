@@ -26,6 +26,7 @@ function RestaurantDetail({
   const [form, setForm] = useState({
     name: restaurant.name || '',
     code_prefix: restaurant.code_prefix || '',
+    plan: restaurant.plan || 'basico',
     default_template: restaurant.default_template || 'formal',
     contact_email: restaurant.contact_email || '',
     contact_phone: restaurant.contact_phone || '',
@@ -226,6 +227,26 @@ function RestaurantDetail({
                 <span className="text-xs font-normal text-[#9a9188]">Ej: recetas como {form.code_prefix || 'LT'}-001</span>
               </label>
             </div>
+
+            {/* Plan de suscripción (lo fija el superadmin; techo de funciones del restaurante) */}
+            <div className="rounded-xl border border-[#e8531f]/25 bg-[#fff6ef] p-4">
+              <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
+                <span className="rf-cond flex items-center gap-2 text-xs font-600 uppercase tracking-[0.12em] text-[#8a3d15]" style={{ fontWeight: 600 }}>
+                  <Lock size={13} /> Plan de suscripción
+                </span>
+                <select
+                  value={form.plan}
+                  onChange={(e) => setForm({ ...form, plan: e.target.value })}
+                  className="mt-1 w-full rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20 sm:w-72"
+                >
+                  <option value="basico">Básico — crear/editar/borrar · 1 usuario</option>
+                  <option value="pro">Premium — + PDF, plantillas, multiusuario (8)</option>
+                  <option value="business">Business — + escandallo, alérgenos (20 usuarios)</option>
+                </select>
+                <span className="mt-1 text-xs text-[#9a9188]">Define qué funciones tiene disponibles este restaurante.</span>
+              </label>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
                 Email de contacto

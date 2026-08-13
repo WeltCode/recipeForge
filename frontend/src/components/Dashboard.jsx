@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import Logo from './Logo'
 import recipeIcon from '../assets/recipeforge-icon-white.svg'
 import UserManager from './UserManager'
+import { feat } from '../auth'
 import { greeting, initials, totalTimeLabel, Embers, StatusLamp } from '../lib/ui'
 import {
   Search, Plus, Pencil, Trash, Doc, Sparkle, Book,
@@ -292,9 +293,11 @@ export function RecipeCard({ recipe: r, canDelete, onEdit, onDelete, onPDF, inde
           <button onClick={onEdit} className="rf-cell rf-cond flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-600 uppercase tracking-wide text-white transition hover:bg-[#241a14]" style={{ fontWeight: 600 }}>
             <Pencil size={15} /> Abrir
           </button>
-          <button onClick={onPDF} title="Descargar PDF" className="flex items-center justify-center rounded-lg border border-[#e8531f]/30 bg-[#fff3ea] px-2.5 py-2 text-[#b5420f] transition hover:bg-[#ffe7d6]">
-            <Doc size={16} />
-          </button>
+          {feat('pdf') && (
+            <button onClick={onPDF} title="Descargar PDF" className="flex items-center justify-center rounded-lg border border-[#e8531f]/30 bg-[#fff3ea] px-2.5 py-2 text-[#b5420f] transition hover:bg-[#ffe7d6]">
+              <Doc size={16} />
+            </button>
+          )}
           {canDelete && (
             <button onClick={onDelete} title="Eliminar" className="flex items-center justify-center rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2.5 py-2 text-[#a4331a] transition hover:bg-[#f6d9d1]">
               <Trash size={16} />
@@ -333,7 +336,7 @@ function RecipeRow({ recipe: r, canDelete, onEdit, onDelete, onPDF, index = 0 })
         <button onClick={onEdit} className="rf-cell rf-cond flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-600 uppercase tracking-wide text-white transition hover:bg-[#241a14]" style={{ fontWeight: 600 }}>
           <Pencil size={14} /> Abrir
         </button>
-        <button onClick={onPDF} title="PDF" className="rounded-lg border border-[#e8531f]/30 bg-[#fff3ea] px-2 py-1.5 text-[#b5420f] hover:bg-[#ffe7d6]"><Doc size={15} /></button>
+        {feat('pdf') && <button onClick={onPDF} title="PDF" className="rounded-lg border border-[#e8531f]/30 bg-[#fff3ea] px-2 py-1.5 text-[#b5420f] hover:bg-[#ffe7d6]"><Doc size={15} /></button>}
         {canDelete && (
           <button onClick={onDelete} title="Eliminar" className="rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2 py-1.5 text-[#a4331a] hover:bg-[#f6d9d1]"><Trash size={15} /></button>
         )}
