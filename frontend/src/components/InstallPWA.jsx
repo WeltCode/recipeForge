@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Flame, X } from './icons'
+import { X } from './icons'
+import iconUrl from '../assets/recipeforge-icon-white.svg'
 
 // Aviso/botón para instalar la PWA.
 //  - Android / escritorio: usa el evento `beforeinstallprompt` (capturado
@@ -51,9 +52,7 @@ export default function InstallPWA() {
   return (
     <div className="fixed inset-x-3 bottom-3 z-[70] mx-auto max-w-md rounded-2xl border border-[#e8531f]/30 bg-[#17130f] p-3 shadow-[0_18px_44px_-16px_rgba(0,0,0,.7)] ring-1 ring-white/10">
       <div className="flex items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-white shadow-inner">
-          <Flame size={20} />
-        </span>
+        <img src={iconUrl} alt="" className="h-11 w-11 shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(232,83,31,0.45)]" />
         <div className="min-w-0 flex-1">
           <p className="rf-cond text-sm font-600 uppercase tracking-wide text-white" style={{ fontWeight: 600 }}>Instala RecipeForge</p>
           <p className="text-xs leading-snug text-white/60">
