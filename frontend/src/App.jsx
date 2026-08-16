@@ -928,16 +928,19 @@ function App() {
               {form.ingredients.map((item, index) => (
                 <div key={`ingredient-${index}`} className="grid gap-3 rounded-lg border border-stone-200 p-3 md:grid-cols-12">
                   <div className="md:col-span-2">
-                    <datalist id="group-presets">
-                      {INGREDIENT_GROUPS.map((g) => <option key={g} value={g} />)}
-                    </datalist>
-                    <input
-                      list="group-presets"
-                      className="w-full rounded-md border border-stone-300 px-3 py-2 text-sm"
-                      placeholder="Grupo"
-                      value={item.group_name}
+                    <select
+                      className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
+                      value={item.group_name || ''}
                       onChange={(e) => updateIngredient(index, 'group_name', e.target.value)}
-                    />
+                    >
+                      <option value="">Grupo…</option>
+                      {item.group_name && !INGREDIENT_GROUPS.includes(item.group_name) && (
+                        <option value={item.group_name}>{item.group_name}</option>
+                      )}
+                      {INGREDIENT_GROUPS.map((g) => (
+                        <option key={g} value={g}>{g}</option>
+                      ))}
+                    </select>
                   </div>
                   <input
                     className="rounded-md border border-stone-300 px-3 py-2 text-sm md:col-span-4"

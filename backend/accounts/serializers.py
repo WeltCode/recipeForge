@@ -18,10 +18,11 @@ from .models import (
 
 
 def _abs_logo(restaurant, context):
+    """URL del logo servida por el proxy del backend (no por el público r2.dev)."""
     if restaurant and restaurant.logo:
         request = context.get('request')
-        url = restaurant.logo.url
-        return request.build_absolute_uri(url) if request else url
+        path = f'/api/media/{restaurant.logo.name}'
+        return request.build_absolute_uri(path) if request else path
     return None
 
 
@@ -255,6 +256,11 @@ class RestaurantSerializer(serializers.ModelSerializer):
             }
             for m in obj.memberships.select_related('user', 'role').all()
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['logo'] = _abs_logo(instance, self.context)  # servir por el proxy, no r2.dev
+        return data
 
     def create(self, validated_data):
         owner_username = validated_data.pop('owner_username', None)

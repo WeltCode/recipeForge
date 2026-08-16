@@ -3,6 +3,14 @@ from rest_framework import serializers
 from . import models
 
 
+def media_url(request, name):
+    """URL del proxy de medias del backend (evita depender del público r2.dev)."""
+    if not name:
+        return None
+    path = f'/api/media/{name}'
+    return request.build_absolute_uri(path) if request else path
+
+
 class IngredientLineSerializer(serializers.ModelSerializer):
     class Meta:
         model = models.IngredientLine
@@ -24,6 +32,12 @@ class RecipeListSerializer(serializers.ModelSerializer):
             'cook_time_value', 'cook_time_unit',
             'final_photo', 'restaurant', 'created_at', 'updated_at',
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.final_photo:
+            data['final_photo'] = media_url(self.context.get('request'), instance.final_photo.name)
+        return data
 
 
 class RecipeDetailSerializer(serializers.ModelSerializer):
@@ -54,10 +68,14 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
 
     def get_restaurant_logo(self, obj):
         if obj.restaurant and obj.restaurant.logo:
-            request = self.context.get('request')
-            url = obj.restaurant.logo.url
-            return request.build_absolute_uri(url) if request else url
+            return media_url(self.context.get('request'), obj.restaurant.logo.name)
         return None
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.final_photo:
+            data['final_photo'] = media_url(self.context.get('request'), instance.final_photo.name)
+        return data
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients', [])

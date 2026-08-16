@@ -32,6 +32,29 @@ class HealthCheckView(APIView):
         return Response({'status': 'ok', 'service': 'recipeforge-api'})
 
 
+class MediaProxyView(APIView):
+    """Sirve un archivo de media (foto/logo) desde el almacenamiento (R2).
+
+    Evita depender del dominio público r2.dev (limitado/solo desarrollo): el
+    backend lee el objeto por la API privada de R2 y lo entrega. Las imágenes
+    son públicas (como hasta ahora), así que no requiere autenticación.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, _request, path):
+        import mimetypes
+        from django.core.files.storage import default_storage
+        from django.http import FileResponse, Http404
+
+        if not path or not default_storage.exists(path):
+            raise Http404('media no encontrado')
+        content_type = mimetypes.guess_type(path)[0] or 'application/octet-stream'
+        response = FileResponse(default_storage.open(path, 'rb'), content_type=content_type)
+        response['Cache-Control'] = 'public, max-age=604800'  # 7 días
+        return response
+
+
 class RecipeViewSet(ModelViewSet):
     queryset = Recipe.objects.prefetch_related('ingredients', 'steps').all()
     parser_classes = [JSONParser, MultiPartParser, FormParser]
