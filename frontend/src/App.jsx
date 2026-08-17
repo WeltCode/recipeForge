@@ -465,7 +465,18 @@ function App() {
     }
   }
 
-  const downloadPDF = (recipeId) => {
+  const downloadPDF = async (recipeId) => {
+    // Registrar la exportación (aplica el tope de PDF del plan de prueba).
+    try {
+      const res = await authFetch(`${API_BASE}/recipes/register_pdf/`, { method: 'POST' })
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}))
+        window.alert(d.reason || 'No puedes descargar más PDF con tu plan actual.')
+        return
+      }
+    } catch {
+      // Si el contador falla por red, no bloqueamos la descarga.
+    }
     window.open(`${window.location.origin}/?export=${recipeId}`, '_blank', 'width=1000,height=800')
   }
 
@@ -556,8 +567,11 @@ function App() {
       }
 
       if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(JSON.stringify(errorData))
+        const errorData = await response.json().catch(() => ({}))
+        // Mensaje legible (p.ej. límite del plan: {"plan": ["..."]}).
+        const first = errorData.plan ?? Object.values(errorData)[0]
+        const readable = Array.isArray(first) ? first[0] : (typeof first === 'string' ? first : JSON.stringify(errorData))
+        throw new Error(readable || `Error ${response.status}`)
       }
 
       const data = await response.json()
@@ -599,13 +613,29 @@ function App() {
   // ── MODO EXPORTACIÓN ──────────────────────────────────────────────────────
   if (isExportMode) {
     return (
-      <div style={{ margin: 0, padding: 0, background: 'white' }}>
+      <div style={{ position: 'relative', margin: 0, padding: 0, background: 'white' }}>
         {exportLoading || !exportRecipe ? (
           <div style={{ padding: 40, textAlign: 'center' }}>
             Cargando ficha técnica para exportación...
           </div>
         ) : (
-          <RecipeSheetPreview recipe={exportRecipe} />
+          <>
+            <RecipeSheetPreview recipe={exportRecipe} />
+            {feat('watermark') && (
+              <div
+                aria-hidden="true"
+                style={{
+                  position: 'absolute', bottom: '7mm', right: '7mm', transform: 'rotate(-4deg)',
+                  fontFamily: "'Oswald', system-ui, sans-serif", fontSize: '10.5px', fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(200,55,26,0.6)',
+                  border: '1.5px solid rgba(200,55,26,0.5)', borderRadius: '6px', padding: '4px 9px',
+                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', pointerEvents: 'none',
+                }}
+              >
+                Periodo de Prueba de: RecipeForge
+              </div>
+            )}
+          </>
         )}
       </div>
     )

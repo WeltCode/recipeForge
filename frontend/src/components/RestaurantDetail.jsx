@@ -239,9 +239,10 @@ function RestaurantDetail({
                   onChange={(e) => setForm({ ...form, plan: e.target.value })}
                   className="mt-1 w-full rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20 sm:w-72"
                 >
-                  <option value="basico">Básico — crear/editar/borrar · 1 usuario</option>
-                  <option value="pro">Premium — + PDF, plantillas, multiusuario (8)</option>
-                  <option value="business">Business — + escandallo, alérgenos (20 usuarios)</option>
+                  <option value="prueba">Prueba — 5 recetas, 5 PDF con marca de agua, 14 días</option>
+                  <option value="basico">Básico — crear/editar/borrar/PDF · 10 recetas/mes · 1 usuario</option>
+                  <option value="pro">Premium — + plantillas, alérgenos, multiusuario (8)</option>
+                  <option value="business">Business — + escandallo, inventario, proveedores (20 usuarios)</option>
                 </select>
                 <span className="mt-1 text-xs text-[#9a9188]">Define qué funciones tiene disponibles este restaurante.</span>
               </label>
