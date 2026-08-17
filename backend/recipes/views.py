@@ -4,11 +4,14 @@ import base64
 import os
 from pathlib import Path
 
+from django.db.models import F
 from django.http import HttpResponse
 from django.template.loader import render_to_string
+from django.utils import timezone
 from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
@@ -18,11 +21,24 @@ from accounts.models import (
     UserProfile,
     get_user_restaurant,
     get_user_role,
+    plan_features,
 )
 
 from .models import Recipe
 from .permissions import RecipeRolePermission
 from .serializers import RecipeDetailSerializer, RecipeListSerializer
+
+
+def _month_start():
+    now = timezone.now()
+    return now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+
+
+def _trial_expired(restaurant, feats):
+    return bool(
+        feats.get('trial') and restaurant.trial_ends_at
+        and timezone.now() > restaurant.trial_ends_at
+    )
 
 
 class HealthCheckView(APIView):
@@ -78,11 +94,59 @@ class RecipeViewSet(ModelViewSet):
             rid = self.request.data.get('restaurant')
             if rid:
                 restaurant = Restaurant.objects.filter(pk=rid).first()
+
+        # Límites del plan (no aplican al superadmin de plataforma).
+        if restaurant and not user.is_superuser:
+            feats = plan_features(restaurant)
+            if _trial_expired(restaurant, feats):
+                raise ValidationError({'plan': 'Tu periodo de prueba ha terminado. '
+                                               'Elige un plan para seguir creando recetas.'})
+            total_cap = feats.get('max_recipes_total')
+            if total_cap is not None and restaurant.recipes.count() >= total_cap:
+                raise ValidationError({'plan': f'El plan {restaurant.get_plan_display()} '
+                                               f'permite {total_cap} recetas. Mejora tu plan para crear más.'})
+            month_cap = feats.get('max_recipes_per_month')
+            if month_cap is not None and restaurant.recipes.filter(created_at__gte=_month_start()).count() >= month_cap:
+                raise ValidationError({'plan': f'Has llegado al límite de {month_cap} recetas este mes '
+                                               f'del plan {restaurant.get_plan_display()}. Mejora a Premium '
+                                               f'para crear ilimitadas.'})
+
         extra = {'restaurant': restaurant}
         # Si no se indicó plantilla, usar la por defecto del restaurante
         if not self.request.data.get('template') and restaurant:
             extra['template'] = restaurant.default_template
         serializer.save(**extra)
+
+    @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
+    def register_pdf(self, request):
+        """Registra una exportación a PDF y aplica el tope del plan (prueba: 5).
+
+        El cliente llama a esto antes de generar el PDF. Devuelve
+        {allowed: bool, reason?}. Cualquier miembro autenticado puede descargar
+        (no requiere permiso de crear).
+        """
+        user = request.user
+        restaurant = get_user_restaurant(user)
+        if user.is_superuser or restaurant is None:
+            return Response({'allowed': True})
+        feats = plan_features(restaurant)
+        if _trial_expired(restaurant, feats):
+            return Response(
+                {'allowed': False, 'reason': 'Tu periodo de prueba ha terminado. '
+                                             'Elige un plan para seguir descargando.'},
+                status=403,
+            )
+        cap = feats.get('max_pdf_total')
+        if cap is not None and restaurant.pdf_exports_count >= cap:
+            return Response(
+                {'allowed': False, 'reason': f'Has usado tus {cap} PDF de prueba. '
+                                             f'Elige un plan para seguir descargando.'},
+                status=403,
+            )
+        if cap is not None:
+            restaurant.pdf_exports_count = F('pdf_exports_count') + 1
+            restaurant.save(update_fields=['pdf_exports_count'])
+        return Response({'allowed': True})
 
     def get_serializer_class(self):
         if self.action == 'list':

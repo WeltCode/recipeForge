@@ -94,3 +94,46 @@ class TenantRoleTests(APITestCase):
         self.assertEqual(resp.status_code, 201, resp.content)
         created = Recipe.objects.get(code='A-300')
         self.assertEqual(created.restaurant_id, self.rA.id)  # el suyo, NO el inyectado
+
+    # ── Límites por plan ──
+    def test_trial_recipe_cap(self):
+        self.rA.plan = 'prueba'
+        self.rA.save()
+        for i in range(4):  # recA(1) + 4 = 5 (tope de prueba)
+            Recipe.objects.create(restaurant=self.rA, code=f'A-T{i}', name='x')
+        self.client.force_authenticate(self.ownerA)
+        resp = self.client.post(RECIPES, full_recipe_payload(code='A-T9'), format='json')
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn('plan', resp.json())
+
+    def test_basico_monthly_cap(self):
+        self.rA.plan = 'basico'
+        self.rA.save()
+        for i in range(9):  # recA(1) + 9 = 10 este mes
+            Recipe.objects.create(restaurant=self.rA, code=f'A-M{i}', name='x')
+        self.client.force_authenticate(self.ownerA)
+        resp = self.client.post(RECIPES, full_recipe_payload(code='A-M9'), format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_trial_expired_blocks_create(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        self.rA.plan = 'prueba'
+        self.rA.trial_ends_at = timezone.now() - timedelta(days=1)
+        self.rA.save()
+        self.client.force_authenticate(self.ownerA)
+        resp = self.client.post(RECIPES, full_recipe_payload(code='A-EXP'), format='json')
+        self.assertEqual(resp.status_code, 400)
+
+    def test_trial_pdf_cap(self):
+        self.rA.plan = 'prueba'
+        self.rA.save()
+        self.client.force_authenticate(self.ownerA)
+        url = RECIPES + 'register_pdf/'
+        for _ in range(5):
+            r = self.client.post(url)
+            self.assertEqual(r.status_code, 200, r.content)
+            self.assertTrue(r.json()['allowed'])
+        r6 = self.client.post(url)
+        self.assertEqual(r6.status_code, 403)
+        self.assertFalse(r6.json()['allowed'])

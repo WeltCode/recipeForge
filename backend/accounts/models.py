@@ -14,12 +14,14 @@ TEMPLATE_CHOICES = [
 
 
 # Planes de suscripción (van en el RESTAURANTE, no en el usuario).
+PLAN_PRUEBA = 'prueba'
 PLAN_BASICO = 'basico'
-PLAN_PRO = 'pro'
+PLAN_PRO = 'pro'         # se muestra como "Premium"
 PLAN_BUSINESS = 'business'
 PLAN_CHOICES = [
+    (PLAN_PRUEBA, 'Prueba'),
     (PLAN_BASICO, 'Básico'),
-    (PLAN_PRO, 'Pro'),
+    (PLAN_PRO, 'Premium'),
     (PLAN_BUSINESS, 'Business'),
 ]
 PLAN_STATUS_CHOICES = [
@@ -29,27 +31,45 @@ PLAN_STATUS_CHOICES = [
     ('suspended', 'Suspendida'),
 ]
 
-# Techo de funciones por plan (el plan del RESTAURANTE limita qué se puede
-# hacer; el rol reparte esas funciones entre las personas). Permiso efectivo =
-# el plan lo incluye Y el rol lo concede.
+# Techo de funciones y LÍMITES por plan. El plan del RESTAURANTE limita qué se
+# puede hacer y cuánto; el rol reparte esas funciones entre las personas.
+# Permiso efectivo = el plan lo incluye Y el rol lo concede. Límites: None = sin
+# límite. `max_recipes_total` (tope absoluto, p.ej. prueba), `max_recipes_per_month`
+# (tope mensual, p.ej. básico), `max_pdf_total` (tope de PDF, p.ej. prueba).
 PLAN_FEATURES = {
+    PLAN_PRUEBA: {
+        'pdf': True, 'watermark': True, 'templates_custom': False,
+        'allergens': False, 'escandallo': False, 'inventory': False, 'suppliers': False,
+        'multiuser': False, 'max_users': 1,
+        'max_recipes_total': 5, 'max_recipes_per_month': None, 'max_pdf_total': 5,
+        'trial': True, 'trial_days': 14,
+    },
     PLAN_BASICO: {
-        'pdf': False, 'templates_custom': False, 'escandallo': False,
-        'allergens': False, 'multiuser': False, 'max_users': 1,
+        'pdf': True, 'watermark': False, 'templates_custom': False,
+        'allergens': False, 'escandallo': False, 'inventory': False, 'suppliers': False,
+        'multiuser': False, 'max_users': 1,
+        'max_recipes_total': None, 'max_recipes_per_month': 10, 'max_pdf_total': None,
+        'trial': False, 'trial_days': None,
     },
     PLAN_PRO: {
-        'pdf': True, 'templates_custom': True, 'escandallo': False,
-        'allergens': False, 'multiuser': True, 'max_users': 8,
+        'pdf': True, 'watermark': False, 'templates_custom': True,
+        'allergens': True, 'escandallo': False, 'inventory': False, 'suppliers': False,
+        'multiuser': True, 'max_users': 8,
+        'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
+        'trial': False, 'trial_days': None,
     },
     PLAN_BUSINESS: {
-        'pdf': True, 'templates_custom': True, 'escandallo': True,
-        'allergens': True, 'multiuser': True, 'max_users': 20,
+        'pdf': True, 'watermark': False, 'templates_custom': True,
+        'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': True,
+        'multiuser': True, 'max_users': 20,
+        'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
+        'trial': False, 'trial_days': None,
     },
 }
 
 
 def plan_features(restaurant):
-    """Funciones incluidas en el plan del restaurante."""
+    """Funciones y límites del plan del restaurante."""
     plan = restaurant.plan if restaurant else PLAN_BASICO
     return dict(PLAN_FEATURES.get(plan, PLAN_FEATURES[PLAN_BASICO]))
 
@@ -98,6 +118,10 @@ class Restaurant(models.Model):
     plan_status = models.CharField(
         max_length=20, choices=PLAN_STATUS_CHOICES, default='active',
     )
+    # Fin del periodo de prueba (solo plan 'prueba'); null si no aplica.
+    trial_ends_at = models.DateTimeField(null=True, blank=True)
+    # Contador de PDF exportados (para el tope del plan de prueba).
+    pdf_exports_count = models.PositiveIntegerField(default=0)
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=40, blank=True)
     address = models.CharField(max_length=255, blank=True)
@@ -284,8 +308,13 @@ def get_user_features(user):
     El superadmin tiene todo. Un usuario sin restaurante cae al plan Básico.
     """
     if user and user.is_authenticated and user.is_superuser:
-        return {'pdf': True, 'templates_custom': True, 'escandallo': True,
-                'allergens': True, 'multiuser': True, 'max_users': 9999}
+        return {
+            'pdf': True, 'watermark': False, 'templates_custom': True,
+            'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': True,
+            'multiuser': True, 'max_users': 9999,
+            'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
+            'trial': False, 'trial_days': None,
+        }
     return plan_features(get_user_restaurant(user))
 
 

@@ -32,6 +32,7 @@ class MeSerializer(serializers.ModelSerializer):
     role = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
     features = serializers.SerializerMethodField()
+    usage = serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
     restaurant = serializers.SerializerMethodField()
     restaurant_name = serializers.SerializerMethodField()
@@ -43,7 +44,7 @@ class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'role', 'permissions', 'features', 'title', 'restaurant', 'restaurant_name',
+                  'role', 'permissions', 'features', 'usage', 'title', 'restaurant', 'restaurant_name',
                   'restaurant_prefix', 'restaurant_logo', 'restaurant_default_template',
                   'restaurant_plan']
 
@@ -55,6 +56,20 @@ class MeSerializer(serializers.ModelSerializer):
 
     def get_features(self, obj):
         return get_user_features(obj)
+
+    def get_usage(self, obj):
+        """Uso actual del restaurante para mostrar contadores/candados."""
+        from django.utils import timezone
+        r = get_user_restaurant(obj)
+        if not r:
+            return {}
+        month_start = timezone.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        return {
+            'recipes_total': r.recipes.count(),
+            'recipes_this_month': r.recipes.filter(created_at__gte=month_start).count(),
+            'pdf_exports_count': r.pdf_exports_count,
+            'trial_ends_at': r.trial_ends_at.isoformat() if r.trial_ends_at else None,
+        }
 
     def get_title(self, obj):
         m = get_membership(obj)
@@ -235,9 +250,11 @@ class RestaurantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Restaurant
         fields = ['id', 'name', 'code_prefix', 'default_template', 'plan', 'plan_status',
+                  'trial_ends_at', 'pdf_exports_count',
                   'contact_email', 'contact_phone', 'address', 'logo',
                   'created_at', 'recipe_count', 'member_count', 'members',
                   'owner_username', 'owner_password', 'owner_role']
+        read_only_fields = ['trial_ends_at', 'pdf_exports_count']
 
     def get_recipe_count(self, obj):
         return obj.recipes.count()
@@ -262,6 +279,16 @@ class RestaurantSerializer(serializers.ModelSerializer):
         data['logo'] = _abs_logo(instance, self.context)  # servir por el proxy, no r2.dev
         return data
 
+    def _ensure_trial_clock(self, restaurant):
+        """Arranca el reloj de 14 días al poner (o crear con) plan de prueba."""
+        from datetime import timedelta
+        from django.utils import timezone
+        feats = plan_features(restaurant)
+        if feats.get('trial') and restaurant.trial_ends_at is None:
+            days = feats.get('trial_days') or 14
+            restaurant.trial_ends_at = timezone.now() + timedelta(days=days)
+            restaurant.save(update_fields=['trial_ends_at'])
+
     def create(self, validated_data):
         owner_username = validated_data.pop('owner_username', None)
         owner_password = validated_data.pop('owner_password', None)
@@ -273,6 +300,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
             )
 
         restaurant = Restaurant.objects.create(**validated_data)  # signal crea los 4 roles
+        self._ensure_trial_clock(restaurant)
 
         if owner_username and owner_password:
             user = User(username=owner_username)
@@ -285,4 +313,6 @@ class RestaurantSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         for f in ('owner_username', 'owner_password', 'owner_role'):
             validated_data.pop(f, None)
-        return super().update(instance, validated_data)
+        instance = super().update(instance, validated_data)
+        self._ensure_trial_clock(instance)
+        return instance
