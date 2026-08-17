@@ -18,6 +18,7 @@ const ROLE_META = {
 }
 
 const PLAN_META = {
+  prueba: { label: 'Prueba', chip: 'bg-white/12 text-white/85 ring-1 ring-white/20' },
   basico: { label: 'Básico', chip: 'bg-white/12 text-white/85 ring-1 ring-white/20' },
   pro: { label: 'Pro', chip: 'bg-[#ff9a3d]/18 text-[#ffcf9e] ring-1 ring-[#ff9a3d]/35' },
   business: { label: 'Business', chip: 'bg-[#e8531f]/20 text-[#ffbf9b] ring-1 ring-[#e8531f]/35' },

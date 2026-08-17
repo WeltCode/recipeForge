@@ -188,7 +188,9 @@ function App() {
 
   // ── Navegación panel ↔ editor ──
   const openNewRecipe = (prefix) => {
-    const p = prefix || getRestaurantPrefix() || codePrefix
+    // OJO: al llamarse desde onClick={onNew} llega el evento del clic como
+    // argumento; solo usamos `prefix` si es realmente un texto.
+    const p = (typeof prefix === 'string' ? prefix : '') || getRestaurantPrefix() || codePrefix
     setCodePrefix(p)
     resetForm(p)
     setView('editor')
@@ -620,7 +622,9 @@ function App() {
           </div>
         ) : (
           <>
-            <RecipeSheetPreview recipe={exportRecipe} />
+            {/* Si el plan no incluye plantillas personalizables, se exporta con
+                la plantilla básica (sin perder la plantilla guardada). */}
+            <RecipeSheetPreview recipe={feat('templates_custom') ? exportRecipe : { ...exportRecipe, template: 'formal', accent_color: '' }} />
             {feat('watermark') && (
               <div
                 aria-hidden="true"
@@ -1183,7 +1187,12 @@ function App() {
               )}
             </div>
             <ScaledA4>
-              <RecipeSheetPreview recipe={{ ...form, photoPreviewUrl, restaurant_name: activeRestaurant.name, restaurant_logo: activeRestaurant.logo }} />
+              <RecipeSheetPreview recipe={{
+                ...form,
+                template: feat('templates_custom') ? form.template : 'formal',
+                accent_color: feat('templates_custom') ? form.accent_color : '',
+                photoPreviewUrl, restaurant_name: activeRestaurant.name, restaurant_logo: activeRestaurant.logo,
+              }} />
             </ScaledA4>
           </div>
         </div>
