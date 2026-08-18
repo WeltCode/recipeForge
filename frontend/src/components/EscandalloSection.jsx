@@ -165,22 +165,38 @@ export default function EscandalloSection({ canCreateRecipe }) {
           {/* Líneas de insumo */}
           <div className="mt-4">
             <p className="pass-title mb-2 text-[13px] text-ink">Insumos</p>
+            {/* Cabecera de columnas */}
+            <div className="mb-1 hidden grid-cols-[1fr_160px_70px_60px_70px_36px] gap-2 px-0.5 text-[10px] uppercase tracking-wide text-ink-3 sm:grid">
+              <span>Insumo</span><span>Producto (proveedor)</span><span>Cant.</span><span>Unidad</span><span className="text-right">Coste</span><span />
+            </div>
             {form.lines.map((l, i) => {
               const p = productById[String(l.product)]
               const c = lineCost(p, l.quantity, l.unit)
+              const pickProduct = (val) => {
+                const prod = productById[String(val)]
+                setForm((f) => ({ ...f, lines: f.lines.map((ln, idx) => idx === i ? { ...ln, product: val, ingredient_name: ln.ingredient_name || (prod ? prod.name : ''), unit: prod ? prod.base_unit : ln.unit } : ln) }))
+              }
               return (
-                <div key={i} className="mb-2 flex flex-wrap items-center gap-2">
-                  <input value={l.ingredient_name} onChange={(e) => setLine(i, 'ingredient_name', e.target.value)} placeholder="Insumo" className="min-w-[120px] flex-1 rounded-lg border border-steel-300 bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-ember/50" />
-                  <select value={l.product} onChange={(e) => setLine(i, 'product', e.target.value)} className="min-w-[130px] rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
-                    <option value="">Producto…</option>
-                    {products.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
-                  </select>
-                  <input value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="Cant." className="w-20 rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50" />
-                  <select value={l.unit} onChange={(e) => setLine(i, 'unit', e.target.value)} className="w-[70px] rounded-lg border border-steel-300 bg-white px-1.5 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
-                    {UNIT_CHOICES.map(([v]) => <option key={v} value={v}>{v}</option>)}
-                  </select>
-                  <span className="data w-16 text-right text-[12px] text-ink-2">{c == null ? '—' : money(c)}</span>
-                  <button onClick={() => removeLine(i)} className="grid h-9 w-9 flex-none place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
+                <div key={i} className="mb-2">
+                  <div className="flex flex-wrap items-center gap-2 sm:grid sm:grid-cols-[1fr_160px_70px_60px_70px_36px]">
+                    <input value={l.ingredient_name} onChange={(e) => setLine(i, 'ingredient_name', e.target.value)} placeholder="Insumo" className="min-w-[120px] flex-1 rounded-lg border border-steel-300 bg-white px-2.5 py-2 text-[13px] text-ink outline-none focus:border-ember/50" />
+                    <select value={l.product} onChange={(e) => pickProduct(e.target.value)} className="min-w-[130px] rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
+                      <option value="">Producto…</option>
+                      {products.map((pr) => <option key={pr.id} value={pr.id}>{pr.name}</option>)}
+                    </select>
+                    <input value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="Cant." className="w-20 rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50" />
+                    <select value={l.unit} onChange={(e) => setLine(i, 'unit', e.target.value)} className="w-[70px] rounded-lg border border-steel-300 bg-white px-1.5 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
+                      {UNIT_CHOICES.map(([v]) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                    <span className="data w-16 text-right text-[12px] text-ink-2 sm:w-auto">{c == null ? '—' : money(c)}</span>
+                    <button onClick={() => removeLine(i)} className="grid h-9 w-9 flex-none place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
+                  </div>
+                  {p && (
+                    <p className="mt-0.5 pl-0.5 text-[11px] text-ink-3">
+                      {p.supplier_name ? `${p.supplier_name} · ` : ''}
+                      {p.unit_cost != null ? <span className="data">{p.unit_cost} €/{p.base_unit}</span> : 'sin coste'}
+                    </p>
+                  )}
                 </div>
               )
             })}

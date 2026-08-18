@@ -76,6 +76,10 @@ class ProductViewSet(_TenantScopedViewSet):
             qs = qs.filter(restaurant_id=rid) if rid else qs
         else:
             qs = qs.filter(restaurant=get_user_restaurant(user))
+        # ?supplier=<id> -> solo los productos de ese proveedor
+        sup = self.request.query_params.get('supplier')
+        if sup:
+            qs = qs.filter(supplier_id=sup)
         # ?low=1 -> solo productos por debajo del mínimo
         if self.request.query_params.get('low') in ('1', 'true'):
             ids = [p.id for p in qs if p.low_stock]

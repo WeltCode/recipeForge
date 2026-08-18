@@ -74,6 +74,27 @@ class CatalogTests(APITestCase):
         self.assertIn('pack_price', row)
         self.assertEqual(row['unit_cost'], '0.8000')
 
+    # ── Proveedor: datos ampliados + productos con precio ──
+    def test_supplier_products_and_fields(self):
+        self.prodA.supplier = None
+        self.prodA.save()
+        sup = Supplier.objects.create(restaurant=self.rA, name='DistMar', tax_id='B-1', payment_terms='30 días')
+        Product.objects.create(restaurant=self.rA, name='Gambas', supplier=sup, base_unit='kg', pack_size=2, pack_price=30)
+        self.client.force_authenticate(self.ownerA)
+        row = [s for s in self.client.get(SUPPLIERS).json() if s['id'] == sup.id][0]
+        self.assertEqual(row['tax_id'], 'B-1')
+        self.assertEqual(row['payment_terms'], '30 días')
+        self.assertEqual(row['product_count'], 1)
+        self.assertEqual(row['products'][0]['name'], 'Gambas')
+        self.assertEqual(row['products'][0]['unit_cost'], '15.0000')  # 30/2
+
+    def test_supplier_products_price_hidden_for_editor(self):
+        sup = Supplier.objects.create(restaurant=self.rA, name='DistMar2')
+        Product.objects.create(restaurant=self.rA, name='X', supplier=sup, base_unit='kg', pack_size=2, pack_price=30)
+        self.client.force_authenticate(self.editorA)
+        row = [s for s in self.client.get(SUPPLIERS).json() if s['id'] == sup.id][0]
+        self.assertNotIn('unit_cost', row['products'][0])
+
     # ── Ajuste de stock ──
     def test_stock_in_out(self):
         self.client.force_authenticate(self.ownerA)

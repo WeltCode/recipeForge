@@ -61,6 +61,13 @@ class Supplier(models.Model):
     contact_name = models.CharField(max_length=120, blank=True)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=40, blank=True)
+    # Datos ampliados del proveedor.
+    tax_id = models.CharField(max_length=40, blank=True)         # CIF/NIF
+    address = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=120, blank=True)
+    website = models.CharField(max_length=200, blank=True)
+    payment_terms = models.CharField(max_length=120, blank=True)  # p.ej. "30 días"
+    delivery_days = models.CharField(max_length=120, blank=True)  # p.ej. "L, X, V"
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -985,7 +985,7 @@ function App() {
         : <LockedSection icon={Inventory} title="Inventario" requiredPlan="Business" points={['Productos y stock actual', 'Avisos de mínimos', 'Entradas y salidas de almacén']} />
     } else if (section === 'proveedores') {
       sectionContent = feat('suppliers')
-        ? <ProveedoresSection canEdit={canEdit} />
+        ? <ProveedoresSection canEdit={canEdit} canCost={feat('escandallo') && hasPerm('can_view_escandallo')} />
         : <LockedSection icon={Truck} title="Proveedores" requiredPlan="Business" points={['Proveedores y contacto', 'Sus productos y precios', 'Alimenta el coste del escandallo']} />
     } else if (section === 'equipo') {
       sectionContent = feat('multiuser')

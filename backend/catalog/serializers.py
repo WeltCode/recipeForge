@@ -32,17 +32,31 @@ class PartidaSerializer(serializers.ModelSerializer):
 
 class SupplierSerializer(serializers.ModelSerializer):
     product_count = serializers.SerializerMethodField()
+    products = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Supplier
         fields = [
-            'id', 'name', 'contact_name', 'email', 'phone', 'notes',
-            'product_count', 'created_at',
+            'id', 'name', 'contact_name', 'email', 'phone',
+            'tax_id', 'address', 'city', 'website', 'payment_terms', 'delivery_days',
+            'notes', 'product_count', 'products', 'created_at',
         ]
         read_only_fields = ['created_at']
 
     def get_product_count(self, obj):
         return obj.products.count()
+
+    def get_products(self, obj):
+        can_cost = _can_see_cost(self.context)
+        out = []
+        for p in obj.products.all():
+            row = {'id': p.id, 'name': p.name, 'base_unit': p.base_unit}
+            if can_cost:
+                row['pack_size'] = str(p.pack_size)
+                row['pack_price'] = str(p.pack_price)
+                row['unit_cost'] = str(p.unit_cost)
+            out.append(row)
+        return out
 
 
 class ProductSerializer(serializers.ModelSerializer):

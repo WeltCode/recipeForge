@@ -3,13 +3,11 @@ import { fmtDecimal, parseDecimal } from '../lib/ui'
 import { ALLERGENS, ALLERGEN_KEYS } from '../lib/allergens'
 import { AllergenIcon } from '../components/AllergenIcon'
 
-// Alérgenos presentes en la receta: unión de los declarados en cada línea
-// (y los del resumen del backend si viene), en el orden oficial de los 14 UE.
+// Alérgenos declarados de la receta (a nivel ficha), en el orden oficial de
+// los 14 UE. Cubre tanto el objeto del formulario (allergens) como el del
+// backend (allergen_summary).
 export function recipeAllergens(recipe) {
-  const found = new Set(recipe.allergen_summary || [])
-  for (const ing of recipe.ingredients || []) {
-    for (const a of ing.allergens || []) found.add(a)
-  }
+  const found = new Set([...(recipe.allergens || []), ...(recipe.allergen_summary || [])])
   return ALLERGEN_KEYS.filter((k) => found.has(k))
 }
 
