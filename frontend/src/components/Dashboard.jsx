@@ -22,7 +22,7 @@ function Saludo({ username, role, plan }) {
   const destacado = role === 'owner' || role === 'manager' || role === 'superadmin'
   return (
     <div className="mb-6">
-      <h1 className="pass-title text-[30px] text-ink md:text-[36px]">
+      <h1 className="rf-cond text-3xl uppercase tracking-tight text-ink md:text-4xl" style={{ fontWeight: 600 }}>
         {greeting()}, <span className="text-ember-deep">{username}</span>
       </h1>
       <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-ink-2">

@@ -91,7 +91,7 @@ export default function AppShell({ sections, active, onNavigate, username, role,
   )
 
   return (
-    <div className="rf-steel-surface min-h-screen lg:pl-64">
+    <div className="bg-steel-100 min-h-screen lg:pl-64">
       {/* Sidebar fijo (escritorio) */}
       <aside className="rf-hot rf-grain fixed inset-y-0 left-0 z-40 hidden w-64 border-r border-black/50 shadow-[8px_0_24px_-12px_rgba(0,0,0,0.6)] lg:block">
         {nav}
