@@ -63,63 +63,31 @@ function Dashboard({
   }, [recipes, query, cat, sort])
 
   return (
-    <div className="rf-steel-surface min-h-screen">
-      {/* ── ZONA CALIENTE (cabecera) ── */}
-      <header className="rf-hot rf-grain rf-pass-edge relative overflow-hidden">
-        <Embers count={14} />
-        <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-6 md:px-8">
-          {/* rail superior */}
-          <div className="flex items-center justify-between gap-3">
-            <Logo variant="dark" className="text-2xl" />
-            <div className="flex items-center gap-2.5">
-              <div className="hidden items-center gap-2.5 rounded-full border border-white/12 bg-white/[.06] py-1.5 pl-1.5 pr-4 backdrop-blur sm:flex">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-xs font-bold text-white">
-                  {initials(username)}
-                </span>
-                <span className="text-sm font-medium text-white/90">{username}</span>
-              </div>
-              <button
-                onClick={onLogout}
-                className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[.06] px-4 py-2 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/[.12]"
-              >
-                <LogOut size={17} /> Salir
-              </button>
-            </div>
-          </div>
+    <>
+      {/* saludo (sobre la superficie clara del shell) */}
+      <div className="mb-6">
+        <h1 className="rf-cond text-3xl font-600 uppercase tracking-tight text-[#1c1611] md:text-4xl" style={{ fontWeight: 600 }}>
+          {greeting()}, <span className="text-[#b5420f]">{username}</span>
+        </h1>
+        <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-[#6a635c]">
+          <span className="rf-cond inline-flex items-center gap-1 rounded-full bg-[#17130f] px-2.5 py-0.5 text-[11px] font-600 uppercase tracking-wide text-[#ffcf9e]" style={{ fontWeight: 600 }}>
+            {(role === 'owner' || role === 'manager' || role === 'superadmin') && <Sparkle size={11} />} {meta.label}
+          </span>
+          {planMeta && (
+            <span className="rf-cond inline-flex items-center rounded-full border border-[#e8531f]/30 bg-[#fff3ea] px-2.5 py-0.5 text-[11px] font-600 uppercase tracking-wide text-[#b5420f]" style={{ fontWeight: 600 }}>
+              Plan {planMeta.label}
+            </span>
+          )}
+          <span className="text-[#8a837b]">{meta.desc}</span>
+        </p>
+      </div>
 
-          {/* saludo */}
-          <div className="mt-10">
-            {restaurantName && (
-              <span className="rf-cond inline-flex items-center gap-1.5 rounded-full border border-[#ff9a3d]/25 bg-[#e8531f]/15 px-3 py-1 text-xs font-medium uppercase tracking-[0.12em] text-[#ffcf9e]">
-                <Flame size={13} /> {restaurantName}
-              </span>
-            )}
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-white md:text-5xl">
-              {greeting()}, <span className="text-[#ff9a3d]">{username}</span>
-            </h1>
-            <p className="mt-2 flex flex-wrap items-center gap-2 text-sm text-white/55">
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${meta.chip}`}>
-                {(role === 'owner' || role === 'manager' || role === 'superadmin') && <Sparkle size={11} />} {meta.label}
-              </span>
-              {planMeta && (
-                <span className={`rf-cond inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-600 uppercase tracking-wide ${planMeta.chip}`} style={{ fontWeight: 600 }}>
-                  Plan {planMeta.label}
-                </span>
-              )}
-              {meta.desc}
-            </p>
-          </div>
-        </div>
-      </header>
-
-      {/* ── SUPERFICIE DE TRABAJO (acero) ── */}
-      <main className="relative z-10 mx-auto max-w-6xl px-5 pb-24 md:px-8">
-        {/* tira de instrumentos de acero */}
-        <div className="-mt-14 grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
-          <Readout icon={<Book size={19} />} value={recipes.length} label="Fichas técnicas" />
-          <Readout icon={<Layers size={19} />} value={categories.length} label="Categorías" />
-          <Readout icon={<Sparkle size={19} />} value={planMeta ? planMeta.label : meta.label} label="Tu plan" small />
-        </div>
+      {/* tira de instrumentos de acero */}
+      <div className="grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
+        <Readout icon={<Book size={19} />} value={recipes.length} label="Fichas técnicas" />
+        <Readout icon={<Layers size={19} />} value={categories.length} label="Categorías" />
+        <Readout icon={<Sparkle size={19} />} value={planMeta ? planMeta.label : meta.label} label="Tu plan" small />
+      </div>
 
         {/* toolbar */}
         <div className="mt-10 flex flex-col gap-4">
@@ -212,9 +180,7 @@ function Dashboard({
           </div>
         )}
 
-        {role === 'superadmin' && <UserManager />}
-      </main>
-    </div>
+    </>
   )
 }
 

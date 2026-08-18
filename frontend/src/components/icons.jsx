@@ -224,3 +224,53 @@ export const Calendar = (p) => (
     <path d="M8 13h2M12 13h2M16 13h.5M8 16.5h2M12 16.5h2" />
   </Svg>
 )
+
+// ── Iconos de secciones (barra lateral) ──
+export const RecipeSheet = (p) => (
+  <Svg {...p}>
+    <path d="M6 3h8.5L18 6.5V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+    <path d="M14.5 3v3.5H18" />
+    <path d="M8 11h7M8 14h7M8 17h4" />
+  </Svg>
+)
+
+export const Coins = (p) => (
+  <Svg {...p}>
+    <ellipse cx="9" cy="7" rx="5" ry="2.5" />
+    <path d="M4 7v3.5c0 1.4 2.2 2.5 5 2.5" />
+    <ellipse cx="15" cy="15" rx="5" ry="2.5" />
+    <path d="M10 15v3c0 1.4 2.2 2.5 5 2.5s5-1.1 5-2.5v-3" />
+  </Svg>
+)
+
+export const Allergen = (p) => (
+  <Svg {...p}>
+    <path d="M10.3 4.2 3.5 16a2 2 0 0 0 1.7 3h13.6a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z" />
+    <path d="M12 9.5v4" />
+    <path d="M12 16.5h.01" />
+  </Svg>
+)
+
+export const Users = (p) => (
+  <Svg {...p}>
+    <circle cx="9" cy="8" r="3" />
+    <path d="M3.5 19a5.5 5.5 0 0 1 11 0" />
+    <path d="M16 5.6a3 3 0 0 1 0 5.4" />
+    <path d="M16.5 13.6A5.5 5.5 0 0 1 20.5 19" />
+  </Svg>
+)
+
+export const Gear = (p) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="3.2" />
+    <path d="M12 2.5v3M12 18.5v3M4.2 6.2l2.1 2.1M15.7 15.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 17.8l2.1-2.1M15.7 8.3l2.1-2.1" />
+  </Svg>
+)
+
+export const Storefront = (p) => (
+  <Svg {...p}>
+    <path d="M4.5 9.8V20a1 1 0 0 0 1 1h13a1 1 0 0 0 1-1V9.8" />
+    <path d="M3 6.2 4.4 3h15.2L21 6.2a2.7 2.7 0 0 1-5.4 0 2.7 2.7 0 0 1-5.4 0 2.7 2.7 0 0 1-5.4 0z" />
+    <path d="M9.5 21v-4.5h5V21" />
+  </Svg>
+)

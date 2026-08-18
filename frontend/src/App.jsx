@@ -3,7 +3,9 @@ import RecipeSheetPreview from './components/RecipeSheetPreview'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
-import { ArrowLeft, Doc } from './components/icons'
+import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear } from './components/icons'
+import AppShell from './components/AppShell'
+import { LockedSection, UpgradeModal } from './components/FeatureGate'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
 import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsername, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, IDLE_LIMIT_MS } from './auth'
@@ -130,6 +132,42 @@ function ScaledA4({ children }) {
   )
 }
 
+// Sección con contenido aún por construir (placeholder honesto).
+function PlaceholderSection({ icon: Icon, title, note }) {
+  return (
+    <div className="rf-steel rf-edge flex flex-col items-center rounded-3xl border border-[#aeb6bd] px-6 py-16 text-center">
+      <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-white shadow-lg">{Icon && <Icon size={30} />}</span>
+      <h2 className="rf-cond mt-5 text-2xl font-600 uppercase tracking-wide text-[#1c1611]" style={{ fontWeight: 600 }}>{title}</h2>
+      <p className="mt-2 max-w-sm text-sm text-[#6a635c]">{note}</p>
+    </div>
+  )
+}
+
+const AJUSTES_PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
+
+// Sección Ajustes (básica): restaurante, plan y "Mejorar plan".
+function AjustesSection({ restaurantName, plan, onUpgrade }) {
+  return (
+    <div className="max-w-2xl">
+      <h2 className="rf-cond text-2xl font-600 uppercase tracking-wide text-[#1c1611]" style={{ fontWeight: 600 }}>Ajustes</h2>
+      <div className="rf-steel rf-edge mt-4 space-y-4 rounded-2xl border border-[#c4ccd2] p-5">
+        <div>
+          <p className="rf-cond text-xs font-600 uppercase tracking-wide text-[#7a736b]" style={{ fontWeight: 600 }}>Restaurante</p>
+          <p className="text-lg font-bold text-[#1c1611]">{restaurantName || '—'}</p>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e8531f]/25 bg-[#fff6ef] p-4">
+          <div>
+            <p className="rf-cond text-xs font-600 uppercase tracking-wide text-[#8a3d15]" style={{ fontWeight: 600 }}>Tu plan</p>
+            <p className="text-lg font-bold text-[#b5420f]">{AJUSTES_PLAN_LABELS[plan] || plan || '—'}</p>
+          </div>
+          <button onClick={onUpgrade} className="rf-ember-btn rf-cond rounded-xl px-4 py-2.5 text-sm font-600 uppercase tracking-wide text-white" style={{ fontWeight: 600 }}>Mejorar plan</button>
+        </div>
+        <p className="text-xs text-[#9a9188]">El perfil, logo y plantillas por defecto se gestionan con el administrador. Ampliaremos esta sección.</p>
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState('')
@@ -146,6 +184,8 @@ function App() {
   const [authed, setAuthed] = useState(isAuthenticated())
   const [role, setRole] = useState(getRole())
   const [view, setView] = useState('dashboard') // 'dashboard' | 'editor'
+  const [section, setSection] = useState('recetas') // sección activa del shell (usuario normal)
+  const [showUpgrade, setShowUpgrade] = useState(false)
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
   const [activeRestaurant, setActiveRestaurant] = useState({
     name: getRestaurantName(),
@@ -647,30 +687,21 @@ function App() {
 
   // ── DASHBOARD (pantalla de inicio tras login) ─────────────────────────────
   if (view === 'dashboard') {
-    return (
-      <>
-        {connectionError && (
-          <div className="mx-auto max-w-6xl px-5 pt-4 md:px-8">
-            <div className="flex items-start gap-3 rounded-lg border-2 border-red-300 bg-red-50 px-4 py-3">
-              <span className="text-xl leading-none">⚠️</span>
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-red-800">Sin conexión con el servidor</p>
-                <p className="mt-1 text-sm text-red-700">
-                  No se pudo contactar con el backend. Tus recetas no se han perdido, solo no se
-                  pueden mostrar mientras el servidor esté apagado.
-                </p>
-                <button
-                  type="button"
-                  onClick={fetchRecipeList}
-                  className="mt-2 rounded-md border border-red-300 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-100"
-                >
-                  Reintentar conexión
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-        {isSuperAdmin ? (
+    const connBanner = connectionError ? (
+      <div className="mb-5 flex items-start gap-3 rounded-lg border-2 border-[#b03418]/30 bg-[#fbeae5] px-4 py-3">
+        <span className="text-xl leading-none">⚠️</span>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-[#8f2c12]">Sin conexión con el servidor</p>
+          <p className="mt-1 text-sm text-[#a4331a]">Tus recetas no se han perdido, solo no se pueden mostrar mientras el servidor esté apagado.</p>
+          <button type="button" onClick={fetchRecipeList} className="mt-2 rounded-md border border-[#b03418]/30 bg-white px-3 py-1.5 text-xs font-medium text-[#a4331a] hover:bg-[#f6d9d1]">Reintentar conexión</button>
+        </div>
+      </div>
+    ) : null
+
+    if (isSuperAdmin) {
+      return (
+        <>
+          {connectionError && <div className="mx-auto max-w-6xl px-5 pt-4 md:px-8">{connBanner}</div>}
           <AdminDashboard
             username={username}
             recipes={recipeList}
@@ -684,23 +715,51 @@ function App() {
             onDeleteRecipe={deleteRecipe}
             onDownloadPDF={downloadPDF}
           />
-        ) : (
-          <Dashboard
-            username={username}
-            role={role}
-            plan={getPlan()}
-            restaurantName={restaurantName}
-            recipes={recipeList}
-            canCreate={canCreate}
-            canDelete={canDelete}
-            onNew={openNewRecipe}
-            onEdit={openRecipe}
-            onDelete={deleteRecipe}
-            onDownloadPDF={downloadPDF}
-            onLogout={handleLogout}
-          />
-        )}
-      </>
+        </>
+      )
+    }
+
+    // ── Usuario de restaurante → plataforma unificada (shell + secciones) ──
+    const canTeam = hasPerm('can_manage_users')
+    const userSections = [
+      { id: 'recetas', label: 'Recetas', icon: RecipeSheet },
+      { id: 'escandallo', label: 'Escandallo', icon: Coins, locked: !feat('escandallo') },
+      { id: 'alergenos', label: 'Alérgenos', icon: Allergen, locked: !feat('allergens') },
+      ...(canTeam ? [{ id: 'equipo', label: 'Equipo', icon: Users, locked: !feat('multiuser') }] : []),
+      ...(canTeam ? [{ id: 'ajustes', label: 'Ajustes', icon: Gear }] : []),
+    ]
+
+    let sectionContent = null
+    if (section === 'recetas') {
+      sectionContent = (
+        <Dashboard
+          username={username} role={role} plan={getPlan()} restaurantName={restaurantName}
+          recipes={recipeList} canCreate={canCreate} canDelete={canDelete}
+          onNew={openNewRecipe} onEdit={openRecipe} onDelete={deleteRecipe}
+          onDownloadPDF={downloadPDF} onLogout={handleLogout}
+        />
+      )
+    } else if (section === 'escandallo') {
+      sectionContent = <LockedSection icon={Coins} title="Escandallo" requiredPlan="Business" points={['Coste por ración y coste total', 'Food cost % y margen', 'PVP recomendado con semáforo']} />
+    } else if (section === 'alergenos') {
+      sectionContent = <LockedSection icon={Allergen} title="Alérgenos" requiredPlan="Premium" points={['Los 14 alérgenos obligatorios de la UE', 'Etiquetado por ingrediente', 'Sello automático en la ficha']} />
+    } else if (section === 'equipo') {
+      sectionContent = feat('multiuser')
+        ? <PlaceholderSection icon={Users} title="Equipo" note="Aquí gestionarás tus usuarios, roles y cargos. Lo activamos en el siguiente paso." />
+        : <LockedSection icon={Users} title="Equipo" requiredPlan="Premium" points={['Varios usuarios en tu cocina', 'Roles y permisos por persona', 'Modo consulta para cocineros']} />
+    } else if (section === 'ajustes') {
+      sectionContent = <AjustesSection restaurantName={restaurantName} plan={getPlan()} onUpgrade={() => setShowUpgrade(true)} />
+    }
+
+    return (
+      <AppShell
+        sections={userSections} active={section} onNavigate={setSection}
+        username={username} role={role} plan={getPlan()} restaurantName={restaurantName} onLogout={handleLogout}
+      >
+        {connBanner}
+        {sectionContent}
+        <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
+      </AppShell>
     )
   }
 
