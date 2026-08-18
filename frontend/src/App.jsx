@@ -3,7 +3,7 @@ import RecipeSheetPreview from './components/RecipeSheetPreview'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
-import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear } from './components/icons'
+import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck } from './components/icons'
 import AppShell from './components/AppShell'
 import { LockedSection, UpgradeModal } from './components/FeatureGate'
 import { parseDecimal, fmtDecimal } from './lib/ui'
@@ -725,6 +725,8 @@ function App() {
       { id: 'recetas', label: 'Recetas', icon: RecipeSheet },
       { id: 'escandallo', label: 'Escandallo', icon: Coins, locked: !feat('escandallo') },
       { id: 'alergenos', label: 'Alérgenos', icon: Allergen, locked: !feat('allergens') },
+      { id: 'inventario', label: 'Inventario', icon: Inventory, locked: !feat('inventory') },
+      { id: 'proveedores', label: 'Proveedores', icon: Truck, locked: !feat('suppliers') },
       ...(canTeam ? [{ id: 'equipo', label: 'Equipo', icon: Users, locked: !feat('multiuser') }] : []),
       ...(canTeam ? [{ id: 'ajustes', label: 'Ajustes', icon: Gear }] : []),
     ]
@@ -743,6 +745,10 @@ function App() {
       sectionContent = <LockedSection icon={Coins} title="Escandallo" requiredPlan="Business" points={['Coste por ración y coste total', 'Food cost % y margen', 'PVP recomendado con semáforo']} />
     } else if (section === 'alergenos') {
       sectionContent = <LockedSection icon={Allergen} title="Alérgenos" requiredPlan="Premium" points={['Los 14 alérgenos obligatorios de la UE', 'Etiquetado por ingrediente', 'Sello automático en la ficha']} />
+    } else if (section === 'inventario') {
+      sectionContent = <LockedSection icon={Inventory} title="Inventario" requiredPlan="Business" points={['Productos y stock actual', 'Avisos de mínimos', 'Entradas y salidas de almacén']} />
+    } else if (section === 'proveedores') {
+      sectionContent = <LockedSection icon={Truck} title="Proveedores" requiredPlan="Business" points={['Proveedores y contacto', 'Sus productos y precios', 'Alimenta el coste del escandallo']} />
     } else if (section === 'equipo') {
       sectionContent = feat('multiuser')
         ? <PlaceholderSection icon={Users} title="Equipo" note="Aquí gestionarás tus usuarios, roles y cargos. Lo activamos en el siguiente paso." />
