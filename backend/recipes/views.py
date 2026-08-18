@@ -21,12 +21,25 @@ from accounts.models import (
     UserProfile,
     get_user_restaurant,
     get_user_role,
+    plan_allows,
     plan_features,
+    user_can,
 )
 
+from .costing import costing_summary, recipe_lines
 from .models import Recipe
 from .permissions import RecipeRolePermission
 from .serializers import RecipeDetailSerializer, RecipeListSerializer
+
+
+def _can_escandallo(user):
+    """True si el usuario puede ver el escandallo: plan Business + rol con el
+    flag can_view_escandallo (el superadmin siempre)."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return plan_allows(get_user_restaurant(user), 'escandallo') and user_can(user, 'can_view_escandallo')
 
 
 def _month_start():
@@ -147,6 +160,63 @@ class RecipeViewSet(ModelViewSet):
             restaurant.pdf_exports_count = F('pdf_exports_count') + 1
             restaurant.save(update_fields=['pdf_exports_count'])
         return Response({'allowed': True})
+
+    @action(detail=True, methods=['get'])
+    def costing(self, request, **kwargs):
+        """Escandallo de una receta: coste total, coste/ración, food cost % y
+        margen. Requiere plan Business y permiso de escandallo."""
+        if not _can_escandallo(request.user):
+            return Response({'detail': 'No tienes acceso al escandallo.'}, status=403)
+        recipe = self.get_object()
+        data = costing_summary(
+            recipe_lines(recipe), servings=recipe.servings, sale_price=recipe.sale_price,
+        )
+        data.update({'recipe_id': recipe.id, 'code': recipe.code, 'name': recipe.name})
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def costs(self, request):
+        """Resumen de costes de todas las recetas (vista general del escandallo)."""
+        if not _can_escandallo(request.user):
+            return Response({'detail': 'No tienes acceso al escandallo.'}, status=403)
+        rows = []
+        for recipe in self.get_queryset():
+            s = costing_summary(
+                recipe_lines(recipe), servings=recipe.servings, sale_price=recipe.sale_price,
+            )
+            rows.append({
+                'recipe_id': recipe.id, 'code': recipe.code, 'name': recipe.name,
+                'category': recipe.category, 'servings': recipe.servings,
+                'total_cost': s['total_cost'], 'cost_per_serving': s['cost_per_serving'],
+                'sale_price': s['sale_price'], 'food_cost_pct': s['food_cost_pct'],
+                'margin': s['margin'], 'lines_missing': s['lines_missing'],
+            })
+        return Response(rows)
+
+    @action(detail=False, methods=['post'])
+    def quote(self, request):
+        """Cotización de insumos ad-hoc (sin receta): calcula el coste de una
+        lista de líneas {product, quantity, unit} + PVP opcional."""
+        if not _can_escandallo(request.user):
+            return Response({'detail': 'No tienes acceso al escandallo.'}, status=403)
+        from catalog.models import Product
+        restaurant = get_user_restaurant(request.user)
+        products = {p.id: p for p in Product.objects.filter(restaurant=restaurant)}
+        lines = []
+        for ln in request.data.get('lines', []):
+            pid = ln.get('product')
+            lines.append({
+                'name': ln.get('name', ''),
+                'product': products.get(pid) if pid else None,
+                'quantity': ln.get('quantity'),
+                'unit': ln.get('unit'),
+            })
+        data = costing_summary(
+            lines,
+            servings=request.data.get('servings') or 1,
+            sale_price=request.data.get('sale_price'),
+        )
+        return Response(data)
 
     def get_serializer_class(self):
         if self.action == 'list':

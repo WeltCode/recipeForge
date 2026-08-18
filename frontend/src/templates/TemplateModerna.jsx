@@ -1,4 +1,4 @@
-import { groupIngredients, filterSteps, fmtQty, getPhoto, revLabel, stats, restaurantName, restaurantLogo, monthYear } from './shared'
+import { groupIngredients, filterSteps, fmtQty, getPhoto, revLabel, stats, restaurantName, restaurantLogo, monthYear, AllergenSeal } from './shared'
 import { Fork, Scale, Clock, Flame, Calendar } from '../components/icons'
 
 const PRIMARY = '#E2571E'
@@ -86,6 +86,7 @@ export default function TemplateModerna({ recipe }) {
               <p className="text-[10px] leading-[1.4] text-[#5c5952]">{recipe.observations}</p>
             </div>
           ) : null}
+          <AllergenSeal recipe={recipe} accent={accent} />
         </aside>
 
         {/* Proceso */}

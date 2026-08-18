@@ -1,4 +1,4 @@
-import { groupIngredients, filterSteps, fmtQty, getPhoto, revLabel, stats, restaurantName, restaurantLogo, monthYear } from './shared'
+import { groupIngredients, filterSteps, fmtQty, getPhoto, revLabel, stats, restaurantName, restaurantLogo, monthYear, AllergenSeal } from './shared'
 
 const INK = '#3a2c1a'
 const DEFAULT_GOLD = '#9c6b3f'
@@ -95,6 +95,7 @@ export default function TemplateTradicional({ recipe }) {
                 <p className="rf-serif text-[10.5px] italic leading-[1.5] text-[#5a4a30]">{recipe.observations}</p>
               </div>
             ) : null}
+            <AllergenSeal recipe={recipe} accent={gold} />
           </aside>
 
           <section className="overflow-hidden">

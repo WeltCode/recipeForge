@@ -6,6 +6,12 @@ import AdminDashboard from './components/AdminDashboard'
 import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck, Tag, Flame } from './components/icons'
 import AppShell from './components/AppShell'
 import { LockedSection, UpgradeModal } from './components/FeatureGate'
+import AlergenosSection from './components/AlergenosSection'
+import ProveedoresSection from './components/ProveedoresSection'
+import InventarioSection from './components/InventarioSection'
+import EscandalloSection from './components/EscandalloSection'
+import { AllergenPicker } from './components/AllergenPicker'
+import { listProducts } from './lib/catalog'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
 import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getTitle, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, IDLE_LIMIT_MS } from './auth'
@@ -51,6 +57,8 @@ const emptyIngredient = {
   quantity: '',
   unit: 'g',
   note: '',
+  allergens: [],
+  product: null,
 }
 
 const emptyStep = {
@@ -98,6 +106,7 @@ const emptyForm = {
   shelf_life_value: '',
   shelf_life_unit: 'dias',
   observations: '',
+  sale_price: '',
   ingredients: [{ ...emptyIngredient }],
   steps: [{ ...emptyStep }],
 }
@@ -400,6 +409,7 @@ function App() {
   const [view, setView] = useState('dashboard') // 'dashboard' | 'editor'
   const [section, setSection] = useState('recetas') // sección activa del shell (usuario normal)
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [editorProducts, setEditorProducts] = useState([]) // catálogo para enlazar en el editor
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
   const [activeRestaurant, setActiveRestaurant] = useState({
     name: getRestaurantName(),
@@ -429,6 +439,12 @@ function App() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Catálogo para enlazar productos en el editor (solo si el plan trae escandallo).
+  useEffect(() => {
+    if (!authed || !feat('escandallo')) return
+    listProducts().then((data) => setEditorProducts(Array.isArray(data) ? data : [])).catch(() => {})
+  }, [authed, section])
 
   const handleLogout = () => {
     logout()
@@ -586,11 +602,14 @@ function App() {
     shelf_life_value: form.shelf_life_value ? Number(form.shelf_life_value) : null,
     shelf_life_unit: form.shelf_life_unit || 'dias',
     observations: form.observations,
+    sale_price: parseDecimal(form.sale_price),
     ingredients: form.ingredients
       .filter((item) => item.ingredient_name.trim())
       .map((item, index) => ({
         ...item,
         quantity: parseDecimal(item.quantity) ?? 0,
+        allergens: item.allergens || [],
+        product: item.product || null,
         order: index + 1,
       })),
     steps: form.steps
@@ -680,6 +699,7 @@ function App() {
         shelf_life_value: data.shelf_life_value ?? '',
         shelf_life_unit: data.shelf_life_unit || 'dias',
         observations: data.observations || '',
+        sale_price: data.sale_price != null ? fmtDecimal(data.sale_price) : '',
         ingredients: data.ingredients?.length
           ? data.ingredients.map((ing) => ({
               group_name: ing.group_name || '',
@@ -687,6 +707,8 @@ function App() {
               quantity: fmtDecimal(ing.quantity),
               unit: ing.unit || 'g',
               note: ing.note || '',
+              allergens: ing.allergens || [],
+              product: ing.product ?? null,
             }))
           : [{ ...emptyIngredient }],
         steps: data.steps?.length
@@ -957,13 +979,21 @@ function App() {
         />
       )
     } else if (section === 'escandallo') {
-      sectionContent = <LockedSection icon={Coins} title="Escandallo" requiredPlan="Business" points={['Coste por ración y coste total', 'Food cost % y margen', 'PVP recomendado con semáforo']} />
+      sectionContent = feat('escandallo')
+        ? <EscandalloSection />
+        : <LockedSection icon={Coins} title="Escandallo" requiredPlan="Business" points={['Coste por ración y coste total', 'Food cost % y margen', 'PVP recomendado con semáforo']} />
     } else if (section === 'alergenos') {
-      sectionContent = <LockedSection icon={Allergen} title="Alérgenos" requiredPlan="Premium" points={['Los 14 alérgenos obligatorios de la UE', 'Etiquetado por ingrediente', 'Sello automático en la ficha']} />
+      sectionContent = feat('allergens')
+        ? <AlergenosSection recipes={recipeList} />
+        : <LockedSection icon={Allergen} title="Alérgenos" requiredPlan="Premium" points={['Los 14 alérgenos obligatorios de la UE', 'Etiquetado por ingrediente', 'Sello automático en la ficha']} />
     } else if (section === 'inventario') {
-      sectionContent = <LockedSection icon={Inventory} title="Inventario" requiredPlan="Business" points={['Productos y stock actual', 'Avisos de mínimos', 'Entradas y salidas de almacén']} />
+      sectionContent = feat('inventory')
+        ? <InventarioSection canEdit={canEdit} canCost={feat('escandallo') && hasPerm('can_view_escandallo')} />
+        : <LockedSection icon={Inventory} title="Inventario" requiredPlan="Business" points={['Productos y stock actual', 'Avisos de mínimos', 'Entradas y salidas de almacén']} />
     } else if (section === 'proveedores') {
-      sectionContent = <LockedSection icon={Truck} title="Proveedores" requiredPlan="Business" points={['Proveedores y contacto', 'Sus productos y precios', 'Alimenta el coste del escandallo']} />
+      sectionContent = feat('suppliers')
+        ? <ProveedoresSection canEdit={canEdit} />
+        : <LockedSection icon={Truck} title="Proveedores" requiredPlan="Business" points={['Proveedores y contacto', 'Sus productos y precios', 'Alimenta el coste del escandallo']} />
     } else if (section === 'equipo') {
       sectionContent = feat('multiuser')
         ? <UsuariosSection username={username} role={role} title={getTitle()} plan={getPlan()} />
@@ -1229,6 +1259,20 @@ function App() {
               />
             </label>
 
+            {feat('escandallo') && (
+              <label className="flex max-w-xs flex-col gap-1 text-sm text-stone-700">
+                PVP por ración (€) <span className="text-xs text-stone-400">para el escandallo (food cost y margen)</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={form.sale_price}
+                  onChange={(e) => updateField('sale_price', e.target.value.replace(/[^\d.,]/g, ''))}
+                  className="rounded-md border border-stone-300 px-3 py-2"
+                  placeholder="0,00"
+                />
+              </label>
+            )}
+
             {/* ── INGREDIENTES ── */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
@@ -1242,7 +1286,8 @@ function App() {
                 </button>
               </div>
               {form.ingredients.map((item, index) => (
-                <div key={`ingredient-${index}`} className="grid gap-3 rounded-lg border border-stone-200 p-3 md:grid-cols-12">
+                <div key={`ingredient-${index}`} className="space-y-3 rounded-lg border border-stone-200 p-3">
+                  <div className="grid gap-3 md:grid-cols-12">
                   <div className="md:col-span-2">
                     <select
                       className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
@@ -1291,6 +1336,40 @@ function App() {
                   >
                     Quitar
                   </button>
+                  </div>
+
+                  {/* Alérgenos y coste por ingrediente (según el plan) */}
+                  {(feat('allergens') || feat('escandallo')) && (
+                    <div className="space-y-2 border-t border-dashed border-stone-200 pt-2.5">
+                      {feat('escandallo') && (
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-medium text-stone-500">Producto (coste):</span>
+                          <select
+                            value={item.product ?? ''}
+                            onChange={(e) => updateIngredient(index, 'product', e.target.value ? Number(e.target.value) : null)}
+                            className="min-w-[180px] rounded-md border border-stone-300 bg-white px-2 py-1.5 text-sm"
+                          >
+                            <option value="">Sin enlazar</option>
+                            {editorProducts.map((p) => (
+                              <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                          </select>
+                          {!editorProducts.length && (
+                            <span className="text-xs text-stone-400">Añade productos en Inventario para calcular costes.</span>
+                          )}
+                        </div>
+                      )}
+                      {feat('allergens') && (
+                        <div className="flex flex-col gap-1.5">
+                          <span className="text-xs font-medium text-stone-500">Alérgenos de este ingrediente:</span>
+                          <AllergenPicker
+                            value={item.allergens || []}
+                            onChange={(next) => updateIngredient(index, 'allergens', next)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </section>

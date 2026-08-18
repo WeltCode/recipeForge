@@ -1,5 +1,45 @@
 // Lógica común a todas las plantillas de ficha técnica.
 import { fmtDecimal, parseDecimal } from '../lib/ui'
+import { ALLERGENS, ALLERGEN_KEYS } from '../lib/allergens'
+
+// Alérgenos presentes en la receta: unión de los declarados en cada línea
+// (y los del resumen del backend si viene), en el orden oficial de los 14 UE.
+export function recipeAllergens(recipe) {
+  const found = new Set(recipe.allergen_summary || [])
+  for (const ing of recipe.ingredients || []) {
+    for (const a of ing.allergens || []) found.add(a)
+  }
+  return ALLERGEN_KEYS.filter((k) => found.has(k))
+}
+
+// Sello de alérgenos para la ficha impresa (discos + nombres). No renderiza
+// nada si la receta no declara alérgenos.
+export function AllergenSeal({ recipe, accent = '#c8371a' }) {
+  const list = recipeAllergens(recipe)
+  if (!list.length) return null
+  return (
+    <div className="mt-[8px] border-t border-[#e0e0e0] pt-[6px]">
+      <p className="rf-mono mb-[4px] text-[9px] uppercase tracking-[0.14em] text-[#999999]">Alérgenos (UE)</p>
+      <div className="flex flex-wrap gap-[5px]">
+        {list.map((k) => (
+          <span
+            key={k}
+            className="inline-flex items-center gap-[4px] rounded-full border px-[6px] py-[2px] text-[9px] font-semibold"
+            style={{ borderColor: accent, color: accent }}
+          >
+            <span
+              className="inline-flex h-[13px] w-[13px] items-center justify-center rounded-full text-[7px] text-white"
+              style={{ background: accent }}
+            >
+              {ALLERGENS[k]?.glyph}
+            </span>
+            {ALLERGENS[k]?.nombre}
+          </span>
+        ))}
+      </div>
+    </div>
+  )
+}
 
 export function groupIngredients(ingredients = []) {
   const grouped = new Map()

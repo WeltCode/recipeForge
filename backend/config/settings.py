@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'storages',
     'accounts',
     'recipes',
+    'catalog',
 ]
 
 MIDDLEWARE = [

@@ -1,4 +1,4 @@
-import { groupIngredients, filterSteps, fmtQty, getPhoto, revLabel, stats, restaurantName, restaurantLogo, monthYear } from './shared'
+import { groupIngredients, filterSteps, fmtQty, getPhoto, revLabel, stats, restaurantName, restaurantLogo, monthYear, AllergenSeal } from './shared'
 
 // PLANTILLA FORMAL — ficha técnica sobria en blanco y negro, máxima legibilidad.
 export default function TemplateFormal({ recipe }) {
@@ -79,6 +79,7 @@ export default function TemplateFormal({ recipe }) {
               </div>
             </div>
           ) : null}
+          <AllergenSeal recipe={recipe} accent={recipe.accent_color || '#1a1a18'} />
         </aside>
 
         <section className="overflow-hidden bg-[#fafafa] px-[12px] py-[9px]">

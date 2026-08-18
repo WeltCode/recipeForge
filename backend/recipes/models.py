@@ -29,6 +29,9 @@ class Recipe(models.Model):
     shelf_life_value = models.PositiveIntegerField(null=True, blank=True)
     shelf_life_unit = models.CharField(max_length=6, choices=SHELF_LIFE_UNITS, default='dias')
     observations = models.TextField(blank=True)
+    # Precio de venta (PVP) para el escandallo: food cost % y margen. Solo lo
+    # ve/edita quien tiene permiso de escandallo (se filtra en el serializer).
+    sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     final_photo = models.ImageField(upload_to='recipe_photos/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -52,6 +55,13 @@ class IngredientLine(models.Model):
     quantity = models.DecimalField(max_digits=10, decimal_places=3)
     unit = models.CharField(max_length=32)
     note = models.CharField(max_length=220, blank=True)
+    # Alérgenos declarados en esta línea (lista de claves de los 14 UE).
+    allergens = models.JSONField(default=list, blank=True)
+    # Producto del catálogo enlazado (opcional) — alimenta el escandallo.
+    product = models.ForeignKey(
+        'catalog.Product', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='ingredient_lines',
+    )
     order = models.PositiveIntegerField(default=1)
 
     class Meta:

@@ -1,0 +1,130 @@
+"""Tests de catálogo/inventario/escandallo: aislamiento, gating por plan y
+ocultación de costes (lo sensible de las funciones Business)."""
+from django.contrib.auth.models import User
+from rest_framework.test import APITestCase
+
+from accounts.models import Restaurant, Role, Membership
+from catalog.models import Product, Supplier
+from recipes.models import Recipe, IngredientLine
+
+PRODUCTS = '/api/products/'
+SUPPLIERS = '/api/suppliers/'
+
+
+def role(restaurant, key):
+    return Role.objects.get(restaurant=restaurant, key=key)
+
+
+class CatalogTests(APITestCase):
+    def setUp(self):
+        self.rA = Restaurant.objects.create(name='Rest A', code_prefix='A', plan='business')
+        self.rB = Restaurant.objects.create(name='Rest B', code_prefix='B', plan='business')
+        self.basic = Restaurant.objects.create(name='Rest C', code_prefix='C', plan='basico')
+
+        def member(username, restaurant, key):
+            u = User.objects.create_user(username, password='pw12345!')
+            Membership.objects.create(user=u, restaurant=restaurant, role=role(restaurant, key))
+            return u
+
+        self.ownerA = member('ownerA', self.rA, 'owner')
+        self.editorA = member('editorA', self.rA, 'editor')  # sin can_view_escandallo
+        self.ownerB = member('ownerB', self.rB, 'owner')
+        self.ownerC = member('ownerC', self.basic, 'owner')  # plan básico
+
+        self.prodA = Product.objects.create(
+            restaurant=self.rA, name='Harina', base_unit='kg', pack_size=25, pack_price=20,
+        )
+        self.prodB = Product.objects.create(
+            restaurant=self.rB, name='Sal', base_unit='kg', pack_size=1, pack_price=1,
+        )
+
+    # ── Aislamiento por restaurante ──
+    def test_list_only_own_products(self):
+        self.client.force_authenticate(self.ownerA)
+        ids = [p['id'] for p in self.client.get(PRODUCTS).json()]
+        self.assertIn(self.prodA.id, ids)
+        self.assertNotIn(self.prodB.id, ids)
+
+    def test_cross_tenant_product_404(self):
+        self.client.force_authenticate(self.ownerA)
+        self.assertEqual(self.client.get(f'{PRODUCTS}{self.prodB.id}/').status_code, 404)
+
+    def test_create_sets_own_restaurant(self):
+        self.client.force_authenticate(self.ownerA)
+        resp = self.client.post(PRODUCTS, {'name': 'Aceite', 'base_unit': 'l', 'pack_size': '5', 'pack_price': '30'}, format='json')
+        self.assertEqual(resp.status_code, 201)
+        self.assertEqual(Product.objects.get(name='Aceite').restaurant, self.rA)
+
+    # ── Gating por plan ──
+    def test_basic_plan_blocked(self):
+        self.client.force_authenticate(self.ownerC)
+        self.assertEqual(self.client.get(PRODUCTS).status_code, 403)
+        self.assertEqual(self.client.get(SUPPLIERS).status_code, 403)
+
+    # ── Ocultación de costes (seguridad, no solo CSS) ──
+    def test_cost_hidden_for_editor(self):
+        self.client.force_authenticate(self.editorA)
+        row = self.client.get(f'{PRODUCTS}{self.prodA.id}/').json()
+        self.assertNotIn('pack_price', row)
+        self.assertIsNone(row.get('unit_cost'))
+
+    def test_cost_visible_for_owner(self):
+        self.client.force_authenticate(self.ownerA)
+        row = self.client.get(f'{PRODUCTS}{self.prodA.id}/').json()
+        self.assertIn('pack_price', row)
+        self.assertEqual(row['unit_cost'], '0.8000')
+
+    # ── Ajuste de stock ──
+    def test_stock_in_out(self):
+        self.client.force_authenticate(self.ownerA)
+        self.client.post(f'{PRODUCTS}{self.prodA.id}/stock/', {'kind': 'in', 'quantity': '10'}, format='json')
+        self.client.post(f'{PRODUCTS}{self.prodA.id}/stock/', {'kind': 'out', 'quantity': '3'}, format='json')
+        self.prodA.refresh_from_db()
+        self.assertEqual(str(self.prodA.stock_qty), '7.000')
+
+
+class EscandalloTests(APITestCase):
+    def setUp(self):
+        self.rA = Restaurant.objects.create(name='Rest A', code_prefix='A', plan='business')
+
+        def member(username, key):
+            u = User.objects.create_user(username, password='pw12345!')
+            Membership.objects.create(user=u, restaurant=self.rA, role=role(self.rA, key))
+            return u
+
+        self.owner = member('owner', 'owner')
+        self.editor = member('editor', 'editor')  # sin can_view_escandallo
+
+        self.prod = Product.objects.create(
+            restaurant=self.rA, name='Harina', base_unit='kg', pack_size=25, pack_price=20,
+        )
+        self.recipe = Recipe.objects.create(restaurant=self.rA, code='A-001', name='Pan', servings=4, sale_price=2.50)
+        IngredientLine.objects.create(recipe=self.recipe, ingredient_name='Harina', quantity=1, unit='kg', product=self.prod, order=1)
+        IngredientLine.objects.create(recipe=self.recipe, ingredient_name='Sal', quantity=10, unit='g', order=2)
+
+    def test_costing_owner(self):
+        self.client.force_authenticate(self.owner)
+        data = self.client.get(f'/api/recipes/{self.recipe.id}/costing/').json()
+        self.assertEqual(data['total_cost'], '0.80')       # 1kg * 0.80
+        self.assertEqual(data['cost_per_serving'], '0.20')  # /4
+        self.assertEqual(data['food_cost_pct'], '8.00')     # 0.20/2.50
+        self.assertEqual(data['lines_missing'], 1)          # la sal no tiene producto
+
+    def test_costing_forbidden_for_editor(self):
+        self.client.force_authenticate(self.editor)
+        self.assertEqual(self.client.get(f'/api/recipes/{self.recipe.id}/costing/').status_code, 403)
+
+    def test_sale_price_hidden_for_editor(self):
+        self.client.force_authenticate(self.editor)
+        data = self.client.get(f'/api/recipes/{self.recipe.id}/').json()
+        self.assertNotIn('sale_price', data)
+
+    def test_allergen_summary(self):
+        line = self.recipe.ingredients.first()
+        line.allergens = ['gluten']
+        line.save()
+        self.prod.allergens = ['gluten']
+        self.prod.save()
+        self.client.force_authenticate(self.owner)
+        data = self.client.get(f'/api/recipes/{self.recipe.id}/').json()
+        self.assertEqual(data['allergen_summary'], ['gluten'])
