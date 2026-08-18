@@ -3,12 +3,12 @@ import RecipeSheetPreview from './components/RecipeSheetPreview'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
-import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck, Tag } from './components/icons'
+import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck, Tag, Flame } from './components/icons'
 import AppShell from './components/AppShell'
 import { LockedSection, UpgradeModal } from './components/FeatureGate'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
-import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsername, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, IDLE_LIMIT_MS } from './auth'
+import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getTitle, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, IDLE_LIMIT_MS } from './auth'
 import Logo from './components/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -145,42 +145,216 @@ function PlaceholderSection({ icon: Icon, title, note }) {
 
 const AJUSTES_PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
 
-// Sección "Mi plan": comparativa de los 4 planes, el actual destacado, y mejora.
-const PLAN_CARDS = [
-  { key: 'prueba', name: 'Prueba', color: '#7a736b', note: '14 días', points: ['5 recetas y 5 PDF (con marca de agua)', 'Diseño básico', '1 usuario'] },
-  { key: 'basico', name: 'Básico', color: '#565d63', note: '', points: ['Crear, editar, borrar + PDF', '10 recetas al mes', '1 usuario'] },
-  { key: 'pro', name: 'Premium', color: '#ff9a3d', note: '', points: ['Plantillas personalizables', 'Alérgenos (14 UE)', 'Hasta 8 usuarios', 'Recetas ilimitadas'] },
-  { key: 'business', name: 'Business', color: '#e8531f', note: '', points: ['Todo lo de Premium', 'Escandallo: coste y margen', 'Inventario y proveedores', 'Hasta 20 usuarios'] },
+// Sección "Mi plan" — diseño del prototipo: plan actual (zona caliente) + comparativa.
+const PLAN_DEFS = {
+  prueba: { name: 'Prueba', resumen: '14 días para probarlo todo.', maxRec: '5', maxU: 1, marca: true, plantillas: false, alerg: false, escand: false, inv: false },
+  basico: { name: 'Básico', resumen: 'Lo esencial para tu cocina.', maxRec: '10/mes', maxU: 1, marca: false, plantillas: false, alerg: false, escand: false, inv: false },
+  pro: { name: 'Premium', resumen: 'Multiusuario, plantillas y alérgenos.', maxRec: 'Ilimitadas', maxU: 8, marca: false, plantillas: true, alerg: true, escand: false, inv: false },
+  business: { name: 'Business', resumen: 'Gestión completa del restaurante.', maxRec: 'Ilimitadas', maxU: 20, marca: false, plantillas: true, alerg: true, escand: true, inv: true },
+}
+const PLAN_ORDER = ['prueba', 'basico', 'pro', 'business']
+const PLAN_ROWS = [
+  ['Recetas', (p) => p.maxRec],
+  ['Usuarios', (p) => String(p.maxU)],
+  ['PDF sin marca de agua', (p) => (p.marca ? '—' : '✓')],
+  ['Plantillas de diseño', (p) => (p.plantillas ? '4 diseños' : 'Básica')],
+  ['Alérgenos (14 UE)', (p) => (p.alerg ? '✓' : '—')],
+  ['Escandallo', (p) => (p.escand ? '✓' : '—')],
+  ['Inventario y proveedores', (p) => (p.inv ? '✓' : '—')],
 ]
 
+function PlanVal({ v }) {
+  if (v === '✓') return <span className="text-ember">✓</span>
+  if (v === '—') return <span className="text-ink-3">—</span>
+  return <span className="data text-[13px] text-ink">{v}</span>
+}
+
 function PlanSection({ plan, onRequest }) {
+  const cur = PLAN_DEFS[plan] || PLAN_DEFS.basico
+  const usage = getUsage()
+  const idx = PLAN_ORDER.indexOf(plan)
+  const recetasUso = cur.maxRec === 'Ilimitadas'
+    ? String(usage.recipes_total ?? 0)
+    : `${usage.recipes_total ?? 0} / ${cur.maxRec}`
+  const pdfUso = usage.pdf_exports_count != null ? String(usage.pdf_exports_count) : '—'
+
   return (
-    <div>
-      <h2 className="rf-cond text-2xl font-600 uppercase tracking-wide text-[#1c1611]" style={{ fontWeight: 600 }}>Mi plan</h2>
-      <p className="mt-1 text-sm text-[#6a635c]">
-        Tu plan actual es <strong className="text-[#b5420f]">{AJUSTES_PLAN_LABELS[plan] || plan || '—'}</strong>. Compara y mejora cuando quieras.
-      </p>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {PLAN_CARDS.map((p) => {
-          const current = p.key === plan
-          return (
-            <div key={p.key} className={`rounded-2xl border p-5 ${current ? 'border-[#e8531f] bg-[#fff6ef] ring-2 ring-[#e8531f]/20' : 'rf-steel rf-edge border-[#c4ccd2]'}`}>
-              <div className="flex items-center justify-between">
-                <p className="rf-cond text-lg font-600 uppercase tracking-wide" style={{ color: p.color, fontWeight: 600 }}>{p.name}</p>
-                {current && <span className="rf-cond rounded-full bg-[#e8531f] px-2 py-0.5 text-[10px] font-600 uppercase tracking-wide text-white" style={{ fontWeight: 600 }}>Tu plan</span>}
-              </div>
-              {p.note && <p className="rf-mono text-xs text-[#9a9188]">{p.note}</p>}
-              <ul className="mt-3 space-y-1.5">
-                {p.points.map((pt) => <li key={pt} className="flex items-start gap-2 text-sm text-[#3a352f]"><span style={{ color: p.color }}>•</span> {pt}</li>)}
-              </ul>
+    <div className="pb-6">
+      {/* Plan actual (zona caliente) */}
+      <div className="hot-zone overflow-hidden rounded-2xl border border-white/10 shadow-[var(--shadow-forge)]">
+        <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="pass-title text-[12px] tracking-[0.14em] text-cream-dim">Tu plan actual</p>
+            <h2 className="pass-title mt-2 text-[34px] text-cream">{cur.name}</h2>
+            <p className="mt-1 text-[14px] text-cream-dim">{cur.resumen}</p>
+          </div>
+          <div className="flex flex-col items-start gap-2 sm:items-end">
+            {idx < PLAN_ORDER.length - 1 ? (
+              <button onClick={onRequest} className="inline-flex h-11 items-center gap-2 rounded-lg bg-ember px-4 text-sm font-medium text-cream shadow-[0_8px_20px_-8px_rgba(238,90,28,.7)] transition hover:bg-ember-hi">
+                <Flame size={16} /> Solicitar mejora
+              </button>
+            ) : (
+              <span className="text-[13px] text-ember-hi">Estás en el plan máximo.</span>
+            )}
+            <p className="text-[12px] text-cream-dim">El administrador activa el cambio.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-3 divide-x divide-white/10 border-t border-white/10">
+          {[['Recetas', recetasUso], ['Usuarios', `— / ${cur.maxU}`], ['PDF usados', pdfUso]].map(([k, v]) => (
+            <div key={k} className="px-5 py-3.5">
+              <p className="text-[11px] uppercase tracking-wide text-cream-dim">{k}</p>
+              <p className="data mt-0.5 text-[18px] font-medium text-cream">{v}</p>
             </div>
-          )
-        })}
+          ))}
+        </div>
       </div>
-      <button onClick={onRequest} className="rf-ember-btn rf-cond mt-6 rounded-xl px-5 py-2.5 text-sm font-600 uppercase tracking-wide text-white" style={{ fontWeight: 600 }}>
-        Solicitar mejora de plan
-      </button>
-      <p className="mt-2 text-xs text-[#9a9188]">El administrador activa el cambio de plan. Los precios se acuerdan con WeltBrave.</p>
+
+      {/* Comparativa */}
+      <h3 className="pass-title mb-4 mt-8 text-[20px] text-ink">Compara los planes</h3>
+      <div className="steel-plate overflow-x-auto rounded-2xl">
+        <table className="w-full min-w-[640px] border-collapse">
+          <thead>
+            <tr className="border-b border-steel-300">
+              <th className="p-4 text-left" />
+              {PLAN_ORDER.map((k) => {
+                const actual = k === plan
+                return (
+                  <th key={k} className={`p-4 text-center ${actual ? 'bg-ember/8' : ''}`}>
+                    <p className="pass-title text-[17px] text-ink">{PLAN_DEFS[k].name}</p>
+                    {actual && <span className="mt-1 inline-block rounded-full bg-ember px-2 py-0.5 text-[10px] font-semibold uppercase text-cream">Actual</span>}
+                  </th>
+                )
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {PLAN_ROWS.map(([label, val]) => (
+              <tr key={label} className="border-b border-steel-200 last:border-0">
+                <td className="p-4 text-[13px] font-medium text-ink-2">{label}</td>
+                {PLAN_ORDER.map((k) => (
+                  <td key={k} className={`p-4 text-center ${k === plan ? 'bg-ember/8' : ''}`}><PlanVal v={val(PLAN_DEFS[k])} /></td>
+                ))}
+              </tr>
+            ))}
+            <tr>
+              <td className="p-4" />
+              {PLAN_ORDER.map((k) => (
+                <td key={k} className={`p-4 text-center ${k === plan ? 'bg-ember/8' : ''}`}>
+                  {k === plan ? (
+                    <span className="text-[12px] text-ink-3">En uso</span>
+                  ) : (
+                    <button onClick={onRequest} className={`inline-flex h-9 items-center rounded-lg px-3 text-[13px] font-medium transition ${PLAN_ORDER.indexOf(k) > idx ? 'bg-ember text-cream hover:bg-ember-hi' : 'steel-plate text-ink hover:bg-white'}`}>
+                      {PLAN_ORDER.indexOf(k) > idx ? 'Mejorar' : 'Cambiar'}
+                    </button>
+                  )}
+                </td>
+              ))}
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-steel-200/60 p-4">
+        <span className="mt-0.5 text-ember">✓</span>
+        <p className="text-[13px] text-ink-2">
+          Cambiar de plan <span className="font-medium text-ink">nunca borra tus datos</span>. Al bajar de plan se conservan todas las recetas; solo se ocultan las funciones no incluidas, que reaparecen al volver a subir.
+        </p>
+      </div>
+    </div>
+  )
+}
+
+// Sección "Usuarios y roles" — diseño del prototipo (pestañas Equipo / Roles).
+const ROLES_DEF = [
+  { id: 'owner', nombre: 'Owner', desc: 'Dueño del restaurante', flags: { view: 1, edit: 1, create: 1, delete: 1, escandallo: 1, users: 1 } },
+  { id: 'manager', nombre: 'Manager', desc: 'Jefe de cocina', flags: { view: 1, edit: 1, create: 1, delete: 1, escandallo: 1, users: 0 } },
+  { id: 'editor', nombre: 'Editor', desc: 'Edita fichas', flags: { view: 1, edit: 1, create: 0, delete: 0, escandallo: 0, users: 0 } },
+  { id: 'viewer', nombre: 'Viewer', desc: 'Solo consulta', flags: { view: 1, edit: 0, create: 0, delete: 0, escandallo: 0, users: 0 } },
+]
+const ROLE_FLAGS = [
+  ['view', 'Ver recetas'], ['edit', 'Editar'], ['create', 'Crear'],
+  ['delete', 'Borrar'], ['escandallo', 'Ver escandallo'], ['users', 'Gestionar usuarios'],
+]
+const PLAN_MAX_USERS = { prueba: 1, basico: 1, pro: 8, business: 20 }
+
+function RolFlag({ on }) {
+  return on
+    ? <span className="mx-auto grid h-6 w-6 place-items-center rounded-md bg-ember/12 text-ember">✓</span>
+    : <span className="mx-auto block h-6 w-6 rounded-md border border-steel-200 bg-steel-100" />
+}
+
+function UsuariosSection({ username, role, title, plan }) {
+  const [tab, setTab] = useState('equipo')
+  const inicial = (username || '?').replace(/[_-]/g, ' ').trim().slice(0, 2).toUpperCase()
+  const rolNombre = (ROLES_DEF.find((r) => r.id === role) || {}).nombre || role
+  const maxU = PLAN_MAX_USERS[plan] || 1
+
+  return (
+    <div className="pb-6">
+      {/* Pestañas */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="inline-flex rounded-lg steel-plate p-1">
+          {[['equipo', 'Equipo'], ['roles', 'Roles y permisos']].map(([id, label]) => (
+            <button key={id} onClick={() => setTab(id)} className={`h-9 rounded-md px-4 text-[13px] font-medium transition-colors ${tab === id ? 'bg-soot text-cream' : 'text-ink-2 hover:text-ink'}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        {tab === 'equipo' && (
+          <span className="inline-flex items-center gap-1.5 rounded-lg steel-plate px-3 py-2 text-[12px] text-ink-2">
+            <Users size={15} className="text-ink-3" /> <span className="data">1/{maxU}</span> en uso
+          </span>
+        )}
+      </div>
+
+      {tab === 'equipo' ? (
+        <>
+          <div className="overflow-hidden rounded-2xl steel-plate">
+            <div className="flex items-center gap-4 px-4 py-3.5 sm:px-5">
+              <div className="grid h-11 w-11 flex-none place-items-center rounded-full bg-soot text-[13px] font-semibold text-cream">{inicial}</div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[14px] font-medium text-ink">{username} <span className="text-[12px] font-normal text-ink-3">· tú</span></p>
+                <p className="truncate text-[12px] text-ink-2">{title || rolNombre}</p>
+              </div>
+              <span className="hidden items-center rounded-full bg-ember/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-ember-deep sm:inline-flex">{rolNombre}</span>
+            </div>
+          </div>
+          <p className="mt-4 text-[12px] text-ink-3">
+            Invitar a más personas a tu cocina se activa muy pronto. Tu plan {AJUSTES_PLAN_LABELS[plan] || plan} permite hasta <span className="data">{maxU}</span> {maxU === 1 ? 'usuario' : 'usuarios'}.
+          </p>
+        </>
+      ) : (
+        <>
+          <div className="overflow-x-auto rounded-2xl steel-plate">
+            <table className="w-full min-w-[720px] border-collapse">
+              <thead>
+                <tr className="border-b border-steel-300">
+                  <th className="p-4 text-left text-[12px] font-medium text-ink-2">Permiso</th>
+                  {ROLES_DEF.map((r) => (
+                    <th key={r.id} className="p-4 text-center">
+                      <p className="pass-title text-[15px] text-ink">{r.nombre}</p>
+                      <p className="text-[11px] font-normal text-ink-3">{r.desc}</p>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ROLE_FLAGS.map(([k, label]) => (
+                  <tr key={k} className="border-b border-steel-200 last:border-0">
+                    <td className="p-4 text-[13px] text-ink">{label}</td>
+                    {ROLES_DEF.map((r) => (
+                      <td key={r.id} className="p-4"><RolFlag on={r.flags[k]} /></td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-4 text-[12px] text-ink-3">
+            Los permisos de cada rol son editables por restaurante. El permiso efectivo también depende del plan contratado.
+          </p>
+        </>
+      )}
     </div>
   )
 }
@@ -792,8 +966,8 @@ function App() {
       sectionContent = <LockedSection icon={Truck} title="Proveedores" requiredPlan="Business" points={['Proveedores y contacto', 'Sus productos y precios', 'Alimenta el coste del escandallo']} />
     } else if (section === 'equipo') {
       sectionContent = feat('multiuser')
-        ? <PlaceholderSection icon={Users} title="Equipo" note="Aquí gestionarás tus usuarios, roles y cargos. Lo activamos en el siguiente paso." />
-        : <LockedSection icon={Users} title="Equipo" requiredPlan="Premium" points={['Varios usuarios en tu cocina', 'Roles y permisos por persona', 'Modo consulta para cocineros']} />
+        ? <UsuariosSection username={username} role={role} title={getTitle()} plan={getPlan()} />
+        : <LockedSection icon={Users} title="Usuarios y roles" requiredPlan="Premium" points={['Varios usuarios en tu cocina', 'Roles y permisos por persona', 'Modo consulta para cocineros']} />
     } else if (section === 'plan') {
       sectionContent = <PlanSection plan={getPlan()} onRequest={() => setShowUpgrade(true)} />
     } else if (section === 'ajustes') {

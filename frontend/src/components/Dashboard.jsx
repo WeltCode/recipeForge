@@ -1,50 +1,140 @@
 import { useMemo, useState } from 'react'
-import Logo from './Logo'
-import recipeIcon from '../assets/recipeforge-icon-white.svg'
-import UserManager from './UserManager'
-import { feat } from '../auth'
-import { greeting, initials, totalTimeLabel, Embers, StatusLamp } from '../lib/ui'
-import {
-  Search, Plus, Pencil, Trash, Doc, Sparkle, Book,
-  Clock, Fork, ChefHat, LogOut, Flame, Grid, List, Layers,
-} from './icons'
+import { feat, getFeatures, getUsage, getPlan } from '../auth'
+import recipeIconWhite from '../assets/recipeforge-icon-white.svg'
+import { Search, Plus, Pencil, Doc, Trash, X, Flame, Fork, Clock, ChefHat, Sparkle } from './icons'
+import { greeting, totalTimeLabel } from '../lib/ui'
 
+const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
+
+// Rol y plan mostrados en el saludo (encabezado sobre la superficie de acero).
 const ROLE_META = {
-  viewer: { label: 'Viewer', desc: 'Consultas las fichas técnicas en cocina.', chip: 'bg-white/12 text-white/90 ring-1 ring-white/20' },
-  editor: { label: 'Editor', desc: 'Puedes ver y editar las fichas técnicas.', chip: 'bg-white/12 text-white/90 ring-1 ring-white/20' },
-  manager: { label: 'Manager', desc: 'Puedes crear, editar y eliminar fichas.', chip: 'bg-[#ff9a3d]/18 text-[#ffcf9e] ring-1 ring-[#ff9a3d]/35' },
-  owner: { label: 'Owner', desc: 'Control del restaurante y su equipo.', chip: 'bg-[#e8531f]/20 text-[#ffbf9b] ring-1 ring-[#e8531f]/35' },
-  superadmin: { label: 'Super Admin', desc: 'Control total y gestión de restaurantes.', chip: 'bg-[#e8531f]/20 text-[#ffbf9b] ring-1 ring-[#e8531f]/35' },
+  viewer: { label: 'Viewer', desc: 'Consultas las fichas técnicas en cocina.' },
+  editor: { label: 'Editor', desc: 'Puedes ver y editar las fichas técnicas.' },
+  manager: { label: 'Manager', desc: 'Puedes crear, editar y eliminar fichas.' },
+  owner: { label: 'Owner', desc: 'Control del restaurante y su equipo.' },
+  superadmin: { label: 'Super Admin', desc: 'Control total y gestión de restaurantes.' },
 }
+const PLAN_META = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
 
-const PLAN_META = {
-  prueba: { label: 'Prueba', chip: 'bg-white/12 text-white/85 ring-1 ring-white/20' },
-  basico: { label: 'Básico', chip: 'bg-white/12 text-white/85 ring-1 ring-white/20' },
-  pro: { label: 'Pro', chip: 'bg-[#ff9a3d]/18 text-[#ffcf9e] ring-1 ring-[#ff9a3d]/35' },
-  business: { label: 'Business', chip: 'bg-[#e8531f]/20 text-[#ffbf9b] ring-1 ring-[#e8531f]/35' },
-}
-
-const SORTS = {
-  recientes: (a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at),
-  nombre: (a, b) => (a.name || '').localeCompare(b.name || ''),
-  codigo: (a, b) => (a.code || '').localeCompare(b.code || ''),
-}
-
-function Dashboard({
-  username, role, plan, restaurantName, recipes, canCreate, canDelete,
-  onNew, onEdit, onDelete, onDownloadPDF, onLogout,
-}) {
-  const [query, setQuery] = useState('')
-  const [cat, setCat] = useState('')
-  const [sort, setSort] = useState('recientes')
-  const [view, setView] = useState(() => localStorage.getItem('rf_view') || 'grid')
+// Saludo por hora + rol + plan + descripción (se conserva como estaba antes).
+function Saludo({ username, role, plan }) {
   const meta = ROLE_META[role] || ROLE_META.viewer
-  const planMeta = plan ? PLAN_META[plan] : null
+  const destacado = role === 'owner' || role === 'manager' || role === 'superadmin'
+  return (
+    <div className="mb-6">
+      <h1 className="pass-title text-[30px] text-ink md:text-[36px]">
+        {greeting()}, <span className="text-ember-deep">{username}</span>
+      </h1>
+      <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-ink-2">
+        <span className="pass-title inline-flex items-center gap-1 rounded-full bg-carbon px-2.5 py-0.5 text-[11px] tracking-wide text-ember-hi">
+          {destacado && <Sparkle size={11} />} {meta.label}
+        </span>
+        {plan && (
+          <span className="pass-title inline-flex items-center rounded-full border border-ember/30 bg-ember/8 px-2.5 py-0.5 text-[11px] tracking-wide text-ember-deep">
+            Plan {PLAN_META[plan] || plan}
+          </span>
+        )}
+        <span className="text-ink-3">{meta.desc}</span>
+      </p>
+    </div>
+  )
+}
 
-  const setViewPersist = (v) => {
-    setView(v)
-    localStorage.setItem('rf_view', v)
-  }
+// Foto de plato con fallback a zona caliente (diseño del prototipo "La Línea").
+function DishPhoto({ src, alt }) {
+  const [error, setError] = useState(false)
+  return (
+    <div className="relative aspect-[16/10] overflow-hidden bg-carbon">
+      {!error && src ? (
+        <img src={src} alt={alt} loading="lazy" onError={() => setError(true)} className="absolute inset-0 h-full w-full object-cover" />
+      ) : (
+        <div className="hot-zone absolute inset-0 flex items-center justify-center">
+          <img src={recipeIconWhite} alt="" className="h-9 w-9 opacity-70" />
+        </div>
+      )}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-carbon/45 to-transparent" />
+    </div>
+  )
+}
+
+// Tarjeta de receta con el diseño del prototipo + los botones propios.
+export function RecipeCard({ recipe: r, canDelete, onEdit, onDelete, onPDF }) {
+  return (
+    <div className="group flex flex-col overflow-hidden rounded-2xl steel-plate transition-[transform,box-shadow] duration-200 hover:-translate-y-1 hover:shadow-[0_1px_0_0_rgba(255,255,255,.8)_inset,0_18px_36px_-16px_rgba(25,28,30,.28)]">
+      <div className="relative">
+        <DishPhoto src={r.final_photo} alt={r.name} />
+        {r.category && (
+          <span className="pass-title absolute left-3 top-3 rounded-full bg-carbon/70 px-2.5 py-1 text-[11px] tracking-wide text-cream backdrop-blur">{r.category}</span>
+        )}
+        <span className="data absolute bottom-3 left-3 rounded bg-carbon/80 px-2 py-0.5 text-[12px] font-medium text-cream backdrop-blur">{r.code || 'FT-000'}</span>
+      </div>
+      <div className="flex flex-1 flex-col p-4">
+        <h3 className="pass-title text-[19px] leading-tight text-ink transition-colors group-hover:text-ember-deep">{r.name}</h3>
+        <div className="mt-2.5 flex items-center gap-4 text-ink-2">
+          <span className="inline-flex items-center gap-1.5"><Fork size={15} className="text-ink-3" /><span className="data text-[13px]">{r.servings} rac.</span></span>
+          <span className="inline-flex items-center gap-1.5"><Clock size={15} className="text-ink-3" /><span className="data text-[13px]">{totalTimeLabel(r)}</span></span>
+        </div>
+        <div className="mt-auto flex items-center gap-2 pt-4">
+          <button onClick={onEdit} className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-soot px-3 text-[13px] font-medium text-cream transition hover:bg-carbon-2">
+            <Pencil size={14} /> Abrir
+          </button>
+          {feat('pdf') && (
+            <button onClick={onPDF} title="Descargar PDF" className="grid h-9 w-9 place-items-center rounded-lg steel-plate text-ember-deep transition hover:bg-white"><Doc size={16} /></button>
+          )}
+          {canDelete && (
+            <button onClick={onDelete} title="Eliminar" className="grid h-9 w-9 place-items-center rounded-lg text-danger transition hover:bg-danger/8"><Trash size={16} /></button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function FiltroChip({ activo, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition-colors ${
+        activo ? 'bg-soot text-cream' : 'steel-plate text-ink-2 hover:text-ink'
+      }`}
+    >
+      {children}
+    </button>
+  )
+}
+
+// Banner de límite de recetas del plan (barra de progreso).
+function LimiteBanner({ total }) {
+  const f = getFeatures()
+  const usage = getUsage()
+  const plan = getPlan()
+  let cap = null
+  let used = null
+  let sufijo = ''
+  if (f.max_recipes_total != null) { cap = f.max_recipes_total; used = total }
+  else if (f.max_recipes_per_month != null) { cap = f.max_recipes_per_month; used = usage.recipes_this_month ?? 0; sufijo = '/mes' }
+  if (cap == null) return null
+  const pct = Math.min(100, Math.round((used / cap) * 100))
+  const lleno = used >= cap
+  return (
+    <div className="steel-plate mb-6 rounded-xl p-4">
+      <div className="flex items-center gap-2">
+        <Flame size={16} className={lleno ? 'text-ember' : 'text-ink-3'} />
+        <p className="text-[13px] text-ink">
+          <span className="data font-medium">{used}</span> de <span className="data font-medium">{cap}</span> recetas{sufijo} del plan {PLAN_LABELS[plan] || plan}
+        </p>
+      </div>
+      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-steel-200">
+        <div className={`h-full rounded-full ${lleno ? 'bg-ember' : 'bg-soot'}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+// Sección "Recetas" (contenido dentro del shell). Diseño del prototipo.
+export default function Dashboard({ username, role, plan, recipes, canCreate, canDelete, onNew, onEdit, onDelete, onDownloadPDF }) {
+  const [q, setQ] = useState('')
+  const [cat, setCat] = useState('todas')
 
   const categories = useMemo(() => {
     const counts = {}
@@ -53,289 +143,61 @@ function Dashboard({
   }, [recipes])
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    let list = recipes.filter((r) => {
-      if (cat && r.category !== cat) return false
-      if (!q) return true
-      return [r.name, r.code, r.category].filter(Boolean).some((v) => v.toLowerCase().includes(q))
+    const query = q.trim().toLowerCase()
+    return recipes.filter((r) => {
+      const okCat = cat === 'todas' || r.category === cat
+      const okQ = !query || [r.name, r.code].filter(Boolean).some((v) => v.toLowerCase().includes(query))
+      return okCat && okQ
     })
-    return [...list].sort(SORTS[sort])
-  }, [recipes, query, cat, sort])
+  }, [recipes, q, cat])
 
   return (
-    <>
-      {/* saludo (sobre la superficie clara del shell) */}
-      <div className="mb-6">
-        <h1 className="rf-cond text-3xl font-600 uppercase tracking-tight text-[#1c1611] md:text-4xl" style={{ fontWeight: 600 }}>
-          {greeting()}, <span className="text-[#b5420f]">{username}</span>
-        </h1>
-        <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-[#6a635c]">
-          <span className="rf-cond inline-flex items-center gap-1 rounded-full bg-[#17130f] px-2.5 py-0.5 text-[11px] font-600 uppercase tracking-wide text-[#ffcf9e]" style={{ fontWeight: 600 }}>
-            {(role === 'owner' || role === 'manager' || role === 'superadmin') && <Sparkle size={11} />} {meta.label}
-          </span>
-          {planMeta && (
-            <span className="rf-cond inline-flex items-center rounded-full border border-[#e8531f]/30 bg-[#fff3ea] px-2.5 py-0.5 text-[11px] font-600 uppercase tracking-wide text-[#b5420f]" style={{ fontWeight: 600 }}>
-              Plan {planMeta.label}
-            </span>
-          )}
-          <span className="text-[#8a837b]">{meta.desc}</span>
-        </p>
-      </div>
+    <div>
+      <Saludo username={username} role={role} plan={plan} />
 
-      {/* tira de instrumentos de acero */}
-      <div className="grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
-        <Readout icon={<Book size={19} />} value={recipes.length} label="Fichas técnicas" />
-        <Readout icon={<Layers size={19} />} value={categories.length} label="Categorías" />
-        <Readout icon={<Sparkle size={19} />} value={planMeta ? planMeta.label : meta.label} label="Tu plan" small />
-      </div>
-
-        {/* toolbar */}
-        <div className="mt-10 flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="rf-cond text-3xl font-600 uppercase tracking-[0.06em] text-[#1c1611]" style={{ fontWeight: 600 }}>Recetario</h2>
-              <p className="rf-mono text-xs text-[#6a635c]">
-                {filtered.length} {filtered.length === 1 ? 'ficha' : 'fichas'}
-                {cat && <> · <span className="font-medium text-[#8a3d15]">{cat}</span></>}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative flex-1 sm:w-60">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9188]">
-                  <Search size={18} />
-                </span>
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar receta…"
-                  className="w-full rounded-xl border border-[#b9c0c6] bg-white py-2.5 pl-10 pr-3 text-sm text-[#1c1611] shadow-[inset_0_1px_2px_rgba(20,16,8,0.07)] outline-none transition placeholder:text-[#a8a099] focus:border-[#e8531f] focus:ring-2 focus:ring-[#e8531f]/25"
-                />
-              </div>
-              {canCreate && (
-                <button
-                  onClick={onNew}
-                  className="rf-ember-btn rf-cond flex shrink-0 items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-600 uppercase tracking-wide text-white transition hover:-translate-y-0.5"
-                  style={{ fontWeight: 600 }}
-                >
-                  <Plus size={18} /> Nueva receta
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* filtros: categorías + orden + vista */}
-          <div className="flex items-center gap-3">
-            <div className="rf-noscroll flex flex-1 items-center gap-2 overflow-x-auto pb-1">
-              <Chip active={!cat} onClick={() => setCat('')} label="Todas" count={recipes.length} />
-              {categories.map(([c, n]) => (
-                <Chip key={c} active={cat === c} onClick={() => setCat(cat === c ? '' : c)} label={c} count={n} />
-              ))}
-            </div>
-            <div className="hidden items-center gap-2 sm:flex">
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm text-[#3a352f] shadow-sm outline-none focus:border-[#e8531f]"
-              >
-                <option value="recientes">Recientes</option>
-                <option value="nombre">Nombre A–Z</option>
-                <option value="codigo">Código</option>
-              </select>
-              <div className="rf-steel rf-edge flex rounded-lg border border-[#b9c0c6] p-0.5 shadow-sm">
-                <button
-                  onClick={() => setViewPersist('grid')}
-                  className={`rounded-md p-1.5 transition ${view === 'grid' ? 'rf-cell text-white' : 'text-[#7a736b] hover:text-[#3a352f]'}`}
-                  title="Cuadrícula"
-                >
-                  <Grid size={17} />
-                </button>
-                <button
-                  onClick={() => setViewPersist('list')}
-                  className={`rounded-md p-1.5 transition ${view === 'list' ? 'rf-cell text-white' : 'text-[#7a736b] hover:text-[#3a352f]'}`}
-                  title="Tablero"
-                >
-                  <List size={17} />
-                </button>
-              </div>
-            </div>
-          </div>
+      {/* Barra de acciones */}
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="steel-plate flex h-11 max-w-md flex-1 items-center gap-2 rounded-lg px-3 focus-within:border-ember/50">
+          <Search size={18} className="text-ink-3" />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar receta o código…" className="w-full bg-transparent text-[14px] text-ink outline-none placeholder:text-ink-3" />
+          {q && <button onClick={() => setQ('')} className="text-ink-3 hover:text-ink"><X size={16} /></button>}
         </div>
-
-        {/* recetas */}
-        {filtered.length === 0 ? (
-          <EmptyState hasRecipes={recipes.length > 0} query={query} cat={cat} canCreate={canCreate} onNew={onNew} />
-        ) : view === 'grid' ? (
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((r, i) => (
-              <RecipeCard key={r.id} recipe={r} index={i} canDelete={canDelete}
-                onEdit={() => onEdit(r.id)} onDelete={() => onDelete(r.id, r.name)} onPDF={() => onDownloadPDF(r.id)} />
-            ))}
-          </div>
-        ) : (
-          <div className="mt-6 overflow-hidden rounded-xl border border-[#c4ccd2] shadow-sm">
-            {filtered.map((r, i) => (
-              <RecipeRow key={r.id} recipe={r} index={i} canDelete={canDelete}
-                onEdit={() => onEdit(r.id)} onDelete={() => onDelete(r.id, r.name)} onPDF={() => onDownloadPDF(r.id)} />
-            ))}
-          </div>
-        )}
-
-    </>
-  )
-}
-
-function Chip({ active, onClick, label, count }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition ${
-        active
-          ? 'rf-cell border-transparent text-white'
-          : 'rf-steel rf-edge border-[#c2c9ce] text-[#5a5650] hover:border-[#9aa2a9]'
-      }`}
-    >
-      {label}
-      <span className={`rf-mono rounded-full px-1.5 text-[10px] ${active ? 'bg-white/15 text-white/80' : 'bg-black/[.06] text-[#7a736b]'}`}>{count}</span>
-    </button>
-  )
-}
-
-// Segmento de la tira de instrumentos: lectura tipo readout de fogón.
-function Readout({ icon, value, label, small }) {
-  return (
-    <div className="flex items-center gap-3 px-3 py-3 sm:gap-3.5 sm:px-5 sm:py-4">
-      <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2a1c14] to-[#17130f] text-[#ff9a3d] shadow-inner ring-1 ring-black/20 sm:flex">
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className={`rf-cond leading-none text-[#1c1611] ${small ? 'text-lg sm:text-xl' : 'text-2xl sm:text-3xl'}`} style={{ fontWeight: 600 }}>{value}</p>
-        <p className="rf-cond mt-1 truncate text-[10px] font-500 uppercase tracking-[0.1em] text-[#7a736b] sm:text-[11px] sm:tracking-[0.14em]" style={{ fontWeight: 500 }}>{label}</p>
-      </div>
-    </div>
-  )
-}
-
-export function RecipeCard({ recipe: r, canDelete, onEdit, onDelete, onPDF, index = 0 }) {
-  return (
-    <article
-      className="rf-steel rf-edge rf-rise group flex flex-col overflow-hidden rounded-2xl border border-[#b1b9c0] shadow-[0_12px_32px_-16px_rgba(20,16,8,0.55)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_44px_-18px_rgba(20,16,8,0.65)]"
-      style={{ animationDelay: `${Math.min(index * 45, 400)}ms` }}
-    >
-      <div className="relative h-44 overflow-hidden bg-[#17130f]">
-        {r.final_photo ? (
-          <img src={r.final_photo} alt={r.name} className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-        ) : (
-          <div className="rf-hot flex h-full w-full items-center justify-center">
-            <img src={recipeIcon} alt="" className="h-14 w-14 object-contain opacity-70" />
-          </div>
-        )}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/80 to-transparent" />
-        {r.category && (
-          <span className="rf-steel rf-edge absolute left-3 top-3 inline-flex items-center rounded-md border border-white/40 px-2.5 py-1 text-[11px] font-semibold text-[#3a352f] shadow-sm">
-            {r.category}
-          </span>
-        )}
-        <span className="rf-mono absolute right-3 top-3 rounded-md bg-black/55 px-2 py-1 text-[10px] font-medium text-white/90 backdrop-blur">
-          Rev.0.{r.revision}
-        </span>
-        {/* celda de código + lámpara de calor */}
-        <span className="absolute bottom-3 left-3 flex items-center gap-2">
-          <span className="rf-cell rf-cond inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-600 uppercase tracking-[0.08em] shadow-md" style={{ fontWeight: 600 }}>
-            <StatusLamp on={Boolean(r.final_photo)} size={7} />
-            <span className="rf-flap" style={{ animationDelay: `${Math.min(index * 45, 400)}ms` }}>{r.code}</span>
-          </span>
-        </span>
-      </div>
-
-      <div className="flex flex-1 flex-col p-4">
-        <h3 className="line-clamp-1 text-base font-bold text-[#1c1611]">{r.name}</h3>
-        {r.description && <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-[#6a635c]">{r.description}</p>}
-
-        <div className="rf-mono mt-3 flex items-center gap-4 text-xs text-[#6a635c]">
-          <span className="flex items-center gap-1"><Fork size={14} /> {r.servings} rac.</span>
-          <span className="flex items-center gap-1"><Clock size={14} /> {totalTimeLabel(r)}</span>
-        </div>
-
-        <div className="mt-4 flex items-center gap-2 border-t border-[#c9d0d5] pt-3">
-          <button onClick={onEdit} className="rf-cell rf-cond flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-600 uppercase tracking-wide text-white transition hover:bg-[#241a14]" style={{ fontWeight: 600 }}>
-            <Pencil size={15} /> Abrir
+        {canCreate && (
+          <button onClick={onNew} className="inline-flex h-11 items-center justify-center gap-2 rounded-lg bg-ember px-4 text-sm font-medium text-cream shadow-[0_1px_0_rgba(255,255,255,.25)_inset,0_8px_20px_-8px_rgba(238,90,28,.7)] transition hover:bg-ember-hi active:translate-y-px">
+            <Plus size={18} /> Nueva receta
           </button>
-          {feat('pdf') && (
-            <button onClick={onPDF} title="Descargar PDF" className="flex items-center justify-center rounded-lg border border-[#e8531f]/30 bg-[#fff3ea] px-2.5 py-2 text-[#b5420f] transition hover:bg-[#ffe7d6]">
-              <Doc size={16} />
-            </button>
-          )}
-          {canDelete && (
-            <button onClick={onDelete} title="Eliminar" className="flex items-center justify-center rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2.5 py-2 text-[#a4331a] transition hover:bg-[#f6d9d1]">
-              <Trash size={16} />
-            </button>
+        )}
+      </div>
+
+      <LimiteBanner total={recipes.length} />
+
+      {/* Filtro por categoría */}
+      <div className="mb-6 flex flex-wrap gap-2">
+        <FiltroChip activo={cat === 'todas'} onClick={() => setCat('todas')}>Todas <span className="data opacity-60">{recipes.length}</span></FiltroChip>
+        {categories.map(([c, n]) => (
+          <FiltroChip key={c} activo={cat === c} onClick={() => setCat(c)}>{c} <span className="data opacity-60">{n}</span></FiltroChip>
+        ))}
+      </div>
+
+      {/* Rejilla */}
+      {filtered.length ? (
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((r) => (
+            <RecipeCard key={r.id} recipe={r} canDelete={canDelete} onEdit={() => onEdit(r.id)} onDelete={() => onDelete(r.id, r.name)} onPDF={() => onDownloadPDF(r.id)} />
+          ))}
+        </div>
+      ) : (
+        <div className="steel-plate grid place-items-center rounded-2xl py-20 text-center">
+          <ChefHat size={30} className="text-ink-3" />
+          <p className="pass-title mt-3 text-[20px] text-ink">{recipes.length === 0 ? 'Aún no hay fichas técnicas' : 'Sin resultados'}</p>
+          <p className="mt-1 text-[14px] text-ink-2">
+            {recipes.length === 0 ? (canCreate ? 'Crea tu primera receta y organiza tu cocina.' : 'Cuando se creen recetas, aparecerán aquí.') : `No hay recetas para «${q || cat}».`}
+          </p>
+          {recipes.length === 0 && canCreate && (
+            <button onClick={onNew} className="mt-4 inline-flex h-10 items-center gap-2 rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi"><Plus size={16} /> Crear la primera receta</button>
           )}
         </div>
-      </div>
-    </article>
-  )
-}
-
-// Fila de tablero de pase (vista lista): celda de código negra sobre acero.
-function RecipeRow({ recipe: r, canDelete, onEdit, onDelete, onPDF, index = 0 }) {
-  return (
-    <div className={`group flex items-center gap-4 border-b border-[#c9d0d5] px-3 py-2.5 transition last:border-b-0 ${index % 2 ? 'bg-white/45' : 'bg-white/15'} hover:bg-[#fff3ea]/70`}>
-      <span className="rf-cell rf-cond inline-flex w-24 shrink-0 items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] font-600 uppercase tracking-[0.06em] shadow-sm" style={{ fontWeight: 600 }}>
-        <StatusLamp on={Boolean(r.final_photo)} size={7} />
-        <span className="truncate">{r.code}</span>
-      </span>
-      <div className="relative hidden h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-[#c4ccd2] sm:block">
-        {r.final_photo ? (
-          <img src={r.final_photo} alt={r.name} className="h-full w-full object-cover" />
-        ) : (
-          <div className="rf-hot flex h-full w-full items-center justify-center"><img src={recipeIcon} alt="" className="h-6 w-6 object-contain opacity-70" /></div>
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <h3 className="line-clamp-1 text-sm font-bold text-[#1c1611]">{r.name}</h3>
-        {r.category && <span className="text-[11px] text-[#8a3d15]">{r.category}</span>}
-      </div>
-      <div className="rf-mono hidden items-center gap-4 text-xs text-[#6a635c] md:flex">
-        <span className="flex items-center gap-1"><Fork size={14} /> {r.servings}</span>
-        <span className="flex items-center gap-1"><Clock size={14} /> {totalTimeLabel(r)}</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <button onClick={onEdit} className="rf-cell rf-cond flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-600 uppercase tracking-wide text-white transition hover:bg-[#241a14]" style={{ fontWeight: 600 }}>
-          <Pencil size={14} /> Abrir
-        </button>
-        {feat('pdf') && <button onClick={onPDF} title="PDF" className="rounded-lg border border-[#e8531f]/30 bg-[#fff3ea] px-2 py-1.5 text-[#b5420f] hover:bg-[#ffe7d6]"><Doc size={15} /></button>}
-        {canDelete && (
-          <button onClick={onDelete} title="Eliminar" className="rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2 py-1.5 text-[#a4331a] hover:bg-[#f6d9d1]"><Trash size={15} /></button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function EmptyState({ hasRecipes, query, cat, canCreate, onNew }) {
-  const filtering = hasRecipes && (query || cat)
-  return (
-    <div className="rf-steel rf-edge mt-8 flex flex-col items-center rounded-3xl border border-dashed border-[#aeb6bd] py-20 text-center">
-      <div className="rf-ember-btn flex h-16 w-16 items-center justify-center rounded-2xl text-white">
-        {filtering ? <Search size={30} /> : <ChefHat size={32} />}
-      </div>
-      <p className="mt-4 text-lg font-bold text-[#1c1611]">
-        {filtering ? 'Sin resultados' : 'Aún no hay fichas técnicas'}
-      </p>
-      <p className="mt-1 max-w-xs text-sm text-[#6a635c]">
-        {filtering
-          ? 'Prueba con otra búsqueda o categoría.'
-          : canCreate
-            ? 'Crea tu primera receta y empieza a organizar tu cocina.'
-            : 'Cuando se creen recetas, aparecerán aquí.'}
-      </p>
-      {!filtering && canCreate && (
-        <button onClick={onNew} className="rf-ember-btn rf-cond mt-5 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-600 uppercase tracking-wide text-white transition hover:-translate-y-0.5" style={{ fontWeight: 600 }}>
-          <Plus size={18} /> Crear la primera receta
-        </button>
       )}
     </div>
   )
 }
-
-export default Dashboard

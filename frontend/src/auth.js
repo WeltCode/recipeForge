@@ -7,6 +7,7 @@ const KEYS = {
   role: 'rf_role',
   permissions: 'rf_permissions',
   features: 'rf_features',
+  usage: 'rf_usage',
   plan: 'rf_plan',
   title: 'rf_title',
   username: 'rf_username',
@@ -47,6 +48,13 @@ export function getFeatures() {
 export function feat(name) {
   return Boolean(getFeatures()[name])
 }
+export function getUsage() {
+  try {
+    return JSON.parse(localStorage.getItem(KEYS.usage) || '{}')
+  } catch {
+    return {}
+  }
+}
 export function getPlan() {
   return localStorage.getItem(KEYS.plan)
 }
@@ -72,12 +80,13 @@ export function isAuthenticated() {
   return Boolean(getAccess())
 }
 
-function storeSession({ access, refresh, role, permissions, features, plan, title, username, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template }) {
+function storeSession({ access, refresh, role, permissions, features, usage, plan, title, username, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template }) {
   if (access) localStorage.setItem(KEYS.access, access)
   if (refresh) localStorage.setItem(KEYS.refresh, refresh)
   if (role) localStorage.setItem(KEYS.role, role)
   if (permissions) localStorage.setItem(KEYS.permissions, JSON.stringify(permissions))
   if (features) localStorage.setItem(KEYS.features, JSON.stringify(features))
+  if (usage) localStorage.setItem(KEYS.usage, JSON.stringify(usage))
   if (plan) localStorage.setItem(KEYS.plan, plan)
   if (title != null) localStorage.setItem(KEYS.title, title)
   if (username) localStorage.setItem(KEYS.username, username)
@@ -114,6 +123,7 @@ export async function login(username, password) {
     role: data.role,
     permissions: data.permissions,
     features: data.features,
+    usage: data.usage,
     plan: data.restaurant_plan,
     title: data.title,
     username: data.username,
@@ -142,6 +152,7 @@ export async function refreshMe() {
       role: data.role,
       permissions: data.permissions,
       features: data.features,
+      usage: data.usage,
       plan: data.restaurant_plan,
       title: data.title,
       username: data.username,

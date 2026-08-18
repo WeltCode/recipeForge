@@ -1,5 +1,46 @@
 @import "tailwindcss";
 
+/* ===== Vocabulario de diseño "La Línea" del prototipo (tokens + utilidades) =====
+   Da `text-ink`, `bg-steel-200`, `text-ember`, `steel-plate`, `pass-title`,
+   `.data`, `hot-zone`, `inset-plate`, `cold-burner`… para portar sus pantallas. */
+@theme {
+  --font-display: 'Oswald', 'Arial Narrow', sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --font-mono: 'DM Mono', ui-monospace, monospace;
+  --color-carbon: #17130f;
+  --color-carbon-2: #211a15;
+  --color-soot: #2c241e;
+  --color-ember: #ee5a1c;
+  --color-ember-hi: #ff8a4c;
+  --color-ember-deep: #b83e10;
+  --color-cream: #f5ede1;
+  --color-cream-dim: #cabfae;
+  --color-steel-50: #f6f7f8;
+  --color-steel-100: #edeff1;
+  --color-steel-200: #e0e4e7;
+  --color-steel-300: #cdd3d8;
+  --color-steel-400: #aab2b9;
+  --color-ink: #191c1e;
+  --color-ink-2: #565d63;
+  --color-ink-3: #63696f;
+  --color-ok: #2f9e5f;
+  --color-warn: #d98a1f;
+  --color-danger: #c94326;
+  --radius-plate: 0.5rem;
+  --shadow-plate: 0 1px 0 0 rgba(255,255,255,0.7) inset, 0 1px 2px rgba(25,28,30,0.06), 0 6px 20px -8px rgba(25,28,30,0.14);
+  --shadow-forge: 0 24px 80px -24px rgba(0,0,0,0.7), 0 2px 0 0 rgba(255,255,255,0.04) inset;
+}
+
+@layer utilities {
+  .pass-title { font-family: var(--font-display); text-transform: uppercase; letter-spacing: 0.02em; line-height: 0.98; }
+  .data { font-family: var(--font-mono); font-feature-settings: 'zero' 1; letter-spacing: -0.01em; }
+  .steel-plate { background: linear-gradient(180deg, #ffffff 0%, var(--color-steel-50) 40%, var(--color-steel-100) 100%); border: 1px solid var(--color-steel-300); box-shadow: var(--shadow-plate); }
+  .hot-zone { background-color: var(--color-carbon); background-image: radial-gradient(120% 90% at 18% 8%, rgba(255,138,76,0.22) 0%, rgba(238,90,28,0.08) 34%, rgba(23,19,15,0) 62%), radial-gradient(90% 70% at 92% 108%, rgba(238,90,28,0.18) 0%, rgba(23,19,15,0) 55%); }
+  .inset-plate { background: var(--color-steel-100); border: 1px solid var(--color-steel-300); box-shadow: inset 0 1px 2px rgba(25,28,30,0.12), 0 1px 0 rgba(255,255,255,0.7); }
+  .cold-burner { filter: grayscale(0.35); }
+  .hairline-t { border-top: 1px solid var(--color-steel-300); }
+}
+
 html,
 body,
 #root {
