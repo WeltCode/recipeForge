@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
 from accounts.models import get_user_restaurant, user_can
-from recipes.constants import clean_allergens
 from recipes.costing import costing_summary
 
 from . import models
@@ -19,15 +18,15 @@ def _can_see_cost(context):
 
 
 class PartidaSerializer(serializers.ModelSerializer):
-    product_count = serializers.SerializerMethodField()
+    item_count = serializers.SerializerMethodField()
 
     class Meta:
         model = models.Partida
-        fields = ['id', 'name', 'product_count', 'created_at']
+        fields = ['id', 'name', 'item_count', 'created_at']
         read_only_fields = ['created_at']
 
-    def get_product_count(self, obj):
-        return obj.products.count()
+    def get_item_count(self, obj):
+        return obj.items.count()
 
 
 class SupplierSerializer(serializers.ModelSerializer):
@@ -38,7 +37,7 @@ class SupplierSerializer(serializers.ModelSerializer):
         model = models.Supplier
         fields = [
             'id', 'name', 'contact_name', 'email', 'phone',
-            'tax_id', 'address', 'city', 'website', 'payment_terms', 'delivery_days',
+            'tax_id', 'website', 'payment_terms', 'delivery_days',
             'notes', 'product_count', 'products', 'created_at',
         ]
         read_only_fields = ['created_at']
@@ -60,43 +59,32 @@ class SupplierSerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
+    """Producto de compra (proveedores). Da coste al escandallo."""
+
     supplier_name = serializers.SerializerMethodField()
-    partida_name = serializers.SerializerMethodField()
     unit_cost = serializers.SerializerMethodField()
-    low_stock = serializers.BooleanField(read_only=True)
-    allergens = serializers.ListField(child=serializers.CharField(), required=False)
 
     class Meta:
         model = models.Product
         fields = [
-            'id', 'name', 'category', 'partida', 'partida_name', 'supplier', 'supplier_name',
+            'id', 'name', 'category', 'supplier', 'supplier_name',
             'base_unit', 'pack_size', 'pack_price', 'unit_cost',
-            'stock_qty', 'stock_min', 'low_stock', 'allergens',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Aislamiento: los desplegables solo listan los del propio restaurante.
         request = self.context.get('request')
         user = getattr(request, 'user', None)
         if user and user.is_authenticated and not user.is_superuser:
-            restaurant = get_user_restaurant(user)
-            self.fields['supplier'].queryset = models.Supplier.objects.filter(restaurant=restaurant)
-            self.fields['partida'].queryset = models.Partida.objects.filter(restaurant=restaurant)
+            self.fields['supplier'].queryset = models.Supplier.objects.filter(restaurant=get_user_restaurant(user))
 
     def get_supplier_name(self, obj):
         return obj.supplier.name if obj.supplier else None
 
-    def get_partida_name(self, obj):
-        return obj.partida.name if obj.partida else None
-
     def get_unit_cost(self, obj):
         return str(obj.unit_cost) if _can_see_cost(self.context) else None
-
-    def validate_allergens(self, value):
-        return clean_allergens(value)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -107,11 +95,29 @@ class ProductSerializer(serializers.ModelSerializer):
         return data
 
 
-class StockMovementSerializer(serializers.ModelSerializer):
+class InventoryItemSerializer(serializers.ModelSerializer):
+    """Inventario de producción (por partida). Sin proveedor ni precio."""
+
+    partida_name = serializers.SerializerMethodField()
+    low_stock = serializers.BooleanField(read_only=True)
+
     class Meta:
-        model = models.StockMovement
-        fields = ['id', 'product', 'kind', 'quantity', 'note', 'created_at']
-        read_only_fields = ['created_at']
+        model = models.InventoryItem
+        fields = [
+            'id', 'name', 'partida', 'partida_name', 'quantity', 'unit',
+            'stock_min', 'low_stock', 'notes', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        user = getattr(request, 'user', None)
+        if user and user.is_authenticated and not user.is_superuser:
+            self.fields['partida'].queryset = models.Partida.objects.filter(restaurant=get_user_restaurant(user))
+
+    def get_partida_name(self, obj):
+        return obj.partida.name if obj.partida else None
 
 
 class EscandalloLineSerializer(serializers.ModelSerializer):

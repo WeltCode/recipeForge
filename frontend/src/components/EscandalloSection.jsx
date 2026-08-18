@@ -6,8 +6,8 @@ import {
 import { Coins, Plus, Pencil, Trash, X, Doc } from './icons'
 
 // Conversión de unidades para el coste en vivo (misma familia: masa/vol/ud).
-const FAMILY = { kg: 'm', g: 'm', l: 'v', ml: 'v', ud: 'u' }
-const TO_BASE = { kg: 1000, g: 1, l: 1000, ml: 1, ud: 1 }
+const FAMILY = { kg: 'm', g: 'm', l: 'v', ml: 'v', ud: 'u', pack: 'p' }
+const TO_BASE = { kg: 1000, g: 1, l: 1000, ml: 1, ud: 1, pack: 1 }
 function convert(qty, from, to) {
   if (FAMILY[from] !== FAMILY[to]) return null
   return (Number(qty) || 0) * TO_BASE[from] / TO_BASE[to]

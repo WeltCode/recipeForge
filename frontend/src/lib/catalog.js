@@ -29,15 +29,23 @@ export const createPartida = (body) =>
   authFetch(`${API_BASE}/partidas/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(jsonOrThrow)
 export const deletePartida = (id) => authFetch(`${API_BASE}/partidas/${id}/`, { method: 'DELETE' }).then(jsonOrThrow)
 
-// ── Productos / inventario ──
+// ── Productos de compra (proveedores) ──
 export const listProducts = (params = '') => authFetch(`${API_BASE}/products/${params}`).then(jsonOrThrow)
 export const createProduct = (body) =>
   authFetch(`${API_BASE}/products/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(jsonOrThrow)
 export const updateProduct = (id, body) =>
   authFetch(`${API_BASE}/products/${id}/`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(jsonOrThrow)
 export const deleteProduct = (id) => authFetch(`${API_BASE}/products/${id}/`, { method: 'DELETE' }).then(jsonOrThrow)
-export const adjustStock = (id, body) =>
-  authFetch(`${API_BASE}/products/${id}/stock/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(jsonOrThrow)
+
+// ── Inventario de producción (por partida) ──
+export const listInventory = (params = '') => authFetch(`${API_BASE}/inventory/${params}`).then(jsonOrThrow)
+export const createInventory = (body) =>
+  authFetch(`${API_BASE}/inventory/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(jsonOrThrow)
+export const updateInventory = (id, body) =>
+  authFetch(`${API_BASE}/inventory/${id}/`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(jsonOrThrow)
+export const deleteInventory = (id) => authFetch(`${API_BASE}/inventory/${id}/`, { method: 'DELETE' }).then(jsonOrThrow)
+export const adjustInventory = (id, body) =>
+  authFetch(`${API_BASE}/inventory/${id}/adjust/`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(jsonOrThrow)
 
 // ── Escandallo (entidad propia) ──
 export const listEscandallos = () => authFetch(`${API_BASE}/escandallos/`).then(jsonOrThrow)
@@ -55,5 +63,5 @@ export const listRecipes = () => authFetch(`${API_BASE}/recipes/`).then(jsonOrTh
 export const getRecipe = (id) => authFetch(`${API_BASE}/recipes/${id}/`).then(jsonOrThrow)
 
 export const UNIT_CHOICES = [
-  ['kg', 'Kilogramo'], ['g', 'Gramo'], ['l', 'Litro'], ['ml', 'Mililitro'], ['ud', 'Unidad'],
+  ['kg', 'Kilogramo'], ['g', 'Gramo'], ['l', 'Litro'], ['ml', 'Mililitro'], ['ud', 'Unidad'], ['pack', 'Pack'],
 ]

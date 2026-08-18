@@ -4,11 +4,12 @@ from django.contrib.auth.models import User
 from rest_framework.test import APITestCase
 
 from accounts.models import Restaurant, Role, Membership
-from catalog.models import Product, Supplier
+from catalog.models import InventoryItem, Partida, Product, Supplier
 from recipes.models import Recipe, IngredientLine
 
 PRODUCTS = '/api/products/'
 SUPPLIERS = '/api/suppliers/'
+INVENTORY = '/api/inventory/'
 
 
 def role(restaurant, key):
@@ -95,13 +96,31 @@ class CatalogTests(APITestCase):
         row = [s for s in self.client.get(SUPPLIERS).json() if s['id'] == sup.id][0]
         self.assertNotIn('unit_cost', row['products'][0])
 
-    # ── Ajuste de stock ──
-    def test_stock_in_out(self):
+    # ── Inventario de producción (separado de productos de proveedor) ──
+    def test_inventory_separate_from_products(self):
+        """Los productos de proveedor NO aparecen en el inventario y viceversa
+        (son modelos distintos; se comparan por nombre porque los id de tablas
+        distintas pueden coincidir)."""
+        part = Partida.objects.create(restaurant=self.rA, name='Fríos')
+        InventoryItem.objects.create(restaurant=self.rA, name='Croquetas', partida=part, quantity=20, unit='ud')
         self.client.force_authenticate(self.ownerA)
-        self.client.post(f'{PRODUCTS}{self.prodA.id}/stock/', {'kind': 'in', 'quantity': '10'}, format='json')
-        self.client.post(f'{PRODUCTS}{self.prodA.id}/stock/', {'kind': 'out', 'quantity': '3'}, format='json')
-        self.prodA.refresh_from_db()
-        self.assertEqual(str(self.prodA.stock_qty), '7.000')
+        inv_names = [i['name'] for i in self.client.get(INVENTORY).json()]
+        prod_names = [p['name'] for p in self.client.get(PRODUCTS).json()]
+        self.assertIn('Croquetas', inv_names)
+        self.assertNotIn('Harina', inv_names)     # el producto de proveedor (prodA) no está en inventario
+        self.assertNotIn('Croquetas', prod_names)  # el item de inventario no está en productos
+
+    def test_inventory_adjust(self):
+        item = InventoryItem.objects.create(restaurant=self.rA, name='Salsa', quantity=5, unit='l')
+        self.client.force_authenticate(self.ownerA)
+        self.client.post(f'{INVENTORY}{item.id}/adjust/', {'kind': 'in', 'quantity': '10'}, format='json')
+        self.client.post(f'{INVENTORY}{item.id}/adjust/', {'kind': 'out', 'quantity': '3'}, format='json')
+        item.refresh_from_db()
+        self.assertEqual(str(item.quantity), '12.000')
+
+    def test_inventory_basic_plan_blocked(self):
+        self.client.force_authenticate(self.ownerC)
+        self.assertEqual(self.client.get(INVENTORY).status_code, 403)
 
 
 class EscandalloTests(APITestCase):

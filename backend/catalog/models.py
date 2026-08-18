@@ -12,11 +12,12 @@ UNIT_CHOICES = [
     ('l', 'Litro'),
     ('ml', 'Mililitro'),
     ('ud', 'Unidad'),
+    ('pack', 'Pack'),
 ]
 
-# Factor a la unidad "canónica" de cada familia (masa->g, volumen->ml, ud->ud).
-UNIT_FAMILY = {'kg': 'masa', 'g': 'masa', 'l': 'vol', 'ml': 'vol', 'ud': 'ud'}
-UNIT_TO_BASE = {'kg': Decimal('1000'), 'g': Decimal('1'), 'l': Decimal('1000'), 'ml': Decimal('1'), 'ud': Decimal('1')}
+# Factor a la unidad "canónica" de cada familia (masa->g, volumen->ml, ud/pack cuenta).
+UNIT_FAMILY = {'kg': 'masa', 'g': 'masa', 'l': 'vol', 'ml': 'vol', 'ud': 'ud', 'pack': 'pack'}
+UNIT_TO_BASE = {'kg': Decimal('1000'), 'g': Decimal('1'), 'l': Decimal('1000'), 'ml': Decimal('1'), 'ud': Decimal('1'), 'pack': Decimal('1')}
 
 
 def convert_qty(qty, from_unit, to_unit):
@@ -84,18 +85,14 @@ class Supplier(models.Model):
 
 
 class Product(models.Model):
-    """Producto/insumo del catálogo. Es el eje: da coste al escandallo,
-    stock al inventario y se asocia a un proveedor."""
+    """Producto de COMPRA: lo que se le compra a un proveedor, con su precio.
+    Da coste al escandallo. NO es inventario (eso es InventoryItem)."""
 
     restaurant = models.ForeignKey(
         'accounts.Restaurant', on_delete=models.CASCADE, related_name='products',
     )
     name = models.CharField(max_length=180)
     category = models.CharField(max_length=120, blank=True)
-    partida = models.ForeignKey(
-        Partida, null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='products',
-    )
     supplier = models.ForeignKey(
         Supplier, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='products',
@@ -104,11 +101,6 @@ class Product(models.Model):
     base_unit = models.CharField(max_length=4, choices=UNIT_CHOICES, default='kg')
     pack_size = models.DecimalField(max_digits=12, decimal_places=3, default=1)
     pack_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    # Inventario (en `base_unit`).
-    stock_qty = models.DecimalField(max_digits=14, decimal_places=3, default=0)
-    stock_min = models.DecimalField(max_digits=14, decimal_places=3, default=0)
-    # Alérgenos que aporta el producto (claves de los 14 UE).
-    allergens = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -130,10 +122,6 @@ class Product(models.Model):
             return (self.pack_price / self.pack_size).quantize(Decimal('0.0001'))
         return Decimal('0')
 
-    @property
-    def low_stock(self):
-        return self.stock_min and self.stock_qty <= self.stock_min
-
     def line_cost(self, quantity, unit):
         """Coste de usar `quantity` `unit` de este producto, o None si las
         unidades no son convertibles a la unidad base del producto."""
@@ -141,6 +129,37 @@ class Product(models.Model):
         if conv is None:
             return None
         return (conv * self.unit_cost).quantize(Decimal('0.01'))
+
+
+class InventoryItem(models.Model):
+    """Inventario de PRODUCCIÓN: lo que el personal tiene hecho/almacenado
+    (p.ej. en congeladoras), clasificado por partida. NO tiene proveedor ni
+    precio; es independiente del catálogo de compras (Product)."""
+
+    restaurant = models.ForeignKey(
+        'accounts.Restaurant', on_delete=models.CASCADE, related_name='inventory_items',
+    )
+    name = models.CharField(max_length=180)
+    partida = models.ForeignKey(
+        Partida, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='items',
+    )
+    quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    unit = models.CharField(max_length=4, choices=UNIT_CHOICES, default='ud')
+    stock_min = models.DecimalField(max_digits=14, decimal_places=3, default=0)
+    notes = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    @property
+    def low_stock(self):
+        return bool(self.stock_min) and self.quantity <= self.stock_min
 
 
 class Escandallo(models.Model):
@@ -188,21 +207,3 @@ class EscandalloLine(models.Model):
 
     def __str__(self):
         return f'{self.ingredient_name} ({self.quantity} {self.unit})'
-
-
-class StockMovement(models.Model):
-    """Entrada o salida de stock de un producto (traza del inventario)."""
-
-    KIND_CHOICES = [('in', 'Entrada'), ('out', 'Salida'), ('adjust', 'Ajuste')]
-
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='movements')
-    kind = models.CharField(max_length=6, choices=KIND_CHOICES, default='in')
-    quantity = models.DecimalField(max_digits=14, decimal_places=3)  # en base_unit del producto
-    note = models.CharField(max_length=220, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-created_at', '-id']
-
-    def __str__(self):
-        return f'{self.get_kind_display()} {self.quantity} · {self.product.name}'

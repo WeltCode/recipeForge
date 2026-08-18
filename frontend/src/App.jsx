@@ -981,8 +981,8 @@ function App() {
         : <LockedSection icon={Allergen} title="Alérgenos" requiredPlan="Premium" points={['Los 14 alérgenos obligatorios de la UE', 'Etiquetado por ingrediente', 'Sello automático en la ficha']} />
     } else if (section === 'inventario') {
       sectionContent = feat('inventory')
-        ? <InventarioSection canEdit={canEdit} canCost={feat('escandallo') && hasPerm('can_view_escandallo')} />
-        : <LockedSection icon={Inventory} title="Inventario" requiredPlan="Business" points={['Productos y stock actual', 'Avisos de mínimos', 'Entradas y salidas de almacén']} />
+        ? <InventarioSection canEdit={canEdit} />
+        : <LockedSection icon={Inventory} title="Inventario" requiredPlan="Business" points={['Lo que tienes producido', 'Clasificado por partidas', 'Avisos de mínimos']} />
     } else if (section === 'proveedores') {
       sectionContent = feat('suppliers')
         ? <ProveedoresSection canEdit={canEdit} canCost={feat('escandallo') && hasPerm('can_view_escandallo')} />

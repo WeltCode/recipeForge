@@ -7,13 +7,13 @@ from rest_framework.viewsets import ModelViewSet
 
 from accounts.models import get_user_restaurant, get_user_role, user_can, UserProfile, Restaurant
 
-from .models import Escandallo, Partida, Product, Supplier, StockMovement
+from .models import Escandallo, InventoryItem, Partida, Product, Supplier
 from .permissions import CatalogPermission, EscandalloPermission
 from .serializers import (
     EscandalloSerializer,
+    InventoryItemSerializer,
     PartidaSerializer,
     ProductSerializer,
-    StockMovementSerializer,
     SupplierSerializer,
 )
 
@@ -43,7 +43,7 @@ class PartidaViewSet(_TenantScopedViewSet):
     required_feature = 'inventory'
 
     def get_queryset(self):
-        qs = Partida.objects.prefetch_related('products').all()
+        qs = Partida.objects.prefetch_related('items').all()
         user = self.request.user
         if _is_superadmin(user):
             rid = self.request.query_params.get('restaurant')
@@ -65,8 +65,10 @@ class SupplierViewSet(_TenantScopedViewSet):
 
 
 class ProductViewSet(_TenantScopedViewSet):
+    """Productos de compra (proveedores)."""
+
     serializer_class = ProductSerializer
-    required_feature = 'inventory'
+    required_feature = 'suppliers'
 
     def get_queryset(self):
         qs = Product.objects.select_related('supplier').all()
@@ -80,22 +82,39 @@ class ProductViewSet(_TenantScopedViewSet):
         sup = self.request.query_params.get('supplier')
         if sup:
             qs = qs.filter(supplier_id=sup)
-        # ?low=1 -> solo productos por debajo del mínimo
+        return qs
+
+
+class InventoryItemViewSet(_TenantScopedViewSet):
+    """Inventario de producción (por partida). Sin proveedor ni precio."""
+
+    serializer_class = InventoryItemSerializer
+    required_feature = 'inventory'
+
+    def get_queryset(self):
+        qs = InventoryItem.objects.select_related('partida').all()
+        user = self.request.user
+        if _is_superadmin(user):
+            rid = self.request.query_params.get('restaurant')
+            qs = qs.filter(restaurant_id=rid) if rid else qs
+        else:
+            qs = qs.filter(restaurant=get_user_restaurant(user))
+        partida = self.request.query_params.get('partida')
+        if partida == 'none':
+            qs = qs.filter(partida__isnull=True)
+        elif partida:
+            qs = qs.filter(partida_id=partida)
         if self.request.query_params.get('low') in ('1', 'true'):
-            ids = [p.id for p in qs if p.low_stock]
+            ids = [i.id for i in qs if i.low_stock]
             qs = qs.filter(id__in=ids)
         return qs
 
     @action(detail=True, methods=['post'])
-    def stock(self, request, pk=None):
-        """Ajusta el stock: {kind: in|out|adjust, quantity, note}.
-
-        in/out suman/restan; adjust fija el stock al valor dado. Registra el
-        movimiento para dejar traza en el inventario.
-        """
-        product = self.get_object()
+    def adjust(self, request, pk=None):
+        """Ajusta la cantidad: {kind: in|out|set, quantity}."""
+        item = self.get_object()
         kind = request.data.get('kind', 'in')
-        if kind not in ('in', 'out', 'adjust'):
+        if kind not in ('in', 'out', 'set'):
             raise ValidationError({'kind': 'Tipo de movimiento no válido.'})
         try:
             qty = Decimal(str(request.data.get('quantity', '0')))
@@ -103,18 +122,14 @@ class ProductViewSet(_TenantScopedViewSet):
             raise ValidationError({'quantity': 'Cantidad no válida.'})
         if qty < 0:
             raise ValidationError({'quantity': 'La cantidad no puede ser negativa.'})
-
         if kind == 'in':
-            product.stock_qty = product.stock_qty + qty
+            item.quantity = item.quantity + qty
         elif kind == 'out':
-            product.stock_qty = max(Decimal('0'), product.stock_qty - qty)
-        else:  # adjust
-            product.stock_qty = qty
-        product.save(update_fields=['stock_qty', 'updated_at'])
-        StockMovement.objects.create(
-            product=product, kind=kind, quantity=qty, note=request.data.get('note', ''),
-        )
-        return Response(ProductSerializer(product, context=self.get_serializer_context()).data)
+            item.quantity = max(Decimal('0'), item.quantity - qty)
+        else:
+            item.quantity = qty
+        item.save(update_fields=['quantity', 'updated_at'])
+        return Response(InventoryItemSerializer(item, context=self.get_serializer_context()).data)
 
 
 class EscandalloViewSet(ModelViewSet):
