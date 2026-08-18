@@ -29,6 +29,9 @@ class Recipe(models.Model):
     shelf_life_value = models.PositiveIntegerField(null=True, blank=True)
     shelf_life_unit = models.CharField(max_length=6, choices=SHELF_LIFE_UNITS, default='dias')
     observations = models.TextField(blank=True)
+    # Alérgenos declarados de la receta (lista de claves de los 14 UE). Se
+    # eligen a nivel de ficha (debajo de Observaciones), no por ingrediente.
+    allergens = models.JSONField(default=list, blank=True)
     # Precio de venta (PVP) para el escandallo: food cost % y margen. Solo lo
     # ve/edita quien tiene permiso de escandallo (se filtra en el serializer).
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)

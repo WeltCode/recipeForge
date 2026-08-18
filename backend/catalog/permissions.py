@@ -3,6 +3,24 @@ from rest_framework.permissions import BasePermission, SAFE_METHODS
 from accounts.models import get_user_restaurant, plan_allows, user_can
 
 
+class EscandalloPermission(BasePermission):
+    """Acceso al escandallo: plan Business (escandallo) + rol con
+    can_view_escandallo. El superadmin siempre."""
+
+    message = 'Necesitas plan Business y permiso de escandallo.'
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        restaurant = get_user_restaurant(user)
+        if restaurant is None:
+            return False
+        return plan_allows(restaurant, 'escandallo') and user_can(user, 'can_view_escandallo')
+
+
 class CatalogPermission(BasePermission):
     """Acceso al catálogo/proveedores/inventario (funciones Business).
 

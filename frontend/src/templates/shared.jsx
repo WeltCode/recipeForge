@@ -1,6 +1,7 @@
 // Lógica común a todas las plantillas de ficha técnica.
 import { fmtDecimal, parseDecimal } from '../lib/ui'
 import { ALLERGENS, ALLERGEN_KEYS } from '../lib/allergens'
+import { AllergenIcon } from '../components/AllergenIcon'
 
 // Alérgenos presentes en la receta: unión de los declarados en cada línea
 // (y los del resumen del backend si viene), en el orden oficial de los 14 UE.
@@ -27,12 +28,7 @@ export function AllergenSeal({ recipe, accent = '#c8371a' }) {
             className="inline-flex items-center gap-[4px] rounded-full border px-[6px] py-[2px] text-[9px] font-semibold"
             style={{ borderColor: accent, color: accent }}
           >
-            <span
-              className="inline-flex h-[13px] w-[13px] items-center justify-center rounded-full text-[7px] text-white"
-              style={{ background: accent }}
-            >
-              {ALLERGENS[k]?.glyph}
-            </span>
+            <AllergenIcon id={k} size={12} />
             {ALLERGENS[k]?.nombre}
           </span>
         ))}

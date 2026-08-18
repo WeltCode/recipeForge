@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ALLERGEN_LIST, AllergenDisc } from '../lib/allergens'
+import { ALLERGEN_LIST } from '../lib/allergens'
+import { AllergenIcon } from './AllergenIcon'
 import { Search, X, Allergen } from './icons'
 
 // Sección "Alérgenos" (Premium): leyenda de los 14 UE + matriz del recetario.
@@ -24,10 +25,11 @@ export default function AlergenosSection({ recipes }) {
       {/* Leyenda */}
       <div className="mb-6 rounded-2xl steel-plate p-5">
         <h2 className="pass-title mb-3 text-[15px] text-ink">Leyenda</h2>
-        <div className="flex flex-wrap gap-x-5 gap-y-2.5">
+        <div className="grid grid-cols-2 gap-x-5 gap-y-2.5 sm:grid-cols-3 lg:grid-cols-4">
           {ALLERGEN_LIST.map((a) => (
             <span key={a.key} className="inline-flex items-center gap-2 text-[13px] text-ink-2">
-              <AllergenDisc id={a.key} size={26} /> {a.nombre}
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-ember/10 text-ember-deep"><AllergenIcon id={a.key} size={19} /></span>
+              {a.nombre}
             </span>
           ))}
         </div>

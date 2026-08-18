@@ -84,6 +84,8 @@ class CatalogTests(APITestCase):
 
 
 class EscandalloTests(APITestCase):
+    ESCANDALLOS = '/api/escandallos/'
+
     def setUp(self):
         self.rA = Restaurant.objects.create(name='Rest A', code_prefix='A', plan='business')
 
@@ -98,33 +100,45 @@ class EscandalloTests(APITestCase):
         self.prod = Product.objects.create(
             restaurant=self.rA, name='Harina', base_unit='kg', pack_size=25, pack_price=20,
         )
-        self.recipe = Recipe.objects.create(restaurant=self.rA, code='A-001', name='Pan', servings=4, sale_price=2.50)
-        IngredientLine.objects.create(recipe=self.recipe, ingredient_name='Harina', quantity=1, unit='kg', product=self.prod, order=1)
-        IngredientLine.objects.create(recipe=self.recipe, ingredient_name='Sal', quantity=10, unit='g', order=2)
 
-    def test_costing_owner(self):
+    def _create_escandallo(self):
+        return self.client.post(self.ESCANDALLOS, {
+            'name': 'Pan', 'servings': 4, 'sale_price': '2.50',
+            'lines': [
+                {'ingredient_name': 'Harina', 'product': self.prod.id, 'quantity': '1', 'unit': 'kg', 'order': 1},
+                {'ingredient_name': 'Sal', 'quantity': '10', 'unit': 'g', 'order': 2},
+            ],
+        }, format='json')
+
+    def test_escandallo_summary(self):
         self.client.force_authenticate(self.owner)
-        data = self.client.get(f'/api/recipes/{self.recipe.id}/costing/').json()
-        self.assertEqual(data['total_cost'], '0.80')       # 1kg * 0.80
-        self.assertEqual(data['cost_per_serving'], '0.20')  # /4
-        self.assertEqual(data['food_cost_pct'], '8.00')     # 0.20/2.50
-        self.assertEqual(data['lines_missing'], 1)          # la sal no tiene producto
+        resp = self._create_escandallo()
+        self.assertEqual(resp.status_code, 201)
+        s = resp.json()['summary']
+        self.assertEqual(s['total_cost'], '0.80')        # 1kg * 0.80
+        self.assertEqual(s['cost_per_serving'], '0.20')  # /4
+        self.assertEqual(s['food_cost_pct'], '8.00')     # 0.20/2.50
+        self.assertEqual(s['lines_missing'], 1)          # la sal no tiene producto
 
-    def test_costing_forbidden_for_editor(self):
+    def test_escandallo_forbidden_for_editor(self):
         self.client.force_authenticate(self.editor)
-        self.assertEqual(self.client.get(f'/api/recipes/{self.recipe.id}/costing/').status_code, 403)
+        self.assertEqual(self.client.get(self.ESCANDALLOS).status_code, 403)
 
-    def test_sale_price_hidden_for_editor(self):
-        self.client.force_authenticate(self.editor)
-        data = self.client.get(f'/api/recipes/{self.recipe.id}/').json()
-        self.assertNotIn('sale_price', data)
-
-    def test_allergen_summary(self):
-        line = self.recipe.ingredients.first()
-        line.allergens = ['gluten']
-        line.save()
-        self.prod.allergens = ['gluten']
-        self.prod.save()
+    def test_create_recipe_from_escandallo(self):
         self.client.force_authenticate(self.owner)
-        data = self.client.get(f'/api/recipes/{self.recipe.id}/').json()
-        self.assertEqual(data['allergen_summary'], ['gluten'])
+        eid = self._create_escandallo().json()['id']
+        resp = self.client.post(f'{self.ESCANDALLOS}{eid}/create_recipe/')
+        self.assertEqual(resp.status_code, 201)
+        rid = resp.json()['recipe_id']
+        recipe = Recipe.objects.get(id=rid)
+        self.assertEqual(recipe.restaurant, self.rA)
+        self.assertEqual(recipe.ingredients.count(), 2)
+        # el escandallo queda enlazado a la receta
+        self.assertEqual(self.client.get(f'{self.ESCANDALLOS}{eid}/').json()['recipe'], rid)
+
+    def test_recipe_allergens_recipe_level(self):
+        self.client.force_authenticate(self.owner)
+        recipe = Recipe.objects.create(restaurant=self.rA, code='A-001', name='Pan', allergens=['gluten', 'huevos'])
+        data = self.client.get(f'/api/recipes/{recipe.id}/').json()
+        self.assertEqual(data['allergen_summary'], ['gluten', 'huevos'])
+        self.assertEqual(data['allergens'], ['gluten', 'huevos'])

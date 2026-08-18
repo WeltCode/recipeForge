@@ -29,6 +29,28 @@ def convert_qty(qty, from_unit, to_unit):
     return Decimal(str(qty)) * UNIT_TO_BASE[from_unit] / UNIT_TO_BASE[to_unit]
 
 
+class Partida(models.Model):
+    """Partida de cocina (Fríos, Calientes, Fritos, Postres…) para clasificar
+    los insumos del inventario. Cada restaurante crea las suyas."""
+
+    restaurant = models.ForeignKey(
+        'accounts.Restaurant', on_delete=models.CASCADE, related_name='partidas',
+    )
+    name = models.CharField(max_length=80)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['restaurant', 'name'], name='unique_partida_name_per_restaurant',
+            ),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Supplier(models.Model):
     """Proveedor de un restaurante (surte productos del catálogo)."""
 
@@ -63,6 +85,10 @@ class Product(models.Model):
     )
     name = models.CharField(max_length=180)
     category = models.CharField(max_length=120, blank=True)
+    partida = models.ForeignKey(
+        Partida, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='products',
+    )
     supplier = models.ForeignKey(
         Supplier, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='products',
@@ -108,6 +134,53 @@ class Product(models.Model):
         if conv is None:
             return None
         return (conv * self.unit_cost).quantize(Decimal('0.01'))
+
+
+class Escandallo(models.Model):
+    """Escandallo (coste) de un plato. Entidad INDEPENDIENTE de la receta: se
+    puede crear sin receta, partir de una receta existente para costearla, o
+    generar una receta nueva a partir de sus insumos."""
+
+    restaurant = models.ForeignKey(
+        'accounts.Restaurant', on_delete=models.CASCADE, related_name='escandallos',
+    )
+    name = models.CharField(max_length=180)
+    servings = models.PositiveIntegerField(default=1)
+    sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # Receta enlazada (si el escandallo se creó desde/para una receta), o None.
+    recipe = models.ForeignKey(
+        'recipes.Recipe', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='escandallos',
+    )
+    notes = models.CharField(max_length=280, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at', '-id']
+
+    def __str__(self):
+        return self.name
+
+
+class EscandalloLine(models.Model):
+    """Línea de insumo de un escandallo (referencia opcional a un producto)."""
+
+    escandallo = models.ForeignKey(Escandallo, related_name='lines', on_delete=models.CASCADE)
+    ingredient_name = models.CharField(max_length=180)
+    product = models.ForeignKey(
+        Product, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='escandallo_lines',
+    )
+    quantity = models.DecimalField(max_digits=10, decimal_places=3, default=0)
+    unit = models.CharField(max_length=32, default='g')
+    order = models.PositiveIntegerField(default=1)
+
+    class Meta:
+        ordering = ['order', 'id']
+
+    def __str__(self):
+        return f'{self.ingredient_name} ({self.quantity} {self.unit})'
 
 
 class StockMovement(models.Model):

@@ -11,7 +11,6 @@ import ProveedoresSection from './components/ProveedoresSection'
 import InventarioSection from './components/InventarioSection'
 import EscandalloSection from './components/EscandalloSection'
 import { AllergenPicker } from './components/AllergenPicker'
-import { listProducts } from './lib/catalog'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
 import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getTitle, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, IDLE_LIMIT_MS } from './auth'
@@ -57,8 +56,6 @@ const emptyIngredient = {
   quantity: '',
   unit: 'g',
   note: '',
-  allergens: [],
-  product: null,
 }
 
 const emptyStep = {
@@ -106,7 +103,7 @@ const emptyForm = {
   shelf_life_value: '',
   shelf_life_unit: 'dias',
   observations: '',
-  sale_price: '',
+  allergens: [],
   ingredients: [{ ...emptyIngredient }],
   steps: [{ ...emptyStep }],
 }
@@ -409,7 +406,6 @@ function App() {
   const [view, setView] = useState('dashboard') // 'dashboard' | 'editor'
   const [section, setSection] = useState('recetas') // sección activa del shell (usuario normal)
   const [showUpgrade, setShowUpgrade] = useState(false)
-  const [editorProducts, setEditorProducts] = useState([]) // catálogo para enlazar en el editor
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
   const [activeRestaurant, setActiveRestaurant] = useState({
     name: getRestaurantName(),
@@ -439,12 +435,6 @@ function App() {
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Catálogo para enlazar productos en el editor (solo si el plan trae escandallo).
-  useEffect(() => {
-    if (!authed || !feat('escandallo')) return
-    listProducts().then((data) => setEditorProducts(Array.isArray(data) ? data : [])).catch(() => {})
-  }, [authed, section])
 
   const handleLogout = () => {
     logout()
@@ -602,14 +592,12 @@ function App() {
     shelf_life_value: form.shelf_life_value ? Number(form.shelf_life_value) : null,
     shelf_life_unit: form.shelf_life_unit || 'dias',
     observations: form.observations,
-    sale_price: parseDecimal(form.sale_price),
+    allergens: form.allergens || [],
     ingredients: form.ingredients
       .filter((item) => item.ingredient_name.trim())
       .map((item, index) => ({
         ...item,
         quantity: parseDecimal(item.quantity) ?? 0,
-        allergens: item.allergens || [],
-        product: item.product || null,
         order: index + 1,
       })),
     steps: form.steps
@@ -671,6 +659,13 @@ function App() {
     }
   }
 
+  // Al entrar a "Recetas" refrescamos la lista (p.ej. tras crear una receta
+  // desde un escandallo, que se crea fuera de este flujo).
+  useEffect(() => {
+    if (authed && view === 'dashboard' && section === 'recetas') fetchRecipeList()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, view])
+
   const loadRecipeForEdit = async (recipeId) => {
     setMessage('')
     try {
@@ -699,7 +694,7 @@ function App() {
         shelf_life_value: data.shelf_life_value ?? '',
         shelf_life_unit: data.shelf_life_unit || 'dias',
         observations: data.observations || '',
-        sale_price: data.sale_price != null ? fmtDecimal(data.sale_price) : '',
+        allergens: data.allergens || [],
         ingredients: data.ingredients?.length
           ? data.ingredients.map((ing) => ({
               group_name: ing.group_name || '',
@@ -707,8 +702,6 @@ function App() {
               quantity: fmtDecimal(ing.quantity),
               unit: ing.unit || 'g',
               note: ing.note || '',
-              allergens: ing.allergens || [],
-              product: ing.product ?? null,
             }))
           : [{ ...emptyIngredient }],
         steps: data.steps?.length
@@ -980,8 +973,8 @@ function App() {
       )
     } else if (section === 'escandallo') {
       sectionContent = feat('escandallo')
-        ? <EscandalloSection />
-        : <LockedSection icon={Coins} title="Escandallo" requiredPlan="Business" points={['Coste por ración y coste total', 'Food cost % y margen', 'PVP recomendado con semáforo']} />
+        ? <EscandalloSection canCreateRecipe={canCreate} />
+        : <LockedSection icon={Coins} title="Escandallo" requiredPlan="Business" points={['Coste por ración y coste total', 'Food cost % y margen', 'Crear receta desde el escandallo']} />
     } else if (section === 'alergenos') {
       sectionContent = feat('allergens')
         ? <AlergenosSection recipes={recipeList} />
@@ -1259,20 +1252,6 @@ function App() {
               />
             </label>
 
-            {feat('escandallo') && (
-              <label className="flex max-w-xs flex-col gap-1 text-sm text-stone-700">
-                PVP por ración (€) <span className="text-xs text-stone-400">para el escandallo (food cost y margen)</span>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={form.sale_price}
-                  onChange={(e) => updateField('sale_price', e.target.value.replace(/[^\d.,]/g, ''))}
-                  className="rounded-md border border-stone-300 px-3 py-2"
-                  placeholder="0,00"
-                />
-              </label>
-            )}
-
             {/* ── INGREDIENTES ── */}
             <section className="space-y-4">
               <div className="flex items-center justify-between">
@@ -1286,8 +1265,7 @@ function App() {
                 </button>
               </div>
               {form.ingredients.map((item, index) => (
-                <div key={`ingredient-${index}`} className="space-y-3 rounded-lg border border-stone-200 p-3">
-                  <div className="grid gap-3 md:grid-cols-12">
+                <div key={`ingredient-${index}`} className="grid gap-3 rounded-lg border border-stone-200 p-3 md:grid-cols-12">
                   <div className="md:col-span-2">
                     <select
                       className="w-full rounded-md border border-stone-300 bg-white px-3 py-2 text-sm"
@@ -1336,40 +1314,6 @@ function App() {
                   >
                     Quitar
                   </button>
-                  </div>
-
-                  {/* Alérgenos y coste por ingrediente (según el plan) */}
-                  {(feat('allergens') || feat('escandallo')) && (
-                    <div className="space-y-2 border-t border-dashed border-stone-200 pt-2.5">
-                      {feat('escandallo') && (
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-xs font-medium text-stone-500">Producto (coste):</span>
-                          <select
-                            value={item.product ?? ''}
-                            onChange={(e) => updateIngredient(index, 'product', e.target.value ? Number(e.target.value) : null)}
-                            className="min-w-[180px] rounded-md border border-stone-300 bg-white px-2 py-1.5 text-sm"
-                          >
-                            <option value="">Sin enlazar</option>
-                            {editorProducts.map((p) => (
-                              <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                          </select>
-                          {!editorProducts.length && (
-                            <span className="text-xs text-stone-400">Añade productos en Inventario para calcular costes.</span>
-                          )}
-                        </div>
-                      )}
-                      {feat('allergens') && (
-                        <div className="flex flex-col gap-1.5">
-                          <span className="text-xs font-medium text-stone-500">Alérgenos de este ingrediente:</span>
-                          <AllergenPicker
-                            value={item.allergens || []}
-                            onChange={(next) => updateIngredient(index, 'allergens', next)}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               ))}
             </section>
@@ -1432,6 +1376,17 @@ function App() {
                 placeholder="Ej: Al momento de producir, hacer la receta x5"
               />
             </label>
+
+            {/* ── ALÉRGENOS (a nivel de ficha) ── */}
+            {feat('allergens') && (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium text-stone-700">Alérgenos <span className="font-normal text-stone-400">— selecciona los presentes en el plato (aparecen en la ficha)</span></p>
+                <AllergenPicker
+                  value={form.allergens || []}
+                  onChange={(next) => updateField('allergens', next)}
+                />
+              </div>
+            )}
 
             {/* ── FOTO ── */}
             <label className="flex flex-col gap-1 text-sm text-stone-700">
