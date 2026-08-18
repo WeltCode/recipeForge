@@ -36,12 +36,16 @@ export default function AppShell({ sections, active, onNavigate, username, role,
       )}
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3">
-        {sections.map((s) => {
+        {sections.map((s, i) => {
           const Icon = s.icon
           const isActive = s.id === active
+          const showGroup = s.group && s.group !== (i > 0 ? sections[i - 1].group : undefined)
           return (
+            <div key={s.id}>
+            {showGroup && (
+              <p className="rf-cond px-3 pb-1 pt-5 text-[10px] font-600 uppercase tracking-[0.2em] text-white/30" style={{ fontWeight: 600 }}>{s.group}</p>
+            )}
             <button
-              key={s.id}
               onClick={() => go(s.id)}
               className={`group relative flex w-full items-center gap-3 rounded-xl px-3 py-2.5 transition ${
                 isActive ? 'bg-white/[.10]' : 'hover:bg-white/[.06]'
@@ -64,6 +68,7 @@ export default function AppShell({ sections, active, onNavigate, username, role,
               </span>
               {s.locked && <Lock size={14} className="shrink-0 text-white/35" />}
             </button>
+            </div>
           )
         })}
       </nav>

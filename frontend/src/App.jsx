@@ -3,7 +3,7 @@ import RecipeSheetPreview from './components/RecipeSheetPreview'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
-import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck } from './components/icons'
+import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck, Tag } from './components/icons'
 import AppShell from './components/AppShell'
 import { LockedSection, UpgradeModal } from './components/FeatureGate'
 import { parseDecimal, fmtDecimal } from './lib/ui'
@@ -144,6 +144,46 @@ function PlaceholderSection({ icon: Icon, title, note }) {
 }
 
 const AJUSTES_PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
+
+// Sección "Mi plan": comparativa de los 4 planes, el actual destacado, y mejora.
+const PLAN_CARDS = [
+  { key: 'prueba', name: 'Prueba', color: '#7a736b', note: '14 días', points: ['5 recetas y 5 PDF (con marca de agua)', 'Diseño básico', '1 usuario'] },
+  { key: 'basico', name: 'Básico', color: '#565d63', note: '', points: ['Crear, editar, borrar + PDF', '10 recetas al mes', '1 usuario'] },
+  { key: 'pro', name: 'Premium', color: '#ff9a3d', note: '', points: ['Plantillas personalizables', 'Alérgenos (14 UE)', 'Hasta 8 usuarios', 'Recetas ilimitadas'] },
+  { key: 'business', name: 'Business', color: '#e8531f', note: '', points: ['Todo lo de Premium', 'Escandallo: coste y margen', 'Inventario y proveedores', 'Hasta 20 usuarios'] },
+]
+
+function PlanSection({ plan, onRequest }) {
+  return (
+    <div>
+      <h2 className="rf-cond text-2xl font-600 uppercase tracking-wide text-[#1c1611]" style={{ fontWeight: 600 }}>Mi plan</h2>
+      <p className="mt-1 text-sm text-[#6a635c]">
+        Tu plan actual es <strong className="text-[#b5420f]">{AJUSTES_PLAN_LABELS[plan] || plan || '—'}</strong>. Compara y mejora cuando quieras.
+      </p>
+      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {PLAN_CARDS.map((p) => {
+          const current = p.key === plan
+          return (
+            <div key={p.key} className={`rounded-2xl border p-5 ${current ? 'border-[#e8531f] bg-[#fff6ef] ring-2 ring-[#e8531f]/20' : 'rf-steel rf-edge border-[#c4ccd2]'}`}>
+              <div className="flex items-center justify-between">
+                <p className="rf-cond text-lg font-600 uppercase tracking-wide" style={{ color: p.color, fontWeight: 600 }}>{p.name}</p>
+                {current && <span className="rf-cond rounded-full bg-[#e8531f] px-2 py-0.5 text-[10px] font-600 uppercase tracking-wide text-white" style={{ fontWeight: 600 }}>Tu plan</span>}
+              </div>
+              {p.note && <p className="rf-mono text-xs text-[#9a9188]">{p.note}</p>}
+              <ul className="mt-3 space-y-1.5">
+                {p.points.map((pt) => <li key={pt} className="flex items-start gap-2 text-sm text-[#3a352f]"><span style={{ color: p.color }}>•</span> {pt}</li>)}
+              </ul>
+            </div>
+          )
+        })}
+      </div>
+      <button onClick={onRequest} className="rf-ember-btn rf-cond mt-6 rounded-xl px-5 py-2.5 text-sm font-600 uppercase tracking-wide text-white" style={{ fontWeight: 600 }}>
+        Solicitar mejora de plan
+      </button>
+      <p className="mt-2 text-xs text-[#9a9188]">El administrador activa el cambio de plan. Los precios se acuerdan con WeltBrave.</p>
+    </div>
+  )
+}
 
 // Sección Ajustes (básica): restaurante, plan y "Mejorar plan".
 function AjustesSection({ restaurantName, plan, onUpgrade }) {
@@ -727,8 +767,9 @@ function App() {
       { id: 'alergenos', label: 'Alérgenos', icon: Allergen, locked: !feat('allergens') },
       { id: 'inventario', label: 'Inventario', icon: Inventory, locked: !feat('inventory') },
       { id: 'proveedores', label: 'Proveedores', icon: Truck, locked: !feat('suppliers') },
-      ...(canTeam ? [{ id: 'equipo', label: 'Equipo', icon: Users, locked: !feat('multiuser') }] : []),
-      ...(canTeam ? [{ id: 'ajustes', label: 'Ajustes', icon: Gear }] : []),
+      ...(canTeam ? [{ id: 'equipo', label: 'Usuarios y roles', icon: Users, group: 'Gestión', locked: !feat('multiuser') }] : []),
+      { id: 'plan', label: 'Mi plan', icon: Tag, group: 'Gestión' },
+      ...(canTeam ? [{ id: 'ajustes', label: 'Ajustes', icon: Gear, group: 'Gestión' }] : []),
     ]
 
     let sectionContent = null
@@ -753,6 +794,8 @@ function App() {
       sectionContent = feat('multiuser')
         ? <PlaceholderSection icon={Users} title="Equipo" note="Aquí gestionarás tus usuarios, roles y cargos. Lo activamos en el siguiente paso." />
         : <LockedSection icon={Users} title="Equipo" requiredPlan="Premium" points={['Varios usuarios en tu cocina', 'Roles y permisos por persona', 'Modo consulta para cocineros']} />
+    } else if (section === 'plan') {
+      sectionContent = <PlanSection plan={getPlan()} onRequest={() => setShowUpgrade(true)} />
     } else if (section === 'ajustes') {
       sectionContent = <AjustesSection restaurantName={restaurantName} plan={getPlan()} onUpgrade={() => setShowUpgrade(true)} />
     }
