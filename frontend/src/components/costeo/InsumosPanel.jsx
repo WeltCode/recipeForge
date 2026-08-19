@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   listInsumos, createInsumo, updateInsumo, deleteInsumo,
   createFormato, deleteFormato, registerPrice,
-  INSUMO_BASE_UNITS, PRICE_PER, USE_UNITS, buildFormatContent,
+  INSUMO_BASE_UNITS, PRICE_PER, USE_UNITS, buildFormatContent, numTrim,
 } from '../../lib/costeo'
 import { listSuppliers } from '../../lib/catalog'
 import { Coins, Plus, Pencil, Trash, X } from '../icons'
@@ -193,7 +193,7 @@ export default function InsumosPanel({ canEdit }) {
                             <div key={f.id} className={`flex flex-wrap items-center gap-3 bg-white px-3 py-2 ${idx ? 'border-t border-steel-200' : ''}`}>
                               <div className="min-w-0 flex-1">
                                 <p className="truncate text-[13px] text-ink">{f.description || 'Formato'} {isRef && <span className="ml-1 rounded-full bg-ember/12 px-2 py-0.5 text-[10px] font-semibold uppercase text-ember-deep">referencia</span>}</p>
-                                <p className="text-[11px] text-ink-3">{f.supplier_name ? `${f.supplier_name} · ` : ''}{f.price} €{f.price_includes_iva ? ' (con IVA)' : ''} · contenido {f.content_base ?? '—'} {i.base_unit}</p>
+                                <p className="text-[11px] text-ink-3">{f.supplier_name ? `${f.supplier_name} · ` : ''}{numTrim(f.price)} €{f.price_includes_iva ? ' (con IVA)' : ''} · contenido {f.content_base != null ? numTrim(f.content_base) : '—'} {i.base_unit}</p>
                               </div>
                               <span className="data text-[12px] text-ink-2">{f.cost_per_base != null ? `${Number(f.cost_per_base).toFixed(4)} €/${i.base_unit}` : '—'}</span>
                               {canEdit && <>

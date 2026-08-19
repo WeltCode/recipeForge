@@ -63,6 +63,13 @@ export function buildFormatContent({ pricePer, boxCount, packCount, packSize, pa
   return { pack_levels: [], unit_size: '1', unit_size_unit: pricePer }
 }
 
+// Cantidad sin ceros sobrantes (5900.000 -> "5900"; 1.50 -> "1.5"). Punto decimal.
+export const numTrim = (v) => {
+  if (v == null || v === '') return ''
+  const n = parseFloat(String(v).replace(',', '.'))
+  return isNaN(n) ? String(v) : String(n)
+}
+// Dinero con 2 decimales.
 export const eur = (v) => (v == null ? '—' : `${Number(v).toFixed(2)} €`)
 export function foodCostColor(pct) {
   if (pct == null) return 'text-ink-3'

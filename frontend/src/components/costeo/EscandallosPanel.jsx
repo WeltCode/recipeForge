@@ -1,12 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   listEscandallos, getEscandallo, createEscandallo, updateEscandallo, deleteEscandallo,
-  listInsumos, previewCosteo, USE_UNITS, eur, foodCostColor,
+  listInsumos, createInsumo, previewCosteo, USE_UNITS, eur, numTrim, foodCostColor,
 } from '../../lib/costeo'
 import { listRecipes, getRecipe } from '../../lib/catalog'
 import { Coins, Plus, Pencil, Trash, X } from '../icons'
 
 const norm = (s) => (s || '').trim().toLowerCase()
+const dot = (v) => String(v ?? '').replace(',', '.')
+// Unidad base del insumo deducida de la unidad de uso de la línea.
+const baseFromUnit = (u) => (['g', 'kg', 'ml', 'l', 'ud'].includes(u) ? u : (u === 'cl' ? 'ml' : 'g'))
 
 const EMPTY = {
   id: null, name: '', is_subrecipe: false, servings: '1',
@@ -61,7 +64,7 @@ export default function EscandallosPanel({ canEdit }) {
         if (hit) matched += 1
         return {
           component_type: 'insumo', ref: hit ? String(hit) : '', label: ing.ingredient_name,
-          quantity: String(ing.quantity ?? ''), unit: ing.unit || 'g',
+          quantity: numTrim(ing.quantity), unit: ing.unit || 'g',
           cleaning_yield_override: '', cooking_yield_override: '',
         }
       })
@@ -82,7 +85,7 @@ export default function EscandallosPanel({ canEdit }) {
         sale_price: e.sale_price ?? '',
         lines: (e.lines || []).map((l) => ({
           component_type: l.insumo ? 'insumo' : 'subrecipe', ref: String(l.insumo || l.subrecipe),
-          quantity: String(l.quantity), unit: l.unit,
+          quantity: numTrim(l.quantity), unit: l.unit,
           cleaning_yield_override: l.cleaning_yield_override ?? '', cooking_yield_override: l.cooking_yield_override ?? '',
         })) || EMPTY.lines,
       })
@@ -97,16 +100,34 @@ export default function EscandallosPanel({ canEdit }) {
   const removeLine = (i) => { setForm((f) => { const lines = f.lines.filter((_, idx) => idx !== i); return { ...f, lines: lines.length ? lines : EMPTY.lines } }); setDirty(true) }
   const setMeta = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setDirty(true) }
 
+  // Un insumo tiene precio si su formato de referencia da coste/base.
+  const insumoById = (ref) => insumos.find((x) => String(x.id) === String(ref))
+  const insumoPriced = (ref) => (insumoById(ref)?.cost_per_base ?? null) != null
+
+  // Crea el insumo de una línea importada sin enlazar y lo asigna a la línea.
+  const createInsumoForLine = async (i) => {
+    const l = form.lines[i]
+    if (!l?.label) return
+    try {
+      const created = await createInsumo({ name: l.label, base_unit: baseFromUnit(l.unit) })
+      setInsumos((prev) => [...prev, created])
+      setForm((f) => ({ ...f, lines: f.lines.map((x, idx) => idx === i ? { ...x, ref: String(created.id) } : x) }))
+      setDirty(true)
+      setImportInfo(`Insumo «${l.label}» creado. Ponle un formato con precio en «Insumos y precios» para que sume al coste.`)
+    } catch (e) { setError(e.message) }
+  }
+
   const buildBody = (f) => ({
     name: f.name, is_subrecipe: f.is_subrecipe, servings: Number(f.servings) || 1,
-    yield_quantity: f.is_subrecipe ? (f.yield_quantity || null) : null, yield_unit: f.yield_unit,
-    target_food_cost: f.target_food_cost || '0.30', iva_rate: f.iva_rate || '0.10',
-    sale_price: f.sale_price || null,
-    lines: f.lines.filter((l) => l.ref && l.quantity).map((l, i) => ({
+    yield_quantity: f.is_subrecipe ? (dot(f.yield_quantity) || null) : null, yield_unit: f.yield_unit,
+    target_food_cost: dot(f.target_food_cost) || '0.30', iva_rate: dot(f.iva_rate) || '0.10',
+    sale_price: f.sale_price ? dot(f.sale_price) : null,
+    // Solo entran líneas utilizables: subrecetas, o insumos CON precio.
+    lines: f.lines.filter((l) => l.ref && l.quantity && (l.component_type === 'subrecipe' || insumoPriced(l.ref))).map((l, i) => ({
       [l.component_type === 'insumo' ? 'insumo' : 'subrecipe']: Number(l.ref),
-      quantity: l.quantity, unit: l.unit,
-      cleaning_yield_override: l.cleaning_yield_override || null,
-      cooking_yield_override: l.cooking_yield_override || null, order: i + 1,
+      quantity: dot(l.quantity), unit: l.unit,
+      cleaning_yield_override: l.cleaning_yield_override ? dot(l.cleaning_yield_override) : null,
+      cooking_yield_override: l.cooking_yield_override ? dot(l.cooking_yield_override) : null, order: i + 1,
     })),
   })
 
@@ -215,7 +236,15 @@ export default function EscandallosPanel({ canEdit }) {
                 </select>
                 <button onClick={() => removeLine(i)} className="grid h-9 w-9 flex-none place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
               </div>
-              {l.label && !l.ref && <p className="mt-0.5 pl-0.5 text-[11px] text-warn">Importado: «{l.label}» — asígnale un insumo con precio.</p>}
+              {l.label && !l.ref && (
+                <div className="mt-0.5 flex flex-wrap items-center gap-2 pl-0.5">
+                  <span className="text-[11px] text-warn">Importado «{l.label}»: no existe como insumo.</span>
+                  {canEdit && <button onClick={() => createInsumoForLine(i)} className="inline-flex items-center gap-1 rounded-md steel-plate px-2 py-0.5 text-[11px] font-medium text-ink hover:bg-white"><Plus size={12} /> Crear insumo «{l.label}»</button>}
+                </div>
+              )}
+              {l.component_type === 'insumo' && l.ref && !insumoPriced(l.ref) && (
+                <p className="mt-0.5 pl-0.5 text-[11px] text-warn">«{insumoById(l.ref)?.name}» aún no tiene precio — añade un formato en «Insumos y precios» para que sume.</p>
+              )}
               </div>
             ))}
             <button onClick={addLine} className="mt-1 inline-flex items-center gap-1.5 rounded-lg steel-plate px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-white"><Plus size={15} /> Añadir línea</button>
@@ -238,7 +267,7 @@ export default function EscandallosPanel({ canEdit }) {
               <div className="mt-3 space-y-2.5">
                 {(preview.lines || []).map((ln, idx) => (
                   <div key={idx} className="flex items-baseline justify-between gap-3 border-b border-white/10 pb-1.5">
-                    <span className="min-w-0 truncate text-[12.5px] text-cream-dim">{ln.name} <span className="data text-[11px] opacity-70">{ln.quantity} {ln.unit}</span></span>
+                    <span className="min-w-0 truncate text-[12.5px] text-cream-dim">{ln.name} <span className="data text-[11px] opacity-70">{numTrim(ln.quantity)} {ln.unit}</span></span>
                     <span className="data shrink-0 text-[13px] text-cream">{eur(ln.line_cost)}</span>
                   </div>
                 ))}
