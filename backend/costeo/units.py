@@ -49,8 +49,8 @@ def to_canonical(qty, unit):
 
 
 def convert_to_base(qty, unit, base_unit, *, density=None, weight_per_piece=None):
-    """Convierte `qty` `unit` a la unidad base canónica del insumo (`base_unit`
-    ∈ g/ml/ud), usando puentes si cruzan dimensiones:
+    """Convierte `qty` `unit` a la unidad base del insumo (`base_unit` puede ser
+    g/kg/ml/l/ud), usando puentes si cruzan dimensiones:
       - masa↔volumen: densidad (g/ml).
       - conteo↔masa: peso por pieza (g/ud).
       - conteo↔volumen: encadena conteo→masa→volumen (requiere ambos).
@@ -58,38 +58,41 @@ def convert_to_base(qty, unit, base_unit, *, density=None, weight_per_piece=None
     base = norm(base_unit)
     if base not in _UNITS:
         raise UnitError(f'Unidad base no reconocida: «{base_unit}».')
-    base_dim = _UNITS[base][0]
-    q, dim = to_canonical(qty, unit)  # q en g/ml/ud de su propia dimensión
-
-    if dim == base_dim:
-        return q
+    base_dim, base_factor = _UNITS[base]
+    q, dim = to_canonical(qty, unit)  # q en la canónica (g/ml/ud) de su dimensión
 
     d = Decimal(str(density)) if density else None
     w = Decimal(str(weight_per_piece)) if weight_per_piece else None
 
-    if dim == 'mass' and base_dim == 'vol':
+    # `canon` = cantidad en la canónica (g/ml/ud) de la dimensión de la base.
+    if dim == base_dim:
+        canon = q
+    elif dim == 'mass' and base_dim == 'vol':
         if not d:
             raise UnitError('Falta la densidad (g/ml) del insumo para convertir masa a volumen.')
-        return q / d
-    if dim == 'vol' and base_dim == 'mass':
+        canon = q / d
+    elif dim == 'vol' and base_dim == 'mass':
         if not d:
             raise UnitError('Falta la densidad (g/ml) del insumo para convertir volumen a masa.')
-        return q * d
-    if dim == 'count' and base_dim == 'mass':
+        canon = q * d
+    elif dim == 'count' and base_dim == 'mass':
         if not w:
             raise UnitError('Falta el peso por pieza (g/ud) del insumo para convertir piezas a masa.')
-        return q * w
-    if dim == 'mass' and base_dim == 'count':
+        canon = q * w
+    elif dim == 'mass' and base_dim == 'count':
         if not w:
             raise UnitError('Falta el peso por pieza (g/ud) del insumo para convertir masa a piezas.')
-        return q / w
-    if dim == 'count' and base_dim == 'vol':
+        canon = q / w
+    elif dim == 'count' and base_dim == 'vol':
         if not w or not d:
             raise UnitError('Faltan peso por pieza y densidad para convertir piezas a volumen.')
-        return (q * w) / d
-    if dim == 'vol' and base_dim == 'count':
+        canon = (q * w) / d
+    elif dim == 'vol' and base_dim == 'count':
         if not w or not d:
             raise UnitError('Faltan densidad y peso por pieza para convertir volumen a piezas.')
-        return (q * d) / w
+        canon = (q * d) / w
+    else:
+        raise UnitError(f'No se puede convertir de {dim} a {base_dim}.')
 
-    raise UnitError(f'No se puede convertir de {dim} a {base_dim}.')
+    # De la canónica de la dimensión base a la unidad base concreta (g→kg, ml→l…).
+    return canon / base_factor

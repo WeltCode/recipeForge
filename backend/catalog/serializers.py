@@ -1,7 +1,6 @@
 from rest_framework import serializers
 
 from accounts.models import get_user_restaurant, user_can
-from recipes.costing import costing_summary
 
 from . import models
 
@@ -118,75 +117,3 @@ class InventoryItemSerializer(serializers.ModelSerializer):
 
     def get_partida_name(self, obj):
         return obj.partida.name if obj.partida else None
-
-
-class EscandalloLineSerializer(serializers.ModelSerializer):
-    product_name = serializers.SerializerMethodField()
-
-    class Meta:
-        model = models.EscandalloLine
-        fields = ['id', 'ingredient_name', 'product', 'product_name', 'quantity', 'unit', 'order']
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        request = self.context.get('request')
-        user = getattr(request, 'user', None)
-        if user and user.is_authenticated and not user.is_superuser:
-            self.fields['product'].queryset = models.Product.objects.filter(
-                restaurant=get_user_restaurant(user),
-            )
-
-    def get_product_name(self, obj):
-        return obj.product.name if obj.product else None
-
-
-class EscandalloSerializer(serializers.ModelSerializer):
-    lines = EscandalloLineSerializer(many=True, required=False)
-    summary = serializers.SerializerMethodField()
-    recipe_code = serializers.SerializerMethodField()
-
-    class Meta:
-        model = models.Escandallo
-        fields = [
-            'id', 'name', 'servings', 'sale_price', 'recipe', 'recipe_code',
-            'notes', 'lines', 'summary', 'created_at', 'updated_at',
-        ]
-        read_only_fields = ['recipe', 'created_at', 'updated_at']
-
-    def get_recipe_code(self, obj):
-        return obj.recipe.code if obj.recipe else None
-
-    def get_summary(self, obj):
-        lines = [
-            {'name': ln.ingredient_name, 'product': ln.product if ln.product_id else None,
-             'quantity': ln.quantity, 'unit': ln.unit}
-            for ln in obj.lines.all()
-        ]
-        return costing_summary(lines, servings=obj.servings, sale_price=obj.sale_price)
-
-    def create(self, validated_data):
-        lines = validated_data.pop('lines', [])
-        escandallo = models.Escandallo.objects.create(**validated_data)
-        self._save_lines(escandallo, lines)
-        return escandallo
-
-    def update(self, instance, validated_data):
-        lines = validated_data.pop('lines', None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        instance.save()
-        if lines is not None:
-            instance.lines.all().delete()
-            self._save_lines(instance, lines)
-        return instance
-
-    def _save_lines(self, escandallo, lines):
-        for i, ln in enumerate(lines):
-            models.EscandalloLine.objects.create(
-                escandallo=escandallo,
-                ingredient_name=ln.get('ingredient_name', ''),
-                product=ln.get('product'),
-                quantity=ln.get('quantity') or 0,
-                unit=ln.get('unit') or 'g',
-                order=ln.get('order', i + 1),
-            )

@@ -5,12 +5,11 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from accounts.models import get_user_restaurant, get_user_role, user_can, UserProfile, Restaurant
+from accounts.models import get_user_restaurant, get_user_role, UserProfile, Restaurant
 
-from .models import Escandallo, InventoryItem, Partida, Product, Supplier
-from .permissions import CatalogPermission, EscandalloPermission
+from .models import InventoryItem, Partida, Product, Supplier
+from .permissions import CatalogPermission
 from .serializers import (
-    EscandalloSerializer,
     InventoryItemSerializer,
     PartidaSerializer,
     ProductSerializer,
@@ -130,66 +129,3 @@ class InventoryItemViewSet(_TenantScopedViewSet):
             item.quantity = qty
         item.save(update_fields=['quantity', 'updated_at'])
         return Response(InventoryItemSerializer(item, context=self.get_serializer_context()).data)
-
-
-class EscandalloViewSet(ModelViewSet):
-    """Escandallos (costes de platos). Entidad independiente de la receta.
-    Requiere plan Business + permiso de escandallo."""
-
-    serializer_class = EscandalloSerializer
-    permission_classes = [EscandalloPermission]
-
-    def get_queryset(self):
-        qs = Escandallo.objects.prefetch_related('lines__product').select_related('recipe').all()
-        user = self.request.user
-        if _is_superadmin(user):
-            rid = self.request.query_params.get('restaurant')
-            return qs.filter(restaurant_id=rid) if rid else qs
-        return qs.filter(restaurant=get_user_restaurant(user))
-
-    def perform_create(self, serializer):
-        user = self.request.user
-        restaurant = get_user_restaurant(user)
-        if _is_superadmin(user):
-            rid = self.request.data.get('restaurant')
-            restaurant = Restaurant.objects.filter(pk=rid).first() if rid else None
-        serializer.save(restaurant=restaurant)
-
-    @action(detail=True, methods=['post'])
-    def create_recipe(self, request, pk=None):
-        """Crea una receta a partir de los insumos del escandallo y la enlaza.
-        Requiere permiso de crear recetas."""
-        from recipes.models import Recipe, IngredientLine
-
-        user = request.user
-        if not (user.is_superuser or user_can(user, 'can_create_recipes')):
-            return Response({'detail': 'Tu rol no puede crear recetas.'}, status=403)
-        escandallo = self.get_object()
-        if escandallo.recipe_id:
-            return Response({'detail': 'Este escandallo ya tiene una receta enlazada.'}, status=400)
-
-        restaurant = escandallo.restaurant
-        prefix = (restaurant.code_prefix or 'FT') if restaurant else 'FT'
-        # Código correlativo simple dentro del restaurante.
-        n = Recipe.objects.filter(restaurant=restaurant).count() + 1
-        code = f'{prefix}-{str(n).zfill(3)}'
-        while Recipe.objects.filter(restaurant=restaurant, code=code).exists():
-            n += 1
-            code = f'{prefix}-{str(n).zfill(3)}'
-
-        recipe = Recipe.objects.create(
-            restaurant=restaurant, code=code, name=escandallo.name,
-            servings=escandallo.servings,
-            template=(restaurant.default_template if restaurant else 'formal'),
-        )
-        for i, ln in enumerate(escandallo.lines.all()):
-            IngredientLine.objects.create(
-                recipe=recipe, ingredient_name=ln.ingredient_name,
-                quantity=ln.quantity or 0, unit=ln.unit or 'g', order=i + 1,
-            )
-        escandallo.recipe = recipe
-        escandallo.save(update_fields=['recipe', 'updated_at'])
-        return Response(
-            {'recipe_id': recipe.id, 'code': recipe.code, 'name': recipe.name},
-            status=201,
-        )

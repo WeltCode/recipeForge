@@ -42,9 +42,26 @@ export const deleteEscandallo = (id) => j('DELETE', `/costeo/escandallos/${id}/`
 // ── Preview (cálculo en vivo, sin persistir) ──
 export const previewCosteo = (b) => j('POST', '/costeo/preview/', b)
 
-export const BASE_UNITS = [['g', 'Gramo (masa)'], ['ml', 'Mililitro (volumen)'], ['ud', 'Unidad (pieza)']]
+// Unidad base del insumo (permite kg/l además de la canónica).
+export const INSUMO_BASE_UNITS = [['g', 'Gramo'], ['kg', 'Kilo'], ['ml', 'Mililitro'], ['l', 'Litro'], ['ud', 'Unidad']]
 // Unidades que el usuario puede usar en una línea (se convierten con puentes).
 export const USE_UNITS = [['g', 'g'], ['kg', 'kg'], ['ml', 'ml'], ['cl', 'cl'], ['l', 'l'], ['ud', 'ud']]
+
+// "Precio por": cómo se compra el insumo. Mapea a los campos del formato.
+export const PRICE_PER = [
+  ['pack', 'Pack / caja'], ['kg', 'Kilo'], ['g', 'Gramo'], ['l', 'Litro'], ['ml', 'Mililitro'], ['ud', 'Unidad'],
+]
+
+// Construye {pack_levels, unit_size, unit_size_unit} desde la elección "precio por".
+export function buildFormatContent({ pricePer, boxCount, packCount, packSize, packUnit }) {
+  if (pricePer === 'pack') {
+    const levels = []
+    if (boxCount && Number(boxCount) > 0) levels.push(Number(boxCount))
+    if (packCount && Number(packCount) > 0) levels.push(Number(packCount))
+    return { pack_levels: levels, unit_size: packSize || '1', unit_size_unit: packUnit || 'l' }
+  }
+  return { pack_levels: [], unit_size: '1', unit_size_unit: pricePer }
+}
 
 export const eur = (v) => (v == null ? '—' : `${Number(v).toFixed(2)} €`)
 export function foodCostColor(pct) {

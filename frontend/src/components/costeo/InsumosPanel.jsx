@@ -2,25 +2,25 @@ import { useEffect, useState } from 'react'
 import {
   listInsumos, createInsumo, updateInsumo, deleteInsumo,
   createFormato, deleteFormato, registerPrice,
-  BASE_UNITS, USE_UNITS,
+  INSUMO_BASE_UNITS, PRICE_PER, USE_UNITS, buildFormatContent,
 } from '../../lib/costeo'
 import { listSuppliers } from '../../lib/catalog'
 import { Coins, Plus, Pencil, Trash, X } from '../icons'
 
-const EMPTY_INS = { name: '', base_unit: 'g', density_g_per_ml: '', weight_per_piece_g: '', cleaning_yield: '1', cooking_yield: '1' }
-const EMPTY_FMT = { description: '', supplier: '', pack_text: '', unit_size: '1', unit_size_unit: 'kg', price: '', price_includes_iva: false, iva_rate: '0.10' }
-
-const packToArray = (s) => (s || '').split(/[×x,\s]+/).map((n) => n.trim()).filter(Boolean).map(Number).filter((n) => n > 0)
+const EMPTY_INS = { name: '', base_unit: 'g', density_g_per_ml: '', weight_per_piece_g: '', cleaning_pct: '100', cooking_pct: '100' }
+const EMPTY_FMT = { description: '', supplier: '', price_por: 'pack', box_count: '', pack_count: '6', pack_size: '1', pack_unit: 'l', price: '', price_includes_iva: false, iva_rate: '0.10' }
+const pctToYield = (p) => String((Number(String(p).replace(',', '.')) || 0) / 100)
+const yieldToPct = (y) => String(Math.round((Number(y) || 0) * 100))
 
 export default function InsumosPanel({ canEdit }) {
   const [rows, setRows] = useState([])
   const [suppliers, setSuppliers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [editing, setEditing] = useState(null) // null | 'new' | id
+  const [editing, setEditing] = useState(null)
   const [form, setForm] = useState(EMPTY_INS)
   const [expanded, setExpanded] = useState(null)
-  const [fmtFor, setFmtFor] = useState(null)   // insumo id al que se añade formato
+  const [fmtFor, setFmtFor] = useState(null)
   const [fmt, setFmt] = useState(EMPTY_FMT)
 
   const load = () => {
@@ -35,7 +35,7 @@ export default function InsumosPanel({ canEdit }) {
     setForm({
       name: i.name, base_unit: i.base_unit,
       density_g_per_ml: i.density_g_per_ml ?? '', weight_per_piece_g: i.weight_per_piece_g ?? '',
-      cleaning_yield: String(i.cleaning_yield ?? '1'), cooking_yield: String(i.cooking_yield ?? '1'),
+      cleaning_pct: yieldToPct(i.cleaning_yield), cooking_pct: yieldToPct(i.cooking_yield),
     })
     setEditing(i.id)
   }
@@ -46,7 +46,7 @@ export default function InsumosPanel({ canEdit }) {
     const body = {
       name: form.name, base_unit: form.base_unit,
       density_g_per_ml: form.density_g_per_ml || null, weight_per_piece_g: form.weight_per_piece_g || null,
-      cleaning_yield: form.cleaning_yield || '1', cooking_yield: form.cooking_yield || '1',
+      cleaning_yield: pctToYield(form.cleaning_pct || '100'), cooking_yield: pctToYield(form.cooking_pct || '100'),
     }
     try {
       if (editing === 'new') await createInsumo(body)
@@ -60,13 +60,12 @@ export default function InsumosPanel({ canEdit }) {
   }
 
   const addFormato = async (insumoId) => {
-    const levels = packToArray(fmt.pack_text)
     if (!fmt.price) { setError('El formato necesita un precio.'); return }
+    const content = buildFormatContent({ pricePer: fmt.price_por, boxCount: fmt.box_count, packCount: fmt.pack_count, packSize: fmt.pack_size, packUnit: fmt.pack_unit })
     try {
       await createFormato({
         insumo: insumoId, supplier: fmt.supplier || null, description: fmt.description,
-        pack_levels: levels, unit_size: fmt.unit_size || '1', unit_size_unit: fmt.unit_size_unit,
-        price: fmt.price, price_includes_iva: fmt.price_includes_iva, iva_rate: fmt.iva_rate || '0.10',
+        price: fmt.price, price_includes_iva: fmt.price_includes_iva, iva_rate: fmt.iva_rate || '0.10', ...content,
       })
       setFmt(EMPTY_FMT); setFmtFor(null); load()
     } catch (e) { setError(e.message) }
@@ -92,7 +91,7 @@ export default function InsumosPanel({ canEdit }) {
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-sm text-ink-2">Materia prima con su unidad base y sus formatos de compra. El precio del formato de referencia alimenta el escandallo.</p>
+        <p className="text-sm text-ink-2">Materia prima con su unidad base, su merma y sus formatos de compra. El precio del formato de referencia alimenta el escandallo.</p>
         {canEdit && <button onClick={openNew} className="inline-flex h-10 shrink-0 items-center gap-2 rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi"><Plus size={16} /> Nuevo insumo</button>}
       </div>
 
@@ -106,15 +105,16 @@ export default function InsumosPanel({ canEdit }) {
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {inp('name', 'Nombre *')}
-            <label className="flex flex-col gap-1 text-[13px] text-ink-2">Unidad base
+            <label className="flex flex-col gap-1 text-[13px] text-ink-2">Unidad base (cómo se usa)
               <select value={form.base_unit} onChange={(e) => setForm({ ...form, base_unit: e.target.value })} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50">
-                {BASE_UNITS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {INSUMO_BASE_UNITS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
               </select></label>
+            {inp('weight_per_piece_g', 'Peso por pieza (g/ud)', 'p. ej. 2000 (corvina), 60 (huevo)')}
             {inp('density_g_per_ml', 'Densidad (g/ml)', 'p. ej. 0,92 (aceite)')}
-            {inp('weight_per_piece_g', 'Peso por pieza (g/ud)', 'p. ej. 60 (huevo)')}
-            {inp('cleaning_yield', 'Rend. limpieza (0–1)', '1 = sin merma')}
-            {inp('cooking_yield', 'Rend. cocción (0–1)', '1 = sin merma')}
+            {inp('cleaning_pct', '% aprovechable tras limpieza', '100 = sin merma; 60 = 40% merma')}
+            {inp('cooking_pct', '% aprovechable tras cocción', '100 = sin merma')}
           </div>
+          <p className="mt-2 text-[12px] text-ink-3">La merma (limpieza + cocción) encarece el coste efectivo: si aprovechas el 60%, el coste por gramo usado sube ~1,67×. Para proteínas y verduras usa el peso por pieza y el % aprovechable.</p>
           <div className="mt-4 flex gap-2">
             <button onClick={save} className="inline-flex h-10 items-center rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi">Guardar</button>
             <button onClick={close} className="inline-flex h-10 items-center rounded-lg steel-plate px-4 text-sm font-medium text-ink hover:bg-white">Cancelar</button>
@@ -131,7 +131,7 @@ export default function InsumosPanel({ canEdit }) {
                 <div className="flex items-center gap-4 px-4 py-3.5 sm:px-5">
                   <button onClick={() => setExpanded(open ? null : i.id)} className="min-w-0 flex-1 text-left">
                     <p className="truncate text-[14px] font-medium text-ink">{i.name}</p>
-                    <p className="text-[12px] text-ink-3">unidad base: {i.base_unit}{i.cost_per_base ? ` · ${Number(i.cost_per_base).toFixed(4)} €/${i.base_unit}` : ' · sin precio'}</p>
+                    <p className="text-[12px] text-ink-3">base: {i.base_unit}{i.cost_per_base ? ` · ${Number(i.cost_per_base).toFixed(4)} €/${i.base_unit}` : ' · sin precio'}</p>
                   </button>
                   <span className="hidden rounded-full bg-steel-200 px-2.5 py-1 text-[11px] font-medium text-ink-2 sm:inline-flex"><span className="data mr-1">{i.formats?.length || 0}</span> formatos</span>
                   {canEdit && <>
@@ -144,30 +144,44 @@ export default function InsumosPanel({ canEdit }) {
                   <div className="border-t border-steel-200 bg-steel-50/60 px-4 py-4 sm:px-5">
                     <div className="flex items-center justify-between">
                       <p className="pass-title text-[13px] text-ink">Formatos de compra</p>
-                      {canEdit && <button onClick={() => { setFmtFor(fmtFor === i.id ? null : i.id); setFmt({ ...EMPTY_FMT, unit_size_unit: i.base_unit === 'ud' ? 'ud' : (i.base_unit === 'ml' ? 'l' : 'kg') }) }} className="inline-flex items-center gap-1 rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white"><Plus size={14} /> Añadir formato</button>}
+                      {canEdit && <button onClick={() => { setFmtFor(fmtFor === i.id ? null : i.id); setFmt({ ...EMPTY_FMT, pack_unit: i.base_unit === 'ud' ? 'ud' : (i.base_unit === 'ml' || i.base_unit === 'l' ? 'l' : 'kg') }) }} className="inline-flex items-center gap-1 rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white"><Plus size={14} /> Añadir formato</button>}
                     </div>
 
                     {fmtFor === i.id && (
-                      <div className="mt-2 grid gap-2 rounded-lg border border-steel-300 bg-white p-3 sm:grid-cols-2 lg:grid-cols-4">
-                        <label className="flex flex-col gap-1 text-[12px] text-ink-2 lg:col-span-2">Descripción
-                          <input value={fmt.description} onChange={(e) => setFmt({ ...fmt, description: e.target.value })} placeholder="p. ej. Pack 6×1 L" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
-                        <label className="flex flex-col gap-1 text-[12px] text-ink-2">Proveedor
-                          <select value={fmt.supplier} onChange={(e) => setFmt({ ...fmt, supplier: e.target.value })} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
-                            <option value="">—</option>
-                            {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                          </select></label>
-                        <label className="flex flex-col gap-1 text-[12px] text-ink-2">Niveles (caja×pack)
-                          <input value={fmt.pack_text} onChange={(e) => setFmt({ ...fmt, pack_text: e.target.value })} placeholder="6  ·  12×6" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
-                        <label className="flex flex-col gap-1 text-[12px] text-ink-2">Tamaño unidad
-                          <input value={fmt.unit_size} onChange={(e) => setFmt({ ...fmt, unit_size: e.target.value.replace(/[^\d.,]/g, '') })} className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
-                        <label className="flex flex-col gap-1 text-[12px] text-ink-2">Unidad
-                          <select value={fmt.unit_size_unit} onChange={(e) => setFmt({ ...fmt, unit_size_unit: e.target.value })} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
-                            {USE_UNITS.map(([v]) => <option key={v} value={v}>{v}</option>)}
-                          </select></label>
-                        <label className="flex flex-col gap-1 text-[12px] text-ink-2">Precio (€)
-                          <input value={fmt.price} onChange={(e) => setFmt({ ...fmt, price: e.target.value.replace(/[^\d.,]/g, '') })} className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
-                        <label className="flex items-center gap-1.5 self-end text-[12px] text-ink-2"><input type="checkbox" checked={fmt.price_includes_iva} onChange={(e) => setFmt({ ...fmt, price_includes_iva: e.target.checked })} className="accent-[#e8531f]" /> Precio con IVA</label>
-                        <div className="flex items-end"><button onClick={() => addFormato(i.id)} className="inline-flex h-9 items-center rounded-lg bg-ember px-3 text-[13px] font-medium text-cream hover:bg-ember-hi">Añadir</button></div>
+                      <div className="mt-2 rounded-lg border border-steel-300 bg-white p-3">
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                          <label className="flex flex-col gap-1 text-[12px] text-ink-2">Precio por
+                            <select value={fmt.price_por} onChange={(e) => setFmt({ ...fmt, price_por: e.target.value })} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
+                              {PRICE_PER.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                            </select></label>
+                          <label className="flex flex-col gap-1 text-[12px] text-ink-2">Precio (€)
+                            <input value={fmt.price} onChange={(e) => setFmt({ ...fmt, price: e.target.value.replace(/[^\d.,]/g, '') })} className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+                          <label className="flex flex-col gap-1 text-[12px] text-ink-2">Proveedor
+                            <select value={fmt.supplier} onChange={(e) => setFmt({ ...fmt, supplier: e.target.value })} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
+                              <option value="">—</option>
+                              {suppliers.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select></label>
+                          <label className="flex items-center gap-1.5 self-end text-[12px] text-ink-2"><input type="checkbox" checked={fmt.price_includes_iva} onChange={(e) => setFmt({ ...fmt, price_includes_iva: e.target.checked })} className="accent-[#e8531f]" /> Precio con IVA</label>
+                        </div>
+
+                        {fmt.price_por === 'pack' && (
+                          <div className="mt-2 grid items-end gap-2 sm:grid-cols-4">
+                            <label className="flex flex-col gap-1 text-[12px] text-ink-2">Caja de (opcional)
+                              <input value={fmt.box_count} onChange={(e) => setFmt({ ...fmt, box_count: e.target.value.replace(/[^\d]/g, '') })} placeholder="p. ej. 12" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+                            <label className="flex flex-col gap-1 text-[12px] text-ink-2">El pack trae
+                              <input value={fmt.pack_count} onChange={(e) => setFmt({ ...fmt, pack_count: e.target.value.replace(/[^\d]/g, '') })} placeholder="p. ej. 6" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+                            <label className="flex flex-col gap-1 text-[12px] text-ink-2">de tamaño
+                              <input value={fmt.pack_size} onChange={(e) => setFmt({ ...fmt, pack_size: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="p. ej. 1" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+                            <label className="flex flex-col gap-1 text-[12px] text-ink-2">unidad
+                              <select value={fmt.pack_unit} onChange={(e) => setFmt({ ...fmt, pack_unit: e.target.value })} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
+                                {USE_UNITS.map(([v]) => <option key={v} value={v}>{v}</option>)}
+                              </select></label>
+                          </div>
+                        )}
+                        <div className="mt-3 flex items-center gap-2">
+                          <input value={fmt.description} onChange={(e) => setFmt({ ...fmt, description: e.target.value })} placeholder="Descripción (opcional, p. ej. Pack 6×1 L)" className="flex-1 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" />
+                          <button onClick={() => addFormato(i.id)} className="inline-flex h-9 items-center rounded-lg bg-ember px-3 text-[13px] font-medium text-cream hover:bg-ember-hi">Añadir formato</button>
+                        </div>
                       </div>
                     )}
 

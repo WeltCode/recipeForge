@@ -3,7 +3,10 @@ import {
   listEscandallos, getEscandallo, createEscandallo, updateEscandallo, deleteEscandallo,
   listInsumos, previewCosteo, USE_UNITS, eur, foodCostColor,
 } from '../../lib/costeo'
+import { listRecipes, getRecipe } from '../../lib/catalog'
 import { Coins, Plus, Pencil, Trash, X } from '../icons'
+
+const norm = (s) => (s || '').trim().toLowerCase()
 
 const EMPTY = {
   id: null, name: '', is_subrecipe: false, servings: '1',
@@ -15,11 +18,13 @@ export default function EscandallosPanel({ canEdit }) {
   const [rows, setRows] = useState([])
   const [insumos, setInsumos] = useState([])
   const [subs, setSubs] = useState([])
+  const [recipes, setRecipes] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
+  const [importInfo, setImportInfo] = useState('')
 
   // Preview en vivo.
   const [preview, setPreview] = useState(null)
@@ -39,8 +44,34 @@ export default function EscandallosPanel({ canEdit }) {
   }
   useEffect(load, [])
   useEffect(loadRefs, [])
+  useEffect(() => { listRecipes().then(setRecipes).catch(() => {}) }, [])
 
-  const openNew = () => { setForm(EMPTY); setPreview(null); setPreviewErr(''); setDirty(false); setEditing(true) }
+  // Importa los ingredientes de una receta existente como líneas del escandallo,
+  // enlazando automáticamente al insumo cuyo nombre coincida.
+  const importFromRecipe = async (rid) => {
+    if (!rid) return
+    try {
+      const r = await getRecipe(rid)
+      const byName = {}
+      insumos.forEach((x) => { byName[norm(x.name)] = x.id })
+      const ings = r.ingredients || []
+      let matched = 0
+      const lines = ings.map((ing) => {
+        const hit = byName[norm(ing.ingredient_name)]
+        if (hit) matched += 1
+        return {
+          component_type: 'insumo', ref: hit ? String(hit) : '', label: ing.ingredient_name,
+          quantity: String(ing.quantity ?? ''), unit: ing.unit || 'g',
+          cleaning_yield_override: '', cooking_yield_override: '',
+        }
+      })
+      setForm((f) => ({ ...f, name: f.name || r.name, servings: String(r.servings || 1), lines: lines.length ? lines : EMPTY.lines }))
+      setDirty(true)
+      setImportInfo(`Importados ${ings.length} insumos de «${r.name}». ${matched} enlazados por nombre; asigna el resto a un insumo con precio.`)
+    } catch (e) { setError(e.message) }
+  }
+
+  const openNew = () => { setForm(EMPTY); setPreview(null); setPreviewErr(''); setDirty(false); setImportInfo(''); setEditing(true) }
   const openEdit = async (id) => {
     try {
       const e = await getEscandallo(id)
@@ -152,10 +183,24 @@ export default function EscandallosPanel({ canEdit }) {
               )}
             </div>
 
+            {/* Importar de una receta existente */}
+            {!form.id && recipes.length > 0 && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-steel-300 bg-steel-50/70 p-3">
+                <span className="text-[13px] font-medium text-ink">Importar de una receta:</span>
+                <select defaultValue="" onChange={(e) => { importFromRecipe(e.target.value); e.target.value = '' }} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
+                  <option value="">— elige una receta —</option>
+                  {recipes.map((r) => <option key={r.id} value={r.id}>{r.code} · {r.name}</option>)}
+                </select>
+                <span className="text-[12px] text-ink-3">trae sus insumos y cantidades; tú solo pones el precio de cada uno</span>
+              </div>
+            )}
+            {importInfo && <p className="mt-2 text-[12px] text-ember-deep">{importInfo}</p>}
+
             {/* Líneas */}
             <p className="pass-title mb-2 mt-5 text-[13px] text-ink">Insumos y subrecetas</p>
             {form.lines.map((l, i) => (
-              <div key={i} className="mb-2 flex flex-wrap items-center gap-2">
+              <div key={i} className="mb-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <select
                   value={`${l.component_type}:${l.ref}`}
                   onChange={(e) => { const [t, id] = e.target.value.split(':'); setForm((f) => ({ ...f, lines: f.lines.map((x, idx) => idx === i ? { ...x, component_type: t, ref: id } : x) })); setDirty(true) }}
@@ -169,6 +214,8 @@ export default function EscandallosPanel({ canEdit }) {
                   {USE_UNITS.map(([v]) => <option key={v} value={v}>{v}</option>)}
                 </select>
                 <button onClick={() => removeLine(i)} className="grid h-9 w-9 flex-none place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
+              </div>
+              {l.label && !l.ref && <p className="mt-0.5 pl-0.5 text-[11px] text-warn">Importado: «{l.label}» — asígnale un insumo con precio.</p>}
               </div>
             ))}
             <button onClick={addLine} className="mt-1 inline-flex items-center gap-1.5 rounded-lg steel-plate px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-white"><Plus size={15} /> Añadir línea</button>

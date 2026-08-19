@@ -3,6 +3,11 @@ from decimal import Decimal
 from django.db import models
 
 
+# Unidad base del insumo (permite kg/l además de la canónica g/ml/ud).
+INSUMO_BASE_UNITS = [
+    ('g', 'Gramo'), ('kg', 'Kilo'), ('ml', 'Mililitro'), ('l', 'Litro'), ('ud', 'Unidad'),
+]
+# Unidad de rendimiento de una subreceta (canónica; g/ml/ud).
 BASE_UNITS = [('g', 'Gramo (masa)'), ('ml', 'Mililitro (volumen)'), ('ud', 'Unidad (pieza)')]
 
 
@@ -14,7 +19,7 @@ class Insumo(models.Model):
         'accounts.Restaurant', on_delete=models.CASCADE, related_name='costeo_insumos',
     )
     name = models.CharField(max_length=180)
-    base_unit = models.CharField(max_length=4, choices=BASE_UNITS, default='g')
+    base_unit = models.CharField(max_length=4, choices=INSUMO_BASE_UNITS, default='g')
     # Puentes entre dimensiones (opcionales; se exigen solo si se necesitan).
     density_g_per_ml = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
     weight_per_piece_g = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)

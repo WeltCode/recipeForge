@@ -72,6 +72,21 @@ class ServiceTests(APITestCase):
         self.assertEqual(res['lines'][0]['gross_cost_per_base'], '0.01000000')
         self.assertEqual(res['lines'][0]['line_cost'], '1.0000')
 
+    def test_base_unit_kilo(self):
+        carne = make_insumo(self.r, 'Ternera', 'kg')  # base en kilo
+        make_format(carne, '10', [], '1', 'kg')       # precio por kg → 10 €/kg
+        res = services.compute(spec([line(carne.id, quantity='300', unit='g')]), self.r)
+        self.assertEqual(res['lines'][0]['line_cost'], '3.0000')  # 0,3 kg × 10
+
+    def test_whole_piece_with_merma(self):
+        # Corvina entera: 1 pieza = 2000 g, precio por pieza 12 €, 60% aprovechable.
+        corvina = make_insumo(self.r, 'Corvina', 'g', weight_per_piece_g='2000', cleaning_yield='0.6')
+        make_format(corvina, '12', [], '1', 'ud')     # precio por unidad (pieza)
+        res = services.compute(spec([line(corvina.id, quantity='300', unit='g')]), self.r)
+        # bruto 12/2000 = 0,006/g → neto /0,6 = 0,01/g → 300 g × 0,01
+        self.assertEqual(res['lines'][0]['net_cost_per_base'], '0.01000000')
+        self.assertEqual(res['lines'][0]['line_cost'], '3.0000')
+
     # ── Puentes entre tipos de unidad ──
     def test_bridge_mass_volume_density(self):
         aceite = make_insumo(self.r, 'Aceite', 'ml', density_g_per_ml='0.92')
