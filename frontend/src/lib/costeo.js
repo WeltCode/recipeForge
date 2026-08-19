@@ -1,0 +1,56 @@
+// Llamadas al motor de escandallo (app backend `costeo`).
+import { authFetch } from '../auth'
+
+const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
+
+async function jsonOrThrow(res) {
+  if (!res.ok) {
+    let detail = `Error ${res.status}`
+    try {
+      const data = await res.json()
+      detail = data.detail || (Array.isArray(data) ? data[0] : Object.values(data)[0]) || detail
+    } catch { /* sin cuerpo */ }
+    throw new Error(Array.isArray(detail) ? detail[0] : String(detail))
+  }
+  return res.status === 204 ? null : res.json()
+}
+const j = (method, url, body) => authFetch(`${API_BASE}${url}`, {
+  method, headers: body ? { 'Content-Type': 'application/json' } : undefined,
+  body: body ? JSON.stringify(body) : undefined,
+}).then(jsonOrThrow)
+
+// ── Insumos ──
+export const listInsumos = () => j('GET', '/costeo/insumos/')
+export const createInsumo = (b) => j('POST', '/costeo/insumos/', b)
+export const updateInsumo = (id, b) => j('PATCH', `/costeo/insumos/${id}/`, b)
+export const deleteInsumo = (id) => j('DELETE', `/costeo/insumos/${id}/`)
+
+// ── Formatos de compra ──
+export const createFormato = (b) => j('POST', '/costeo/formatos/', b)
+export const updateFormato = (id, b) => j('PATCH', `/costeo/formatos/${id}/`, b)
+export const deleteFormato = (id) => j('DELETE', `/costeo/formatos/${id}/`)
+export const registerPrice = (id, b) => j('POST', `/costeo/formatos/${id}/register_price/`, b)
+export const formatoHistory = (id) => j('GET', `/costeo/formatos/${id}/history/`)
+
+// ── Escandallos ──
+export const listEscandallos = (params = '') => j('GET', `/costeo/escandallos/${params}`)
+export const getEscandallo = (id) => j('GET', `/costeo/escandallos/${id}/`)
+export const createEscandallo = (b) => j('POST', '/costeo/escandallos/', b)
+export const updateEscandallo = (id, b) => j('PATCH', `/costeo/escandallos/${id}/`, b)
+export const deleteEscandallo = (id) => j('DELETE', `/costeo/escandallos/${id}/`)
+
+// ── Preview (cálculo en vivo, sin persistir) ──
+export const previewCosteo = (b) => j('POST', '/costeo/preview/', b)
+
+export const BASE_UNITS = [['g', 'Gramo (masa)'], ['ml', 'Mililitro (volumen)'], ['ud', 'Unidad (pieza)']]
+// Unidades que el usuario puede usar en una línea (se convierten con puentes).
+export const USE_UNITS = [['g', 'g'], ['kg', 'kg'], ['ml', 'ml'], ['cl', 'cl'], ['l', 'l'], ['ud', 'ud']]
+
+export const eur = (v) => (v == null ? '—' : `${Number(v).toFixed(2)} €`)
+export function foodCostColor(pct) {
+  if (pct == null) return 'text-ink-3'
+  const n = Number(pct)
+  if (n <= 30) return 'text-ok'
+  if (n <= 40) return 'text-warn'
+  return 'text-danger'
+}

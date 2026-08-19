@@ -9,7 +9,7 @@ import { LockedSection, UpgradeModal } from './components/FeatureGate'
 import AlergenosSection from './components/AlergenosSection'
 import ProveedoresSection from './components/ProveedoresSection'
 import InventarioSection from './components/InventarioSection'
-import EscandalloSection from './components/EscandalloSection'
+import CosteoSection from './components/CosteoSection'
 import { AllergenPicker } from './components/AllergenPicker'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
@@ -973,8 +973,8 @@ function App() {
       )
     } else if (section === 'escandallo') {
       sectionContent = feat('escandallo')
-        ? <EscandalloSection canCreateRecipe={canCreate} />
-        : <LockedSection icon={Coins} title="Escandallo" requiredPlan="Business" points={['Coste por ración y coste total', 'Food cost % y margen', 'Crear receta desde el escandallo']} />
+        ? <CosteoSection canEdit={canEdit} />
+        : <LockedSection icon={Coins} title="Escandallo" requiredPlan="Business" points={['Coste real de materia prima', 'Formatos de compra, merma e IVA', 'Food cost y PVP al instante']} />
     } else if (section === 'alergenos') {
       sectionContent = feat('allergens')
         ? <AlergenosSection recipes={recipeList} />
