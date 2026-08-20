@@ -12,8 +12,8 @@ const dot = (v) => String(v ?? '').replace(',', '.')
 const baseFromUnit = (u) => (['g', 'kg', 'ml', 'l', 'ud'].includes(u) ? u : (u === 'cl' ? 'ml' : 'g'))
 
 const EMPTY = {
-  id: null, name: '', is_subrecipe: false, servings: '1',
-  yield_quantity: '', yield_unit: 'g', target_food_cost: '0.30', iva_rate: '0.10', sale_price: '',
+  id: null, name: '', is_subrecipe: true, servings: '1',
+  yield_quantity: '', yield_unit: 'g', portions: '', target_food_cost: '0.30', iva_rate: '0.10', sale_price: '',
   lines: [{ component_type: 'insumo', ref: '', quantity: '', unit: 'g', cleaning_yield_override: '', cooking_yield_override: '' }],
 }
 
@@ -49,28 +49,36 @@ export default function EscandallosPanel({ canEdit }) {
   useEffect(loadRefs, [])
   useEffect(() => { listRecipes().then(setRecipes).catch(() => {}) }, [])
 
-  // Importa los ingredientes de una receta existente como líneas del escandallo,
-  // enlazando automáticamente al insumo cuyo nombre coincida.
+  // Importa los ingredientes de una receta: enlaza por nombre a un insumo
+  // existente y CREA automáticamente los que falten (sin precio todavía), para
+  // que todo se pueda guardar. Luego el usuario pone el precio de cada uno.
   const importFromRecipe = async (rid) => {
     if (!rid) return
     try {
       const r = await getRecipe(rid)
-      const byName = {}
-      insumos.forEach((x) => { byName[norm(x.name)] = x.id })
+      let current = await listInsumos()
+      const byName = () => { const m = {}; current.forEach((x) => { m[norm(x.name)] = x }); return m }
       const ings = r.ingredients || []
-      let matched = 0
-      const lines = ings.map((ing) => {
-        const hit = byName[norm(ing.ingredient_name)]
-        if (hit) matched += 1
-        return {
-          component_type: 'insumo', ref: hit ? String(hit) : '', label: ing.ingredient_name,
+      let matched = 0, created = 0
+      const lines = []
+      for (const ing of ings) {
+        let ins = byName()[norm(ing.ingredient_name)]
+        if (ins) { matched += 1 } else {
+          try {
+            ins = await createInsumo({ name: ing.ingredient_name, base_unit: baseFromUnit(ing.unit) })
+            current = [...current, ins]; created += 1
+          } catch { ins = null }
+        }
+        lines.push({
+          component_type: 'insumo', ref: ins ? String(ins.id) : '', label: ing.ingredient_name,
           quantity: numTrim(ing.quantity), unit: ing.unit || 'g',
           cleaning_yield_override: '', cooking_yield_override: '',
-        }
-      })
+        })
+      }
+      setInsumos(current)
       setForm((f) => ({ ...f, name: f.name || r.name, servings: String(r.servings || 1), lines: lines.length ? lines : EMPTY.lines }))
       setDirty(true)
-      setImportInfo(`Importados ${ings.length} insumos de «${r.name}». ${matched} enlazados por nombre; asigna el resto a un insumo con precio.`)
+      setImportInfo(`Importados ${ings.length} insumos de «${r.name}» (${matched} ya existían, ${created} creados). Ponles precio en «Insumos y precios» para que sumen al coste.`)
     } catch (e) { setError(e.message) }
   }
 
@@ -80,7 +88,7 @@ export default function EscandallosPanel({ canEdit }) {
       const e = await getEscandallo(id)
       setForm({
         id: e.id, name: e.name, is_subrecipe: e.is_subrecipe, servings: String(e.servings),
-        yield_quantity: e.yield_quantity ?? '', yield_unit: e.yield_unit || 'g',
+        yield_quantity: numTrim(e.yield_quantity), yield_unit: e.yield_unit || 'g', portions: e.portions ? String(e.portions) : '',
         target_food_cost: String(e.target_food_cost ?? '0.30'), iva_rate: String(e.iva_rate ?? '0.10'),
         sale_price: e.sale_price ?? '',
         lines: (e.lines || []).map((l) => ({
@@ -120,10 +128,12 @@ export default function EscandallosPanel({ canEdit }) {
   const buildBody = (f) => ({
     name: f.name, is_subrecipe: f.is_subrecipe, servings: Number(f.servings) || 1,
     yield_quantity: f.is_subrecipe ? (dot(f.yield_quantity) || null) : null, yield_unit: f.yield_unit,
+    portions: f.is_subrecipe && f.portions ? Number(f.portions) : null,
     target_food_cost: dot(f.target_food_cost) || '0.30', iva_rate: dot(f.iva_rate) || '0.10',
     sale_price: f.sale_price ? dot(f.sale_price) : null,
-    // Solo entran líneas utilizables: subrecetas, o insumos CON precio.
-    lines: f.lines.filter((l) => l.ref && l.quantity && (l.component_type === 'subrecipe' || insumoPriced(l.ref))).map((l, i) => ({
+    // Entran todas las líneas con un insumo/subreceta asignado (el motor tolera
+    // los que aún no tienen precio: aparecen como "incompletos", no rompen).
+    lines: f.lines.filter((l) => l.ref && l.quantity).map((l, i) => ({
       [l.component_type === 'insumo' ? 'insumo' : 'subrecipe']: Number(l.ref),
       quantity: dot(l.quantity), unit: l.unit,
       cleaning_yield_override: l.cleaning_yield_override ? dot(l.cleaning_yield_override) : null,
@@ -177,31 +187,37 @@ export default function EscandallosPanel({ canEdit }) {
         <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
           {/* Formulario */}
           <div className="rounded-2xl steel-plate p-5">
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="flex flex-col gap-1 text-[13px] text-ink-2 sm:col-span-2">Nombre del plato *
-                <input value={form.name} onChange={(e) => setMeta('name', e.target.value)} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
-              <label className="flex flex-col gap-1 text-[13px] text-ink-2">Raciones
-                <input value={form.servings} onChange={(e) => setMeta('servings', e.target.value.replace(/[^\d]/g, ''))} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
-              <label className="flex items-center gap-1.5 self-end text-[13px] text-ink-2"><input type="checkbox" checked={form.is_subrecipe} onChange={(e) => setMeta('is_subrecipe', e.target.checked)} className="accent-[#e8531f]" /> Es subreceta</label>
+            {/* Tipo de escandallo */}
+            <div className="mb-3 inline-flex rounded-lg steel-plate p-1">
+              {[[true, 'Producción'], [false, 'Plato de venta']].map(([v, label]) => (
+                <button key={label} type="button" onClick={() => setMeta('is_subrecipe', v)} className={`h-8 rounded-md px-3 text-[12.5px] font-medium transition-colors ${form.is_subrecipe === v ? 'bg-soot text-cream' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
+              ))}
             </div>
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              {form.is_subrecipe && <>
-                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Rinde (cantidad)
-                  <input value={form.yield_quantity} onChange={(e) => setMeta('yield_quantity', e.target.value.replace(/[^\d.,]/g, ''))} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
-                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Unidad rendimiento
-                  <select value={form.yield_unit} onChange={(e) => setMeta('yield_unit', e.target.value)} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50">
-                    <option value="g">g</option><option value="ml">ml</option><option value="ud">ud</option>
-                  </select></label>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="flex flex-col gap-1 text-[13px] text-ink-2 sm:col-span-2">Nombre {form.is_subrecipe ? 'de la producción' : 'del plato'} *
+                <input value={form.name} onChange={(e) => setMeta('name', e.target.value)} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+
+              {form.is_subrecipe ? <>
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Peso total de producción
+                  <div className="flex gap-2">
+                    <input value={form.yield_quantity} onChange={(e) => setMeta('yield_quantity', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 1900" className="w-full rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" />
+                    <select value={form.yield_unit} onChange={(e) => setMeta('yield_unit', e.target.value)} className="shrink-0 rounded-lg border border-steel-300 bg-white px-2 py-2 text-[14px] text-ink outline-none focus:border-ember/50">
+                      <option value="g">g</option><option value="ml">ml</option><option value="ud">ud</option>
+                    </select>
+                  </div></label>
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Porciones (uds)
+                  <input value={form.portions} onChange={(e) => setMeta('portions', e.target.value.replace(/[^\d]/g, ''))} placeholder="p. ej. 6" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+              </> : <>
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Raciones
+                  <input value={form.servings} onChange={(e) => setMeta('servings', e.target.value.replace(/[^\d]/g, ''))} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Precio de venta (con IVA)
+                  <input value={form.sale_price} onChange={(e) => setMeta('sale_price', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 20" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Food cost objetivo
+                  <input value={form.target_food_cost} onChange={(e) => setMeta('target_food_cost', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0.30" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2">IVA
+                  <input value={form.iva_rate} onChange={(e) => setMeta('iva_rate', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0.10" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
               </>}
-              <label className="flex flex-col gap-1 text-[13px] text-ink-2">Food cost objetivo
-                <input value={form.target_food_cost} onChange={(e) => setMeta('target_food_cost', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0.30" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
-              <label className="flex flex-col gap-1 text-[13px] text-ink-2">IVA
-                <input value={form.iva_rate} onChange={(e) => setMeta('iva_rate', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0.10" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
-              {!form.is_subrecipe && (
-                <label className="flex flex-col gap-1 text-[13px] text-ink-2">PVP (con IVA)
-                  <input value={form.sale_price} onChange={(e) => setMeta('sale_price', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="opcional" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
-              )}
             </div>
 
             {/* Importar de una receta existente */}
@@ -268,19 +284,28 @@ export default function EscandallosPanel({ canEdit }) {
                 {(preview.lines || []).map((ln, idx) => (
                   <div key={idx} className="flex items-baseline justify-between gap-3 border-b border-white/10 pb-1.5">
                     <span className="min-w-0 truncate text-[12.5px] text-cream-dim">{ln.name} <span className="data text-[11px] opacity-70">{numTrim(ln.quantity)} {ln.unit}</span></span>
-                    <span className="data shrink-0 text-[13px] text-cream">{eur(ln.line_cost)}</span>
+                    <span className={`data shrink-0 text-[13px] ${ln.incomplete ? 'text-ember-hi' : 'text-cream'}`}>{ln.incomplete ? 'sin precio' : eur(ln.line_cost)}</span>
                   </div>
                 ))}
-                <Row label="Coste total" value={eur(preview.total_cost)} />
-                {!preview.is_subrecipe && <Row label="Coste por ración" value={eur(preview.cost_per_serving)} big />}
-                {preview.is_subrecipe && preview.unit_cost_base && <Row label={`Coste por ${preview.yield_unit}`} value={`${Number(preview.unit_cost_base).toFixed(4)} €`} />}
-                {!preview.is_subrecipe && <>
-                  <Row label="PVP sugerido (sin IVA)" value={eur(preview.pvp_ex_iva)} />
+                {preview.lines_missing > 0 && <p className="text-[11px] text-ember-hi">{preview.lines_missing} insumo(s) sin precio no suman todavía.</p>}
+                <Row label="Coste total (materia prima)" value={eur(preview.total_cost)} big={preview.is_subrecipe} />
+                {preview.is_subrecipe ? <>
+                  {preview.cost_per_portion && <Row label="Coste por porción" value={eur(preview.cost_per_portion)} big />}
+                  {preview.weight_per_portion && <Row label="Peso por porción" value={`${numTrim(preview.weight_per_portion)} ${preview.yield_unit}`} />}
+                  {preview.unit_cost_base && <Row label={`Coste por ${preview.yield_unit}`} value={`${Number(preview.unit_cost_base).toFixed(4)} €`} />}
+                </> : <>
+                  <Row label="Coste por ración" value={eur(preview.cost_per_serving)} big />
                   <Row label="PVP sugerido (con IVA)" value={eur(preview.pvp_inc_iva)} />
                   {preview.food_cost_pct != null && (
                     <div className="flex items-baseline justify-between border-b border-white/10 pb-2">
                       <span className="text-[13px] text-cream-dim">Food cost (con tu PVP)</span>
                       <span className={`data text-[15px] font-medium ${foodCostColor(preview.food_cost_pct)}`}>{preview.food_cost_pct}%</span>
+                    </div>
+                  )}
+                  {preview.margin != null && (
+                    <div className="flex items-baseline justify-between border-b border-white/10 pb-2">
+                      <span className="text-[13px] text-cream-dim">Ganancia por ración</span>
+                      <span className={`data text-[15px] font-medium ${Number(preview.margin) >= 0 ? 'text-ok' : 'text-danger'}`}>{eur(preview.margin)} · {preview.margin_pct}%</span>
                     </div>
                   )}
                 </>}

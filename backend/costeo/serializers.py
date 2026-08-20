@@ -124,7 +124,7 @@ class CostingSerializer(serializers.ModelSerializer):
     class Meta:
         model = Costing
         fields = [
-            'id', 'name', 'is_subrecipe', 'servings', 'yield_quantity', 'yield_unit',
+            'id', 'name', 'is_subrecipe', 'servings', 'yield_quantity', 'yield_unit', 'portions',
             'target_food_cost', 'iva_rate', 'sale_price', 'recipe', 'recipe_code',
             'unit_cost_base_snapshot', 'lines', 'breakdown', 'created_at', 'updated_at',
         ]
@@ -198,6 +198,7 @@ class PreviewSerializer(serializers.Serializer):
     servings = serializers.IntegerField(required=False, min_value=1, default=1)
     yield_quantity = serializers.DecimalField(max_digits=14, decimal_places=4, required=False, allow_null=True)
     yield_unit = serializers.CharField(max_length=4, required=False, default='g')
+    portions = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     target_food_cost = serializers.DecimalField(max_digits=5, decimal_places=4, required=False, allow_null=True)
     iva_rate = serializers.DecimalField(max_digits=5, decimal_places=4, required=False, allow_null=True)
     sale_price = serializers.DecimalField(max_digits=12, decimal_places=4, required=False, allow_null=True)
@@ -211,6 +212,7 @@ class PreviewSerializer(serializers.Serializer):
             'servings': v.get('servings', 1),
             'yield_quantity': v.get('yield_quantity'),
             'yield_unit': v.get('yield_unit', 'g'),
+            'portions': v.get('portions'),
             'target_food_cost': v.get('target_food_cost'),
             'iva_rate': v.get('iva_rate'),
             'sale_price': v.get('sale_price'),

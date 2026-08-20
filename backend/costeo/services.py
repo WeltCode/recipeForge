@@ -89,6 +89,7 @@ def compute(spec, restaurant, _stack=None):
 
     lines_out = []
     total = Decimal('0')
+    missing = 0
     for l in spec['lines']:
         qty = _d(l['quantity'])
         if qty <= 0:
@@ -98,17 +99,23 @@ def compute(spec, restaurant, _stack=None):
             insumo = insumos.get(l['insumo_id'])
             if not insumo:
                 raise CosteoError('Insumo no encontrado en tu restaurante.')
-            gross = insumo_gross_cost_per_base(insumo)
-            net = insumo_net_cost_per_base(insumo, l.get('cleaning_yield_override'), l.get('cooking_yield_override'))
             qty_base = units.convert_to_base(
                 qty, unit, insumo.base_unit,
                 density=insumo.density_g_per_ml, weight_per_piece=insumo.weight_per_piece_g)
-            line_cost = qty_base * net
+            # Precio TOLERANTE: si el insumo aún no tiene precio de referencia, la
+            # línea queda "incompleta" (no suma) en vez de romper el cálculo.
+            try:
+                gross = insumo_gross_cost_per_base(insumo)
+                net = insumo_net_cost_per_base(insumo, l.get('cleaning_yield_override'), l.get('cooking_yield_override'))
+                line_cost = qty_base * net
+            except CosteoError:
+                gross = net = line_cost = None
             lines_out.append({
                 'order': l.get('order', len(lines_out) + 1),
                 'component_type': 'insumo', 'component_id': insumo.id, 'name': insumo.name,
                 'quantity': qty, 'unit': unit, 'quantity_base': qty_base, 'base_unit': insumo.base_unit,
                 'gross_cost_per_base': gross, 'net_cost_per_base': net, 'line_cost': line_cost,
+                'incomplete': line_cost is None,
             })
         elif l.get('subrecipe_id'):
             sub = subs.get(l['subrecipe_id'])
@@ -128,10 +135,14 @@ def compute(spec, restaurant, _stack=None):
                 'component_type': 'subrecipe', 'component_id': sub.id, 'name': sub.name,
                 'quantity': qty, 'unit': unit, 'quantity_base': qty_base, 'base_unit': sub.yield_unit,
                 'gross_cost_per_base': unit_base, 'net_cost_per_base': unit_base, 'line_cost': line_cost,
+                'incomplete': False,
             })
         else:
             raise CosteoError('Cada línea debe referenciar un insumo o una subreceta.')
-        total += line_cost
+        if lines_out[-1]['line_cost'] is None:
+            missing += 1
+        else:
+            total += lines_out[-1]['line_cost']
 
     servings = int(spec.get('servings') or 1)
     if servings < 1:
@@ -148,17 +159,25 @@ def compute(spec, restaurant, _stack=None):
     pvp_ex = per_serving / tfc
     pvp_inc = pvp_ex * (Decimal('1') + iva)
 
-    food_cost_pct, sale_ex = None, None
+    food_cost_pct, sale_ex, margin, margin_pct = None, None, None, None
     sale = spec.get('sale_price')
     if sale is not None and _d(sale) > 0:
         sale_ex = _d(sale) / (Decimal('1') + iva)
         food_cost_pct = per_serving / sale_ex * Decimal('100')
+        margin = sale_ex - per_serving                       # ganancia por ración (sin IVA)
+        margin_pct = margin / sale_ex * Decimal('100')       # % ganancia/pérdida sobre el PVP
+
+    # Porcionado (producciones): peso por porción y coste por porción.
+    portions = spec.get('portions')
+    portions = int(portions) if portions else None
+    cost_per_portion = _s(total / portions, Q_COST) if portions else None
 
     out = {
         'name': spec.get('name', ''),
         'is_subrecipe': bool(spec.get('is_subrecipe')),
         'servings': servings,
         'lines': [_present_line(x) for x in lines_out],
+        'lines_missing': missing,
         'total_cost': _s(total, Q_COST),
         'cost_per_serving': _s(per_serving, Q_COST),
         'target_food_cost': str(tfc),
@@ -168,17 +187,25 @@ def compute(spec, restaurant, _stack=None):
         'sale_price': (_s(_d(sale), Q_MONEY) if sale is not None else None),
         'sale_price_ex_iva': (_s(sale_ex, Q_MONEY) if sale_ex is not None else None),
         'food_cost_pct': (_s(food_cost_pct, Q_PCT) if food_cost_pct is not None else None),
+        'margin': (_s(margin, Q_MONEY) if margin is not None else None),
+        'margin_pct': (_s(margin_pct, Q_PCT) if margin_pct is not None else None),
+        'portions': portions,
+        'cost_per_portion': cost_per_portion,
+        'weight_per_portion': None,
         'unit_cost_base': None,
         'yield_quantity': None,
         'yield_unit': None,
         '_total_raw': total,
     }
     if spec.get('is_subrecipe') and spec.get('yield_quantity') is not None:
+        yq = _d(spec['yield_quantity'])
         yb, _dim = units.to_canonical(spec['yield_quantity'], spec.get('yield_unit', 'g'))
         if yb > 0:
-            out['yield_quantity'] = str(_d(spec['yield_quantity']))
+            out['yield_quantity'] = str(yq)
             out['yield_unit'] = spec.get('yield_unit', 'g')
             out['unit_cost_base'] = _s(total / yb, Q_BASE)
+            if portions:
+                out['weight_per_portion'] = _s(yq / portions, Q_QTY)  # p. ej. 1900/6 = 316,66
     return out
 
 
@@ -192,6 +219,10 @@ def _s(value, q):
     return str(value.quantize(q, rounding=ROUND_HALF_UP))
 
 
+def _sn(value, q):
+    return None if value is None else _s(value, q)
+
+
 def _present_line(x):
     return {
         'order': x['order'],
@@ -202,9 +233,10 @@ def _present_line(x):
         'unit': x['unit'],
         'quantity_base': _s(x['quantity_base'], Q_QTY),
         'base_unit': x['base_unit'],
-        'gross_cost_per_base': _s(x['gross_cost_per_base'], Q_BASE),
-        'net_cost_per_base': _s(x['net_cost_per_base'], Q_BASE),
-        'line_cost': _s(x['line_cost'], Q_COST),
+        'incomplete': x.get('incomplete', False),
+        'gross_cost_per_base': _sn(x['gross_cost_per_base'], Q_BASE),
+        'net_cost_per_base': _sn(x['net_cost_per_base'], Q_BASE),
+        'line_cost': _sn(x['line_cost'], Q_COST),
     }
 
 
@@ -217,6 +249,7 @@ def spec_from_costing(costing):
         'servings': costing.servings,
         'yield_quantity': costing.yield_quantity,
         'yield_unit': costing.yield_unit,
+        'portions': costing.portions,
         'target_food_cost': costing.target_food_cost,
         'iva_rate': costing.iva_rate,
         'sale_price': costing.sale_price,

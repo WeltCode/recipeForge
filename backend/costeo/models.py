@@ -94,11 +94,13 @@ class Costing(models.Model):
         'accounts.Restaurant', on_delete=models.CASCADE, related_name='costeo_costings',
     )
     name = models.CharField(max_length=180)
-    is_subrecipe = models.BooleanField(default=False)
+    is_subrecipe = models.BooleanField(default=False)  # True = producción (batch); False = plato de venta
     servings = models.PositiveIntegerField(default=1)
-    # Rendimiento de la subreceta (en unidad canónica g/ml/ud).
+    # Rendimiento de la producción/subreceta (peso total, en unidad g/ml/ud).
     yield_quantity = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
     yield_unit = models.CharField(max_length=4, choices=BASE_UNITS, default='g')
+    # Nº de porciones en que se divide la producción (p. ej. 6 unidades).
+    portions = models.PositiveIntegerField(null=True, blank=True)
     target_food_cost = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.30'))
     iva_rate = models.DecimalField(max_digits=5, decimal_places=4, default=Decimal('0.10'))
     sale_price = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)  # PVP con IVA (opcional)

@@ -178,6 +178,36 @@ class ServiceTests(APITestCase):
         self.assertEqual(res['lines'][0]['gross_cost_per_base'], '0.00116667')
         self.assertIsInstance(res['total_cost'], str)
 
+    # ── Precio tolerante: insumo sin formato → línea incompleta, no rompe ──
+    def test_incomplete_line_without_price(self):
+        ins = make_insumo(self.r, 'SinPrecio', 'g')  # sin formato de referencia
+        res = services.compute(spec([line(ins.id, quantity='100', unit='g')]), self.r)
+        self.assertEqual(res['lines_missing'], 1)
+        self.assertTrue(res['lines'][0]['incomplete'])
+        self.assertIsNone(res['lines'][0]['line_cost'])
+        self.assertEqual(res['total_cost'], '0.0000')  # no suma, no lanza
+
+    # ── Porcionado de una producción ──
+    def test_portions_weight_and_cost(self):
+        ins = make_insumo(self.r, 'Masa', 'g')
+        make_format(ins, '19', [], '1000', 'g')  # 0,019/g
+        c = Costing.objects.create(restaurant=self.r, name='Soja Ostion', is_subrecipe=True,
+                                   yield_quantity='1900', yield_unit='g', portions=6)
+        CostingLine.objects.create(costing=c, insumo=ins, quantity='1000', unit='g', order=1)  # total 19
+        res = services.compute_costing(c, self.r)
+        self.assertEqual(res['total_cost'], '19.0000')
+        self.assertEqual(res['weight_per_portion'], '316.6667')  # 1900/6
+        self.assertEqual(res['cost_per_portion'], '3.1667')      # 19/6
+
+    # ── Margen de un plato de venta ──
+    def test_margin_for_sale_dish(self):
+        ins = make_insumo(self.r, 'Prot', 'g')
+        make_format(ins, '30', [], '1000', 'g')  # 0,03/g
+        res = services.compute(spec([line(ins.id, quantity='100', unit='g')], sale_price=Decimal('11'), iva_rate=Decimal('0.10')), self.r)
+        # coste 3,00; venta sin IVA 10; margen 7,00; margen% 70
+        self.assertEqual(res['margin'], '7.00')
+        self.assertEqual(res['margin_pct'], '70.00')
+
     # ── Food cost / PVP ──
     def test_food_cost_and_pvp(self):
         ins = make_insumo(self.r, 'FC', 'g')

@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import {
   listInsumos, createInsumo, updateInsumo, deleteInsumo,
-  createFormato, deleteFormato, registerPrice,
+  createFormato, updateFormato, deleteFormato, registerPrice,
   INSUMO_BASE_UNITS, PRICE_PER, USE_UNITS, buildFormatContent, numTrim,
 } from '../../lib/costeo'
 import { listSuppliers } from '../../lib/catalog'
 import { Coins, Plus, Pencil, Trash, X } from '../icons'
 
-const EMPTY_INS = { name: '', base_unit: 'g', density_g_per_ml: '', weight_per_piece_g: '', cleaning_pct: '100', cooking_pct: '100' }
+const EMPTY_INS = { name: '', base_unit: 'g', pres_qty: '1', price: '', price_includes_iva: false, iva_rate: '0.10', density_g_per_ml: '', weight_per_piece_g: '', cleaning_pct: '100', cooking_pct: '100' }
+const unitLabel = (u) => ({ g: 'gramo', kg: 'kilo', ml: 'mililitro', l: 'litro', ud: 'unidad' }[u] || u)
 const EMPTY_FMT = { description: '', supplier: '', price_por: 'pack', box_count: '', pack_count: '6', pack_size: '1', pack_unit: 'l', price: '', price_includes_iva: false, iva_rate: '0.10' }
 const pctToYield = (p) => String((Number(String(p).replace(',', '.')) || 0) / 100)
 const yieldToPct = (y) => String(Math.round((Number(y) || 0) * 100))
@@ -18,6 +19,7 @@ export default function InsumosPanel({ canEdit }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState(null)
+  const [editingRef, setEditingRef] = useState(null) // id del formato de referencia en edición
   const [form, setForm] = useState(EMPTY_INS)
   const [expanded, setExpanded] = useState(null)
   const [fmtFor, setFmtFor] = useState(null)
@@ -32,14 +34,20 @@ export default function InsumosPanel({ canEdit }) {
 
   const openNew = () => { setForm(EMPTY_INS); setEditing('new') }
   const openEdit = (i) => {
+    // Precarga la presentación/precio del formato de referencia (si lo tiene y es simple).
+    const ref = (i.formats || []).find((f) => f.id === i.reference_format)
     setForm({
       name: i.name, base_unit: i.base_unit,
+      pres_qty: ref && (!ref.pack_levels || !ref.pack_levels.length) ? numTrim(ref.unit_size) : '1',
+      price: ref ? numTrim(ref.price) : '', price_includes_iva: ref ? !!ref.price_includes_iva : false,
+      iva_rate: ref ? String(ref.iva_rate ?? '0.10') : '0.10',
       density_g_per_ml: i.density_g_per_ml ?? '', weight_per_piece_g: i.weight_per_piece_g ?? '',
       cleaning_pct: yieldToPct(i.cleaning_yield), cooking_pct: yieldToPct(i.cooking_yield),
     })
     setEditing(i.id)
+    setEditingRef(ref ? ref.id : null)
   }
-  const close = () => { setEditing(null); setForm(EMPTY_INS) }
+  const close = () => { setEditing(null); setEditingRef(null); setForm(EMPTY_INS) }
 
   const save = async () => {
     if (!form.name.trim()) { setError('El insumo necesita un nombre.'); return }
@@ -49,8 +57,16 @@ export default function InsumosPanel({ canEdit }) {
       cleaning_yield: pctToYield(form.cleaning_pct || '100'), cooking_yield: pctToYield(form.cooking_pct || '100'),
     }
     try {
-      if (editing === 'new') await createInsumo(body)
-      else await updateInsumo(editing, body)
+      const insumo = editing === 'new' ? await createInsumo(body) : await updateInsumo(editing, body)
+      // Presentación + precio → formato de referencia (misma unidad que la base).
+      if (form.price) {
+        const fmtBody = {
+          pack_levels: [], unit_size: form.pres_qty || '1', unit_size_unit: form.base_unit,
+          price: form.price, price_includes_iva: form.price_includes_iva, iva_rate: form.iva_rate || '0.10',
+        }
+        if (editing !== 'new' && editingRef) await updateFormato(editingRef, fmtBody)
+        else await createFormato({ insumo: insumo.id, description: `${numTrim(form.pres_qty)} ${form.base_unit}`, ...fmtBody })
+      }
       close(); load()
     } catch (e) { setError(e.message) }
   }
@@ -115,6 +131,22 @@ export default function InsumosPanel({ canEdit }) {
             {inp('cooking_pct', '% aprovechable tras cocción', '100 = sin merma')}
           </div>
           <p className="mt-2 text-[12px] text-ink-3">La merma (limpieza + cocción) encarece el coste efectivo: si aprovechas el 60%, el coste por gramo usado sube ~1,67×. Para proteínas y verduras usa el peso por pieza y el % aprovechable.</p>
+
+          {/* Presentación de compra + precio (formato de referencia) */}
+          <div className="mt-4 rounded-lg border border-steel-300 bg-steel-50/60 p-3">
+            <p className="pass-title mb-2 text-[13px] text-ink">Presentación de compra y precio</p>
+            <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="flex flex-col gap-1 text-[13px] text-ink-2">Cantidad por presentación ({unitLabel(form.base_unit)})
+                <input value={form.pres_qty} onChange={(e) => setForm({ ...form, pres_qty: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="p. ej. 1" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+              <label className="flex flex-col gap-1 text-[13px] text-ink-2">Precio de compra (€)
+                <input value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="p. ej. 15" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+              <label className="flex items-center gap-1.5 self-end text-[13px] text-ink-2"><input type="checkbox" checked={form.price_includes_iva} onChange={(e) => setForm({ ...form, price_includes_iva: e.target.checked })} className="accent-[#e8531f]" /> Precio con IVA</label>
+              {form.price_includes_iva && inp('iva_rate', 'IVA', '0.10')}
+            </div>
+            {form.price && form.pres_qty ? (
+              <p className="mt-2 text-[12px] text-ink-3">Coste ≈ <span className="data text-ink">{(Number(String(form.price).replace(',', '.')) / (form.price_includes_iva ? (1 + Number(String(form.iva_rate).replace(',', '.') || 0.1)) : 1) / Number(String(form.pres_qty).replace(',', '.')) || 0).toFixed(4)} €/{form.base_unit}</span> (sin IVA). Ejemplo: 1 kg a 15 € → 0,015 €/g; si usas 800 g con 80% aprovechable, sube por la merma.</p>
+            ) : <p className="mt-2 text-[12px] text-ink-3">Si lo compras en varios formatos (por pack, caja…), añade más desde la ficha del insumo tras guardarlo.</p>}
+          </div>
           <div className="mt-4 flex gap-2">
             <button onClick={save} className="inline-flex h-10 items-center rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi">Guardar</button>
             <button onClick={close} className="inline-flex h-10 items-center rounded-lg steel-plate px-4 text-sm font-medium text-ink hover:bg-white">Cancelar</button>
