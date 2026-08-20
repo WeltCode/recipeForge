@@ -1,20 +1,22 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   listEscandallos, getEscandallo, createEscandallo, updateEscandallo, deleteEscandallo,
-  listInsumos, createInsumo, previewCosteo, USE_UNITS, eur, numTrim, foodCostColor,
+  listInsumos, createInsumo, previewCosteo, MERMA_UNITS, eur, numTrim, foodCostColor,
 } from '../../lib/costeo'
 import { listRecipes, getRecipe } from '../../lib/catalog'
 import { Coins, Plus, Pencil, Trash, X } from '../icons'
 
 const norm = (s) => (s || '').trim().toLowerCase()
 const dot = (v) => String(v ?? '').replace(',', '.')
+const num = (v) => Number(String(v ?? '').replace(',', '.')) || 0
 // Unidad base del insumo deducida de la unidad de uso de la línea.
-const baseFromUnit = (u) => (['g', 'kg', 'ml', 'l', 'ud'].includes(u) ? u : (u === 'cl' ? 'ml' : 'g'))
+const baseFromUnit = (u) => (['g', 'kg', 'ml', 'l', 'ud', 'pack'].includes(u) ? u : (u === 'cl' ? 'ml' : 'g'))
+const newLine = () => ({ component_type: 'insumo', ref: '', unit: 'g', gross: '', net: '', quantity: '' })
 
 const EMPTY = {
   id: null, name: '', is_subrecipe: true, servings: '1',
   yield_quantity: '', yield_unit: 'g', portions: '', target_food_cost: '0.30', iva_rate: '0.10', sale_price: '',
-  lines: [{ component_type: 'insumo', ref: '', quantity: '', unit: 'g', cleaning_yield_override: '', cooking_yield_override: '' }],
+  lines: [newLine()],
 }
 
 export default function EscandallosPanel({ canEdit }) {
@@ -69,10 +71,10 @@ export default function EscandallosPanel({ canEdit }) {
             current = [...current, ins]; created += 1
           } catch { ins = null }
         }
+        const q = numTrim(ing.quantity)
         lines.push({
           component_type: 'insumo', ref: ins ? String(ins.id) : '', label: ing.ingredient_name,
-          quantity: numTrim(ing.quantity), unit: ing.unit || 'g',
-          cleaning_yield_override: '', cooking_yield_override: '',
+          unit: ing.unit || 'g', gross: q, net: q, quantity: q,  // sin merma por defecto (bruto = neto)
         })
       }
       setInsumos(current)
@@ -91,11 +93,14 @@ export default function EscandallosPanel({ canEdit }) {
         yield_quantity: numTrim(e.yield_quantity), yield_unit: e.yield_unit || 'g', portions: e.portions ? String(e.portions) : '',
         target_food_cost: String(e.target_food_cost ?? '0.30'), iva_rate: String(e.iva_rate ?? '0.10'),
         sale_price: e.sale_price ?? '',
-        lines: (e.lines || []).map((l) => ({
-          component_type: l.insumo ? 'insumo' : 'subrecipe', ref: String(l.insumo || l.subrecipe),
-          quantity: numTrim(l.quantity), unit: l.unit,
-          cleaning_yield_override: l.cleaning_yield_override ?? '', cooking_yield_override: l.cooking_yield_override ?? '',
-        })) || EMPTY.lines,
+        lines: (e.lines || []).map((l) => {
+          const netN = num(l.quantity), yld = num(l.cleaning_yield_override)
+          return {
+            component_type: l.insumo ? 'insumo' : 'subrecipe', ref: String(l.insumo || l.subrecipe),
+            unit: l.unit, quantity: numTrim(l.quantity),
+            net: numTrim(l.quantity), gross: yld > 0 ? numTrim((netN / yld).toFixed(4)) : numTrim(l.quantity),
+          }
+        }) || EMPTY.lines,
       })
       setPreview(e.breakdown && !e.breakdown.error ? e.breakdown : null)
       setPreviewErr(e.breakdown?.error || ''); setDirty(false); setEditing(true)
@@ -104,7 +109,7 @@ export default function EscandallosPanel({ canEdit }) {
   const close = () => { setEditing(false); setForm(EMPTY); setPreview(null) }
 
   const setLine = (i, k, v) => { setForm((f) => ({ ...f, lines: f.lines.map((l, idx) => idx === i ? { ...l, [k]: v } : l) })); setDirty(true) }
-  const addLine = () => { setForm((f) => ({ ...f, lines: [...f.lines, { component_type: 'insumo', ref: '', quantity: '', unit: 'g', cleaning_yield_override: '', cooking_yield_override: '' }] })); setDirty(true) }
+  const addLine = () => { setForm((f) => ({ ...f, lines: [...f.lines, newLine()] })); setDirty(true) }
   const removeLine = (i) => { setForm((f) => { const lines = f.lines.filter((_, idx) => idx !== i); return { ...f, lines: lines.length ? lines : EMPTY.lines } }); setDirty(true) }
   const setMeta = (k, v) => { setForm((f) => ({ ...f, [k]: v })); setDirty(true) }
 
@@ -131,14 +136,17 @@ export default function EscandallosPanel({ canEdit }) {
     portions: f.is_subrecipe && f.portions ? Number(f.portions) : null,
     target_food_cost: dot(f.target_food_cost) || '0.30', iva_rate: dot(f.iva_rate) || '0.10',
     sale_price: f.sale_price ? dot(f.sale_price) : null,
-    // Entran todas las líneas con un insumo/subreceta asignado (el motor tolera
-    // los que aún no tienen precio: aparecen como "incompletos", no rompen).
-    lines: f.lines.filter((l) => l.ref && l.quantity).map((l, i) => ({
-      [l.component_type === 'insumo' ? 'insumo' : 'subrecipe']: Number(l.ref),
-      quantity: dot(l.quantity), unit: l.unit,
-      cleaning_yield_override: l.cleaning_yield_override ? dot(l.cleaning_yield_override) : null,
-      cooking_yield_override: l.cooking_yield_override ? dot(l.cooking_yield_override) : null, order: i + 1,
-    })),
+    // Entran las líneas con insumo/subreceta y cantidad. En insumos, la cantidad
+    // que va al plato es el NETO y la merma se aplica como override = neto/bruto
+    // (coste efectivo = bruto × coste_bruto). En subrecetas, cantidad directa.
+    lines: f.lines.filter((l) => l.ref && (l.component_type === 'insumo' ? num(l.net) > 0 : num(l.quantity) > 0)).map((l, i) => {
+      if (l.component_type === 'subrecipe') {
+        return { subrecipe: Number(l.ref), quantity: dot(l.quantity), unit: l.unit, order: i + 1 }
+      }
+      const g = num(l.gross), n = num(l.net)
+      const override = g > 0 && n > 0 ? Math.min(1, n / g) : null
+      return { insumo: Number(l.ref), quantity: dot(l.net), unit: l.unit, cleaning_yield_override: override != null ? String(override) : null, order: i + 1 }
+    }),
   })
 
   // Cálculo en vivo con debounce + descarte de respuestas obsoletas.
@@ -237,34 +245,54 @@ export default function EscandallosPanel({ canEdit }) {
 
             {/* Líneas */}
             <p className="pass-title mb-2 mt-5 text-[13px] text-ink">Insumos y subrecetas</p>
-            {form.lines.map((l, i) => (
-              <div key={i} className="mb-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  value={`${l.component_type}:${l.ref}`}
-                  onChange={(e) => { const [t, id] = e.target.value.split(':'); setForm((f) => ({ ...f, lines: f.lines.map((x, idx) => idx === i ? { ...x, component_type: t, ref: id } : x) })); setDirty(true) }}
-                  className="min-w-[160px] flex-1 rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
-                  <option value="insumo:">Insumo o subreceta…</option>
-                  {insumos.length > 0 && <optgroup label="Insumos">{insumos.map((x) => <option key={`i${x.id}`} value={`insumo:${x.id}`}>{x.name}</option>)}</optgroup>}
-                  {subOptions.length > 0 && <optgroup label="Subrecetas">{subOptions.map((x) => <option key={`s${x.id}`} value={`subrecipe:${x.id}`}>{x.name}</option>)}</optgroup>}
-                </select>
-                <input value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="Cant." className="w-20 rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50" />
-                <select value={l.unit} onChange={(e) => setLine(i, 'unit', e.target.value)} className="w-[70px] rounded-lg border border-steel-300 bg-white px-1.5 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
-                  {USE_UNITS.map(([v]) => <option key={v} value={v}>{v}</option>)}
-                </select>
-                <button onClick={() => removeLine(i)} className="grid h-9 w-9 flex-none place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
-              </div>
-              {l.label && !l.ref && (
-                <div className="mt-0.5 flex flex-wrap items-center gap-2 pl-0.5">
-                  <span className="text-[11px] text-warn">Importado «{l.label}»: no existe como insumo.</span>
-                  {canEdit && <button onClick={() => createInsumoForLine(i)} className="inline-flex items-center gap-1 rounded-md steel-plate px-2 py-0.5 text-[11px] font-medium text-ink hover:bg-white"><Plus size={12} /> Crear insumo «{l.label}»</button>}
+            {form.lines.map((l, i) => {
+              const isIns = l.component_type === 'insumo'
+              const g = num(l.gross), n = num(l.net)
+              const pctU = g > 0 ? (n / g * 100) : (n > 0 ? 100 : 0)
+              const pctM = g > 0 ? Math.max(0, 100 - pctU) : 0
+              return (
+                <div key={i} className="mb-2 rounded-lg border border-steel-200 p-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={`${l.component_type}:${l.ref}`}
+                      onChange={(e) => { const [t, id] = e.target.value.split(':'); setForm((f) => ({ ...f, lines: f.lines.map((x, idx) => idx === i ? { ...x, component_type: t, ref: id } : x) })); setDirty(true) }}
+                      className="min-w-[160px] flex-1 rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
+                      <option value="insumo:">Insumo o subreceta…</option>
+                      {insumos.length > 0 && <optgroup label="Insumos">{insumos.map((x) => <option key={`i${x.id}`} value={`insumo:${x.id}`}>{x.name}</option>)}</optgroup>}
+                      {subOptions.length > 0 && <optgroup label="Subrecetas">{subOptions.map((x) => <option key={`s${x.id}`} value={`subrecipe:${x.id}`}>{x.name}</option>)}</optgroup>}
+                    </select>
+                    {!isIns && <input value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="Cant." className="w-20 rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50" />}
+                    <select value={l.unit} onChange={(e) => setLine(i, 'unit', e.target.value)} className="w-[74px] rounded-lg border border-steel-300 bg-white px-1.5 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
+                      {MERMA_UNITS.map(([v]) => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                    <button onClick={() => removeLine(i)} className="grid h-9 w-9 flex-none place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
+                  </div>
+
+                  {isIns && l.ref && (
+                    <div className="mt-2 grid gap-2 sm:grid-cols-4">
+                      <label className="flex flex-col gap-0.5 text-[11px] text-ink-2">Peso bruto (comprado)
+                        <input value={l.gross} onChange={(e) => setLine(i, 'gross', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 1000" className="rounded-lg border border-steel-300 bg-white px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+                      <label className="flex flex-col gap-0.5 text-[11px] text-ink-2">Peso neto (utilizado)
+                        <input value={l.net} onChange={(e) => setLine(i, 'net', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 800" className="rounded-lg border border-steel-300 bg-white px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+                      <label className="flex flex-col gap-0.5 text-[11px] text-ink-3">% utilizado (auto)
+                        <input readOnly value={g > 0 ? numTrim(pctU.toFixed(2)) : ''} className="rounded-lg border border-steel-200 bg-steel-100 px-2.5 py-1.5 text-[13px] text-ink-2 outline-none" /></label>
+                      <label className="flex flex-col gap-0.5 text-[11px] text-ink-3">% mermado (auto)
+                        <input readOnly value={g > 0 ? numTrim(pctM.toFixed(2)) : ''} className="rounded-lg border border-steel-200 bg-steel-100 px-2.5 py-1.5 text-[13px] text-ink-2 outline-none" /></label>
+                    </div>
+                  )}
+
+                  {l.label && !l.ref && (
+                    <div className="mt-1 flex flex-wrap items-center gap-2 pl-0.5">
+                      <span className="text-[11px] text-warn">Importado «{l.label}»: no existe como insumo.</span>
+                      {canEdit && <button onClick={() => createInsumoForLine(i)} className="inline-flex items-center gap-1 rounded-md steel-plate px-2 py-0.5 text-[11px] font-medium text-ink hover:bg-white"><Plus size={12} /> Crear insumo «{l.label}»</button>}
+                    </div>
+                  )}
+                  {isIns && l.ref && !insumoPriced(l.ref) && (
+                    <p className="mt-1 pl-0.5 text-[11px] text-warn">«{insumoById(l.ref)?.name}» aún no tiene precio — añade un formato en «Insumos y precios» para que sume.</p>
+                  )}
                 </div>
-              )}
-              {l.component_type === 'insumo' && l.ref && !insumoPriced(l.ref) && (
-                <p className="mt-0.5 pl-0.5 text-[11px] text-warn">«{insumoById(l.ref)?.name}» aún no tiene precio — añade un formato en «Insumos y precios» para que sume.</p>
-              )}
-              </div>
-            ))}
+              )
+            })}
             <button onClick={addLine} className="mt-1 inline-flex items-center gap-1.5 rounded-lg steel-plate px-3 py-1.5 text-[13px] font-medium text-ink hover:bg-white"><Plus size={15} /> Añadir línea</button>
 
             <div className="mt-5 flex items-center gap-2">

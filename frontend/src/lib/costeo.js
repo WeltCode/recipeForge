@@ -42,10 +42,12 @@ export const deleteEscandallo = (id) => j('DELETE', `/costeo/escandallos/${id}/`
 // ── Preview (cálculo en vivo, sin persistir) ──
 export const previewCosteo = (b) => j('POST', '/costeo/preview/', b)
 
-// Unidad base del insumo (permite kg/l además de la canónica).
-export const INSUMO_BASE_UNITS = [['g', 'Gramo'], ['kg', 'Kilo'], ['ml', 'Mililitro'], ['l', 'Litro'], ['ud', 'Unidad']]
+// Unidad base del insumo (permite kg/l/pack además de la canónica).
+export const INSUMO_BASE_UNITS = [['g', 'Gramo'], ['kg', 'Kilo'], ['ml', 'Mililitro'], ['l', 'Litro'], ['ud', 'Unidad'], ['pack', 'Pack']]
 // Unidades que el usuario puede usar en una línea (se convierten con puentes).
-export const USE_UNITS = [['g', 'g'], ['kg', 'kg'], ['ml', 'ml'], ['cl', 'cl'], ['l', 'l'], ['ud', 'ud']]
+export const USE_UNITS = [['g', 'g'], ['kg', 'kg'], ['ml', 'ml'], ['cl', 'cl'], ['l', 'l'], ['ud', 'ud'], ['pack', 'pack']]
+// Unidad de peso para la merma (bruto/neto) del escandallo.
+export const MERMA_UNITS = [['g', 'Gramo'], ['kg', 'Kilo'], ['ml', 'Mililitro'], ['l', 'Litro'], ['ud', 'Unidad'], ['pack', 'Pack']]
 
 // "Precio por": cómo se compra el insumo. Mapea a los campos del formato.
 export const PRICE_PER = [

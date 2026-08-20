@@ -3,9 +3,9 @@ from decimal import Decimal
 from django.db import models
 
 
-# Unidad base del insumo (permite kg/l además de la canónica g/ml/ud).
+# Unidad base del insumo (permite kg/l/pack además de la canónica g/ml/ud).
 INSUMO_BASE_UNITS = [
-    ('g', 'Gramo'), ('kg', 'Kilo'), ('ml', 'Mililitro'), ('l', 'Litro'), ('ud', 'Unidad'),
+    ('g', 'Gramo'), ('kg', 'Kilo'), ('ml', 'Mililitro'), ('l', 'Litro'), ('ud', 'Unidad'), ('pack', 'Pack'),
 ]
 # Unidad de rendimiento de una subreceta (canónica; g/ml/ud).
 BASE_UNITS = [('g', 'Gramo (masa)'), ('ml', 'Mililitro (volumen)'), ('ud', 'Unidad (pieza)')]

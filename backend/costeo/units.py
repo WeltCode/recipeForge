@@ -22,9 +22,10 @@ _UNITS = {
     'u': ('count', Decimal('1')),
     'pieza': ('count', Decimal('1')),
     'unidad': ('count', Decimal('1')),
+    'pack': ('pack', Decimal('1')),
 }
 
-CANONICAL = {'mass': 'g', 'vol': 'ml', 'count': 'ud'}
+CANONICAL = {'mass': 'g', 'vol': 'ml', 'count': 'ud', 'pack': 'pack'}
 
 
 def norm(unit):
