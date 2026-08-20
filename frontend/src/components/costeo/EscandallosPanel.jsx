@@ -199,6 +199,8 @@ export default function EscandallosPanel({ canEdit }) {
                 <input value={form.name} onChange={(e) => setMeta('name', e.target.value)} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
 
               {form.is_subrecipe ? <>
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Raciones
+                  <input value={form.servings} onChange={(e) => setMeta('servings', e.target.value.replace(/[^\d]/g, ''))} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
                 <label className="flex flex-col gap-1 text-[13px] text-ink-2">Peso total de producción
                   <div className="flex gap-2">
                     <input value={form.yield_quantity} onChange={(e) => setMeta('yield_quantity', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 1900" className="w-full rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" />
@@ -206,7 +208,7 @@ export default function EscandallosPanel({ canEdit }) {
                       <option value="g">g</option><option value="ml">ml</option><option value="ud">ud</option>
                     </select>
                   </div></label>
-                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Porciones (uds)
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Cantidad porcionada (uds)
                   <input value={form.portions} onChange={(e) => setMeta('portions', e.target.value.replace(/[^\d]/g, ''))} placeholder="p. ej. 6" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
               </> : <>
                 <label className="flex flex-col gap-1 text-[13px] text-ink-2">Raciones

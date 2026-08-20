@@ -24,8 +24,12 @@ class Insumo(models.Model):
     density_g_per_ml = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
     weight_per_piece_g = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)
     # Merma por defecto del insumo (rendimiento en (0,1]; 1 = sin merma).
+    # cleaning_yield = peso_neto/peso_bruto (aprovechable tras limpieza).
     cleaning_yield = models.DecimalField(max_digits=6, decimal_places=4, default=Decimal('1'))
     cooking_yield = models.DecimalField(max_digits=6, decimal_places=4, default=Decimal('1'))
+    # Pesos de la prueba de rendimiento (para reconstruir el formulario tal cual).
+    merma_gross = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)  # peso bruto
+    merma_net = models.DecimalField(max_digits=12, decimal_places=4, null=True, blank=True)    # peso neto utilizado
     # Formato cuyo precio usan los escandallos (coste de referencia activo).
     reference_format = models.ForeignKey(
         'PurchaseFormat', null=True, blank=True, on_delete=models.SET_NULL, related_name='+',

@@ -61,8 +61,8 @@ class InsumoSerializer(serializers.ModelSerializer):
         model = Insumo
         fields = [
             'id', 'name', 'base_unit', 'density_g_per_ml', 'weight_per_piece_g',
-            'cleaning_yield', 'cooking_yield', 'reference_format', 'formats',
-            'cost_per_base', 'created_at', 'updated_at',
+            'cleaning_yield', 'cooking_yield', 'merma_gross', 'merma_net',
+            'reference_format', 'formats', 'cost_per_base', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
 

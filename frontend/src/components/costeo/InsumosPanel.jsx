@@ -7,11 +7,13 @@ import {
 import { listSuppliers } from '../../lib/catalog'
 import { Coins, Plus, Pencil, Trash, X } from '../icons'
 
-const EMPTY_INS = { name: '', base_unit: 'g', pres_qty: '1', price: '', price_includes_iva: false, iva_rate: '0.10', density_g_per_ml: '', weight_per_piece_g: '', cleaning_pct: '100', cooking_pct: '100' }
+const EMPTY_INS = { name: '', base_unit: 'g', pres_qty: '1', price: '', price_includes_iva: false, iva_rate: '0.10', density_g_per_ml: '', weight_per_piece_g: '', merma_gross: '', merma_net: '', cooking_pct: '100' }
 const unitLabel = (u) => ({ g: 'gramo', kg: 'kilo', ml: 'mililitro', l: 'litro', ud: 'unidad' }[u] || u)
 const EMPTY_FMT = { description: '', supplier: '', price_por: 'pack', box_count: '', pack_count: '6', pack_size: '1', pack_unit: 'l', price: '', price_includes_iva: false, iva_rate: '0.10' }
 const pctToYield = (p) => String((Number(String(p).replace(',', '.')) || 0) / 100)
 const yieldToPct = (y) => String(Math.round((Number(y) || 0) * 100))
+const num = (v) => Number(String(v ?? '').replace(',', '.')) || 0
+const dot = (v) => String(v ?? '').replace(',', '.')
 
 export default function InsumosPanel({ canEdit }) {
   const [rows, setRows] = useState([])
@@ -42,7 +44,8 @@ export default function InsumosPanel({ canEdit }) {
       price: ref ? numTrim(ref.price) : '', price_includes_iva: ref ? !!ref.price_includes_iva : false,
       iva_rate: ref ? String(ref.iva_rate ?? '0.10') : '0.10',
       density_g_per_ml: i.density_g_per_ml ?? '', weight_per_piece_g: i.weight_per_piece_g ?? '',
-      cleaning_pct: yieldToPct(i.cleaning_yield), cooking_pct: yieldToPct(i.cooking_yield),
+      merma_gross: i.merma_gross != null ? numTrim(i.merma_gross) : '', merma_net: i.merma_net != null ? numTrim(i.merma_net) : '',
+      cooking_pct: yieldToPct(i.cooking_yield),
     })
     setEditing(i.id)
     setEditingRef(ref ? ref.id : null)
@@ -51,10 +54,13 @@ export default function InsumosPanel({ canEdit }) {
 
   const save = async () => {
     if (!form.name.trim()) { setError('El insumo necesita un nombre.'); return }
+    const g = num(form.merma_gross), n = num(form.merma_net)
+    const cleaning = g > 0 ? Math.min(1, n / g) : 1  // aprovechable = neto/bruto
     const body = {
       name: form.name, base_unit: form.base_unit,
       density_g_per_ml: form.density_g_per_ml || null, weight_per_piece_g: form.weight_per_piece_g || null,
-      cleaning_yield: pctToYield(form.cleaning_pct || '100'), cooking_yield: pctToYield(form.cooking_pct || '100'),
+      cleaning_yield: String(cleaning), cooking_yield: pctToYield(form.cooking_pct || '100'),
+      merma_gross: form.merma_gross ? dot(form.merma_gross) : null, merma_net: form.merma_net ? dot(form.merma_net) : null,
     }
     try {
       const insumo = editing === 'new' ? await createInsumo(body) : await updateInsumo(editing, body)
@@ -127,10 +133,7 @@ export default function InsumosPanel({ canEdit }) {
               </select></label>
             {inp('weight_per_piece_g', 'Peso por pieza (g/ud)', 'p. ej. 2000 (corvina), 60 (huevo)')}
             {inp('density_g_per_ml', 'Densidad (g/ml)', 'p. ej. 0,92 (aceite)')}
-            {inp('cleaning_pct', '% aprovechable tras limpieza', '100 = sin merma; 60 = 40% merma')}
-            {inp('cooking_pct', '% aprovechable tras cocción', '100 = sin merma')}
           </div>
-          <p className="mt-2 text-[12px] text-ink-3">La merma (limpieza + cocción) encarece el coste efectivo: si aprovechas el 60%, el coste por gramo usado sube ~1,67×. Para proteínas y verduras usa el peso por pieza y el % aprovechable.</p>
 
           {/* Presentación de compra + precio (formato de referencia) */}
           <div className="mt-4 rounded-lg border border-steel-300 bg-steel-50/60 p-3">
@@ -147,6 +150,41 @@ export default function InsumosPanel({ canEdit }) {
               <p className="mt-2 text-[12px] text-ink-3">Coste ≈ <span className="data text-ink">{(Number(String(form.price).replace(',', '.')) / (form.price_includes_iva ? (1 + Number(String(form.iva_rate).replace(',', '.') || 0.1)) : 1) / Number(String(form.pres_qty).replace(',', '.')) || 0).toFixed(4)} €/{form.base_unit}</span> (sin IVA). Ejemplo: 1 kg a 15 € → 0,015 €/g; si usas 800 g con 80% aprovechable, sube por la merma.</p>
             ) : <p className="mt-2 text-[12px] text-ink-3">Si lo compras en varios formatos (por pack, caja…), añade más desde la ficha del insumo tras guardarlo.</p>}
           </div>
+
+          {/* Merma / rendimiento (prueba de aprovechamiento) */}
+          {(() => {
+            const g = num(form.merma_gross), n = num(form.merma_net)
+            const pctUsed = g > 0 ? (n / g * 100) : 100
+            const mermaW = g > 0 ? Math.max(0, g - n) : 0
+            const pctMerma = g > 0 ? Math.max(0, 100 - pctUsed) : 0
+            const cleaning = g > 0 ? Math.min(1, n / g) : 1
+            const cook = num(form.cooking_pct || 100) / 100
+            const grossCost = form.price && form.pres_qty ? (num(form.price) / (form.price_includes_iva ? (1 + num(form.iva_rate || 0.1)) : 1) / num(form.pres_qty)) : 0
+            const netCost = grossCost / (cleaning * (cook || 1))
+            return (
+              <div className="mt-4 rounded-lg border border-steel-300 bg-steel-50/60 p-3">
+                <p className="pass-title mb-2 text-[13px] text-ink">Merma (rendimiento)</p>
+                <div className="grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <label className="flex flex-col gap-1 text-[13px] text-ink-2">Peso bruto (comprado/entero)
+                    <input value={form.merma_gross} onChange={(e) => setForm({ ...form, merma_gross: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="p. ej. 1000" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+                  <label className="flex flex-col gap-1 text-[13px] text-ink-2">Peso neto (utilizado)
+                    <input value={form.merma_net} onChange={(e) => setForm({ ...form, merma_net: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="p. ej. 800" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+                  <label className="flex flex-col gap-1 text-[13px] text-ink-2">% utilizado
+                    <input value={g > 0 ? numTrim(pctUsed.toFixed(2)) : ''} onChange={(e) => { const p = num(e.target.value); if (g > 0) setForm({ ...form, merma_net: numTrim((g * p / 100).toFixed(4)) }) }} placeholder="p. ej. 80" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+                  <label className="flex flex-col gap-1 text-[13px] text-ink-3">% mermado (auto)
+                    <input value={g > 0 ? numTrim(pctMerma.toFixed(2)) : ''} readOnly className="rounded-lg border border-steel-200 bg-steel-100 px-3 py-2 text-[14px] text-ink-2 outline-none" /></label>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-6 gap-y-1 text-[12px] text-ink-3">
+                  <span>Merma: <span className="data text-ink">{numTrim(mermaW)}</span></span>
+                  <label className="flex items-center gap-1.5">% que queda tras cocción:
+                    <input value={form.cooking_pct} onChange={(e) => setForm({ ...form, cooking_pct: e.target.value.replace(/[^\d.,]/g, '') })} className="w-16 rounded-lg border border-steel-300 bg-white px-2 py-1 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+                  {grossCost > 0 && <span>Coste neto usado ≈ <span className="data text-ink">{netCost.toFixed(4)} €/{form.base_unit}</span></span>}
+                </div>
+                <p className="mt-1 text-[11px] text-ink-3">Ej.: compras 1 kg (bruto) y aprovechas 800 g (neto) → 80% utilizado, 20% merma. El coste por unidad usada sube por la merma.</p>
+              </div>
+            )
+          })()}
+
           <div className="mt-4 flex gap-2">
             <button onClick={save} className="inline-flex h-10 items-center rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi">Guardar</button>
             <button onClick={close} className="inline-flex h-10 items-center rounded-lg steel-plate px-4 text-sm font-medium text-ink hover:bg-white">Cancelar</button>
