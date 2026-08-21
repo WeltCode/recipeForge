@@ -4,7 +4,7 @@ import {
   listInsumos, createInsumo, previewCosteo, MERMA_UNITS, eur, numTrim, foodCostColor,
 } from '../../lib/costeo'
 import { listRecipes, getRecipe } from '../../lib/catalog'
-import { Coins, Plus, Pencil, Trash, X } from '../icons'
+import { Coins, Plus, Pencil, Trash, Eye, X } from '../icons'
 
 const norm = (s) => (s || '').trim().toLowerCase()
 const dot = (v) => String(v ?? '').replace(',', '.')
@@ -41,6 +41,7 @@ export default function EscandallosPanel({ canEdit }) {
   const [previewErr, setPreviewErr] = useState('')
   const [status, setStatus] = useState('idle') // idle | calculando | ok | error
   const [dirty, setDirty] = useState(false)
+  const [showEye, setShowEye] = useState(null)  // escandallo a previsualizar (tarea 6)
   const seqRef = useRef(0)
   const timerRef = useRef(null)
 
@@ -368,7 +369,7 @@ export default function EscandallosPanel({ canEdit }) {
             <thead>
               <tr className="border-b border-steel-300 text-left text-[11px] uppercase tracking-wide text-ink-3">
                 <th className="p-3">Plato</th><th className="p-3 text-right">Coste total</th><th className="p-3 text-right">Coste/ración</th>
-                <th className="p-3 text-right">Food cost</th><th className="p-3 text-right">PVP sug.</th>{canEdit && <th className="p-3 text-right">Acciones</th>}
+                <th className="p-3 text-right">Food cost</th><th className="p-3 text-right">PVP sug.</th><th className="p-3 text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -384,14 +385,13 @@ export default function EscandallosPanel({ canEdit }) {
                     <td className="p-3 text-right"><span className="data text-[13px] text-ink">{b && !e.is_subrecipe ? eur(b.cost_per_serving) : '—'}</span></td>
                     <td className={`p-3 text-right ${b ? foodCostColor(b.food_cost_pct) : ''}`}><span className="data text-[13px] font-medium">{b?.food_cost_pct != null ? `${b.food_cost_pct}%` : '—'}</span></td>
                     <td className="p-3 text-right"><span className="data text-[13px] text-ink-2">{b && !e.is_subrecipe ? eur(b.pvp_inc_iva) : '—'}</span></td>
-                    {canEdit && (
-                      <td className="p-3">
-                        <div className="flex justify-end gap-1">
-                          <button onClick={() => openEdit(e.id)} title="Editar" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Pencil size={16} /></button>
-                          <button onClick={() => remove(e)} title="Eliminar" className="grid h-9 w-9 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={16} /></button>
-                        </div>
-                      </td>
-                    )}
+                    <td className="p-3">
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => setShowEye(e)} title="Ver" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Eye size={16} /></button>
+                        {canEdit && <button onClick={() => openEdit(e.id)} title="Editar" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Pencil size={16} /></button>}
+                        {canEdit && <button onClick={() => remove(e)} title="Eliminar" className="grid h-9 w-9 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={16} /></button>}
+                      </div>
+                    </td>
                   </tr>
                 )
               })}
@@ -405,6 +405,59 @@ export default function EscandallosPanel({ canEdit }) {
           <p className="mt-1 text-[13px] text-ink-2">Crea uno y verás el coste, el food cost y el PVP al instante.</p>
         </div>
       )}
+
+      {showEye && <EscandalloPreview esc={showEye} onClose={() => setShowEye(null)} />}
+    </div>
+  )
+}
+
+// Vista previa de solo lectura de un escandallo con su desglose ordenado (tarea 6).
+function EscandalloPreview({ esc, onClose }) {
+  const b = esc.breakdown && !esc.breakdown.error ? esc.breakdown : null
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center bg-soot/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl bg-cream p-5 shadow-[var(--shadow-forge)]" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-3 flex items-start justify-between">
+          <div>
+            <h3 className="pass-title text-[18px] text-ink">{esc.name}</h3>
+            <p className="text-[12px] text-ink-3">{esc.is_subrecipe ? 'Producción / subreceta' : 'Plato de venta'} · {esc.servings} rac.</p>
+          </div>
+          <button onClick={onClose} className="text-ink-3 hover:text-ink"><X size={20} /></button>
+        </div>
+        {b ? (
+          <>
+            <div className="overflow-hidden rounded-lg border border-steel-200">
+              {(b.lines || []).map((ln, idx) => (
+                <div key={idx} className={`flex items-center justify-between gap-3 px-3 py-2 ${idx ? 'border-t border-steel-200' : ''} bg-white`}>
+                  <span className="min-w-0 truncate text-[13px] text-ink">{ln.name} <span className="data text-[11px] text-ink-3">{numTrim(ln.quantity)} {ln.unit}</span></span>
+                  <span className={`data shrink-0 text-[13px] ${ln.incomplete ? 'text-warn' : 'text-ink'}`}>{ln.incomplete ? 'sin precio' : eur(ln.line_cost)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 space-y-1.5">
+              <PvRow label="Coste total (materia prima)" value={eur(b.total_cost)} strong />
+              {esc.is_subrecipe ? <>
+                {b.cost_per_portion && <PvRow label="Coste por porción" value={eur(b.cost_per_portion)} />}
+                {b.weight_per_portion && <PvRow label="Peso por porción" value={`${numTrim(b.weight_per_portion)} ${b.yield_unit}`} />}
+              </> : <>
+                <PvRow label="Coste por ración" value={eur(b.cost_per_serving)} />
+                <PvRow label="PVP sugerido (con IVA)" value={eur(b.pvp_inc_iva)} />
+                {b.food_cost_pct != null && <PvRow label="Food cost (con tu PVP)" value={`${b.food_cost_pct}%`} />}
+                {b.margin != null && <PvRow label="Ganancia por ración" value={`${eur(b.margin)} · ${b.margin_pct}%`} />}
+              </>}
+            </div>
+          </>
+        ) : <p className="text-[13px] text-ink-2">{esc.breakdown?.error || 'Sin desglose disponible.'}</p>}
+      </div>
+    </div>
+  )
+}
+
+function PvRow({ label, value, strong }) {
+  return (
+    <div className="flex items-baseline justify-between border-b border-steel-200 pb-1.5">
+      <span className="text-[13px] text-ink-2">{label}</span>
+      <span className={`data text-ink ${strong ? 'text-[16px] font-semibold' : 'text-[14px]'}`}>{value}</span>
     </div>
   )
 }

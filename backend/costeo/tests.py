@@ -199,6 +199,30 @@ class ServiceTests(APITestCase):
         self.assertIsNone(res['lines'][0]['line_cost'])
         self.assertEqual(res['total_cost'], '0.0000')  # no suma, no lanza
 
+    # ── Unidad base derivada del formato (canónica) + display 2 decimales ──
+    def test_base_unit_derived_canonical_and_display(self):
+        # Se compra por kg (11.40 €/kg) pero la base se deriva a g (canónica).
+        ajo = make_insumo(self.r, 'Ajo', 'kg')  # base inicial cualquiera
+        f = make_format(ajo, '11.40', [], '1', 'kg')
+        services.sync_insumo_base_unit(ajo)
+        ajo.refresh_from_db()
+        self.assertEqual(ajo.base_unit, 'g')                       # derivada a canónica
+        cpb = services.insumo_gross_cost_per_base(ajo)
+        self.assertEqual(str(cpb), '0.0114')                       # €/g interno
+        unit, disp = services.display_cost_per_unit(cpb, ajo.base_unit)
+        self.assertEqual((unit, disp), ('kg', '11.40'))            # display legible
+        # 1000 g (lo que el usuario teclea) = 1 kg = 11,40 €, NO 11400.
+        res = services.compute(spec([line(ajo.id, quantity='1000', unit='g')]), self.r)
+        self.assertEqual(res['lines'][0]['line_cost'], '11.4000')
+
+    def test_base_unit_volume_and_count(self):
+        agua = make_insumo(self.r, 'Agua', 'kg')
+        make_format(agua, '2', [], '1', 'l'); services.sync_insumo_base_unit(agua)
+        agua.refresh_from_db(); self.assertEqual(agua.base_unit, 'ml')
+        huevo = make_insumo(self.r, 'Huevo', 'g')
+        make_format(huevo, '3', [], '30', 'ud'); services.sync_insumo_base_unit(huevo)
+        huevo.refresh_from_db(); self.assertEqual(huevo.base_unit, 'ud')
+
     # ── Porcionado de una producción ──
     def test_portions_weight_and_cost(self):
         ins = make_insumo(self.r, 'Masa', 'g')

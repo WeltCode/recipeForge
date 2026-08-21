@@ -59,6 +59,46 @@ def insumo_gross_cost_per_base(insumo):
     return format_price_ex_iva(fmt) / format_content_base(fmt, insumo)
 
 
+# ── Unidad base derivada del formato de compra (canónica: g/ml/ud/pack) ──────
+def canonical_base_for_unit(unit):
+    """Unidad base canónica (g/ml/ud/pack) para la dimensión de `unit`.
+    Así el insumo se mide siempre en la unidad pequeña y las cantidades del
+    escandallo no caen en la trampa de escala (1000 «g» tecleados ≠ 1000 kg)."""
+    return units.CANONICAL[units.dimension(unit)]
+
+
+def sync_insumo_base_unit(insumo):
+    """Deriva y guarda `base_unit` como la canónica de la dimensión del formato
+    de referencia (o el primero). Idempotente; no toca nada si no hay formato."""
+    fmt = insumo.reference_format or insumo.formats.first()
+    if not fmt:
+        return
+    try:
+        base = canonical_base_for_unit(fmt.unit_size_unit)
+    except units.UnitError:
+        return
+    if insumo.base_unit != base:
+        insumo.base_unit = base
+        insumo.save(update_fields=['base_unit', 'updated_at'])
+
+
+# Unidad de COMPRA legible (grande) y su factor a la base canónica, para mostrar
+# el precio como "11.40 €/kg" (2 decimales) en vez de un coste por gramo ilegible.
+DISPLAY_UNIT = {'g': 'kg', 'kg': 'kg', 'ml': 'l', 'l': 'l', 'ud': 'ud', 'pack': 'pack'}
+DISPLAY_FACTOR = {'g': Decimal('1000'), 'kg': Decimal('1'), 'ml': Decimal('1000'),
+                  'l': Decimal('1'), 'ud': Decimal('1'), 'pack': Decimal('1')}
+
+
+def display_cost_per_unit(cost_per_base, base_unit):
+    """(unidad_legible, coste 2 decimales) a partir de un coste por unidad base.
+    Ej.: 0.0114 €/g, base g → ('kg', '11.40'). None si no hay coste."""
+    if cost_per_base is None:
+        return DISPLAY_UNIT.get(base_unit, base_unit), None
+    unit = DISPLAY_UNIT.get(base_unit, base_unit)
+    factor = DISPLAY_FACTOR.get(base_unit, Decimal('1'))
+    return unit, str((_d(cost_per_base) * factor).quantize(Q_MONEY, rounding=ROUND_HALF_UP))
+
+
 def insumo_net_cost_per_base(insumo, cleaning=None, cooking=None):
     gross = insumo_gross_cost_per_base(insumo)
     c = _d(cleaning) if cleaning is not None else _d(insumo.cleaning_yield)

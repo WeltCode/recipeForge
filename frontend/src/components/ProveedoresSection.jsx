@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
 import {
   listSuppliers, createSupplier, updateSupplier, deleteSupplier,
-  createProduct, updateProduct, deleteProduct, UNIT_CHOICES,
 } from '../lib/catalog'
+import { listInsumos, createInsumo, createFormato, deleteFormato, eur } from '../lib/costeo'
+import FormatoForm, { fmtToBody } from './costeo/FormatoForm'
 import { Truck, Plus, Pencil, Trash, X } from './icons'
 
 const EMPTY = {
   name: '', tax_id: '', contact_name: '', email: '', phone: '',
   website: '', payment_terms: '', delivery_days: '', notes: '',
-  products: [], // solo al crear
 }
-const EMPTY_PROD = { name: '', base_unit: 'kg', pack_size: '1', pack_price: '' }
+const norm = (s) => (s || '').trim().toLowerCase()
 
 export default function ProveedoresSection({ canEdit, canCost }) {
   const [rows, setRows] = useState([])
@@ -21,8 +21,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
   const [saving, setSaving] = useState(false)
   const [expanded, setExpanded] = useState(null)
   const [prodFor, setProdFor] = useState(null) // proveedor al que se añade producto
-  const [prod, setProd] = useState(EMPTY_PROD)
-  const [prodEdit, setProdEdit] = useState(null) // {id, ...campos} en edición
+  const [prodName, setProdName] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -35,57 +34,42 @@ export default function ProveedoresSection({ canEdit, canCost }) {
     setForm({
       name: s.name, tax_id: s.tax_id || '', contact_name: s.contact_name, email: s.email, phone: s.phone,
       website: s.website || '', payment_terms: s.payment_terms || '', delivery_days: s.delivery_days || '',
-      notes: s.notes || '', products: [],
+      notes: s.notes || '',
     })
     setEditing(s.id)
   }
   const close = () => { setEditing(null); setForm(EMPTY) }
 
-  // Productos iniciales (solo en el alta de proveedor).
-  const addFormProduct = () => setForm((f) => ({ ...f, products: [...f.products, { ...EMPTY_PROD }] }))
-  const setFormProduct = (i, k, v) => setForm((f) => ({ ...f, products: f.products.map((p, idx) => idx === i ? { ...p, [k]: v } : p) }))
-  const removeFormProduct = (i) => setForm((f) => ({ ...f, products: f.products.filter((_, idx) => idx !== i) }))
-
   const save = async () => {
     if (!form.name.trim()) { setError('El nombre es obligatorio.'); return }
     setSaving(true)
     try {
-      const { products, ...supplierData } = form
-      if (editing === 'new') {
-        const created = await createSupplier(supplierData)
-        for (const p of products.filter((x) => x.name.trim())) {
-          const body = { name: p.name, base_unit: p.base_unit, supplier: created.id }
-          if (canCost) { body.pack_size = p.pack_size || '1'; body.pack_price = p.pack_price || '0' }
-          await createProduct(body)
-        }
-      } else {
-        await updateSupplier(editing, supplierData)
-      }
+      if (editing === 'new') await createSupplier(form)
+      else await updateSupplier(editing, form)
       close(); load()
     } catch (e) { setError(e.message) } finally { setSaving(false) }
   }
   const remove = async (s) => {
-    if (!window.confirm(`¿Eliminar el proveedor "${s.name}"? Sus productos quedarán sin proveedor.`)) return
+    if (!window.confirm(`¿Eliminar el proveedor "${s.name}"? Sus insumos seguirán en «Insumos y precios» sin proveedor.`)) return
     try { await deleteSupplier(s.id); load() } catch (e) { setError(e.message) }
   }
-  const addProduct = async (supplierId) => {
-    if (!prod.name.trim()) { setError('El producto necesita un nombre.'); return }
+
+  // Añade un producto que se le compra al proveedor = insumo + formato de compra.
+  // Si el insumo ya existe (por nombre) se reutiliza; si no, se crea. Así aparece
+  // también en «Insumos y precios» del escandallo (misma fuente de datos).
+  const addProducto = async (supplierId, fmt) => {
+    if (!prodName.trim()) { setError('El producto necesita un nombre.'); return }
     try {
-      const body = { name: prod.name, base_unit: prod.base_unit, supplier: supplierId }
-      if (canCost) { body.pack_size = prod.pack_size || '1'; body.pack_price = prod.pack_price || '0' }
-      await createProduct(body); setProd(EMPTY_PROD); setProdFor(null); load()
+      const insumos = await listInsumos()
+      let insumo = insumos.find((x) => norm(x.name) === norm(prodName))
+      if (!insumo) insumo = await createInsumo({ name: prodName.trim() })
+      await createFormato({ insumo: insumo.id, ...fmtToBody({ ...fmt, supplier: String(supplierId) }) })
+      setProdName(''); setProdFor(null); load()
     } catch (e) { setError(e.message) }
   }
-  const saveProdEdit = async () => {
-    try {
-      const body = { name: prodEdit.name, base_unit: prodEdit.base_unit }
-      if (canCost) { body.pack_size = prodEdit.pack_size || '1'; body.pack_price = prodEdit.pack_price || '0' }
-      await updateProduct(prodEdit.id, body); setProdEdit(null); load()
-    } catch (e) { setError(e.message) }
-  }
-  const removeProduct = async (id) => {
-    if (!window.confirm('¿Quitar este producto?')) return
-    try { await deleteProduct(id); load() } catch (e) { setError(e.message) }
+  const removeProducto = async (formatId) => {
+    if (!window.confirm('¿Quitar este formato de compra del proveedor? (El insumo se mantiene)')) return
+    try { await deleteFormato(formatId); load() } catch (e) { setError(e.message) }
   }
 
   const field = (k, label, type = 'text') => (
@@ -98,7 +82,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="rf-cond text-3xl uppercase tracking-tight text-ink" style={{ fontWeight: 600 }}>Proveedores</h1>
-          <p className="mt-1 text-sm text-ink-2">Tus distribuidores y los productos que les compras (con precio en €). Ese precio alimenta el escandallo.</p>
+          <p className="mt-1 text-sm text-ink-2">Tus distribuidores y los insumos que les compras (con precio en €). Ese precio alimenta el escandallo y aparece en «Insumos y precios».</p>
         </div>
         {canEdit && (
           <button onClick={openNew} className="inline-flex h-11 items-center gap-2 rounded-lg bg-ember px-4 text-sm font-medium text-cream shadow-[0_8px_20px_-8px_rgba(238,90,28,.7)] transition hover:bg-ember-hi">
@@ -127,28 +111,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
           </div>
           <label className="mt-3 flex flex-col gap-1 text-[13px] text-ink-2">Notas
             <textarea rows="2" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
-
-          {/* Productos iniciales (solo al crear) */}
-          {editing === 'new' && (
-            <div className="mt-4 rounded-lg border border-steel-300 bg-steel-50/60 p-3">
-              <div className="flex items-center justify-between">
-                <p className="pass-title text-[13px] text-ink">Productos de este proveedor</p>
-                <button onClick={addFormProduct} className="inline-flex items-center gap-1 rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white"><Plus size={14} /> Añadir</button>
-              </div>
-              {form.products.map((p, i) => (
-                <div key={i} className="mt-2 flex flex-wrap items-end gap-2">
-                  <input value={p.name} onChange={(e) => setFormProduct(i, 'name', e.target.value)} placeholder="Producto" className="w-40 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" />
-                  <select value={p.base_unit} onChange={(e) => setFormProduct(i, 'base_unit', e.target.value)} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
-                    {UNIT_CHOICES.map(([v, l]) => <option key={v} value={v}>{l} ({v})</option>)}
-                  </select>
-                  {canCost && <input value={p.pack_size} onChange={(e) => setFormProduct(i, 'pack_size', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="Pack" className="w-16 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" />}
-                  {canCost && <input value={p.pack_price} onChange={(e) => setFormProduct(i, 'pack_price', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="Precio €" className="w-24 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" />}
-                  <button onClick={() => removeFormProduct(i)} className="grid h-8 w-8 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={14} /></button>
-                </div>
-              ))}
-              {!form.products.length && <p className="mt-2 text-[12px] text-ink-3">Puedes añadir productos ahora o más tarde al abrir el proveedor.</p>}
-            </div>
-          )}
+          {editing === 'new' && <p className="mt-2 text-[12px] text-ink-3">Crea el proveedor y luego, al abrirlo, añade los insumos que le compras con su formato de precio.</p>}
 
           <div className="mt-4 flex gap-2">
             <button disabled={saving} onClick={save} className="inline-flex h-10 items-center rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">{saving ? 'Guardando…' : 'Guardar'}</button>
@@ -171,7 +134,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
                     <p className="truncate text-[14px] font-medium text-ink">{s.name}</p>
                     <p className="truncate text-[12px] text-ink-2">{[s.contact_name, s.phone, s.email].filter(Boolean).join(' · ') || 'Sin datos de contacto'}</p>
                   </button>
-                  <span className="hidden rounded-full bg-steel-200 px-2.5 py-1 text-[11px] font-medium text-ink-2 sm:inline-flex"><span className="data mr-1">{s.product_count}</span> productos</span>
+                  <span className="hidden rounded-full bg-steel-200 px-2.5 py-1 text-[11px] font-medium text-ink-2 sm:inline-flex"><span className="data mr-1">{s.product_count}</span> insumos</span>
                   {canEdit && (
                     <>
                       <button onClick={() => openEdit(s)} title="Editar" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Pencil size={16} /></button>
@@ -193,57 +156,31 @@ export default function ProveedoresSection({ canEdit, canCost }) {
                     )}
 
                     <div className="flex items-center justify-between">
-                      <p className="pass-title text-[13px] text-ink">Productos que le compras</p>
-                      {canEdit && <button onClick={() => { setProdFor(prodFor === s.id ? null : s.id); setProd(EMPTY_PROD) }} className="inline-flex items-center gap-1 rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white"><Plus size={14} /> Añadir producto</button>}
+                      <p className="pass-title text-[13px] text-ink">Insumos que le compras</p>
+                      {canEdit && <button onClick={() => { setProdFor(prodFor === s.id ? null : s.id); setProdName('') }} className="inline-flex items-center gap-1 rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white"><Plus size={14} /> Añadir producto</button>}
                     </div>
 
                     {prodFor === s.id && (
-                      <div className="mt-2 flex flex-wrap items-end gap-2 rounded-lg border border-steel-300 bg-white p-3">
-                        <label className="flex flex-col gap-1 text-[12px] text-ink-2">Producto
-                          <input value={prod.name} onChange={(e) => setProd({ ...prod, name: e.target.value })} className="w-44 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
-                        <label className="flex flex-col gap-1 text-[12px] text-ink-2">Unidad
-                          <select value={prod.base_unit} onChange={(e) => setProd({ ...prod, base_unit: e.target.value })} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
-                            {UNIT_CHOICES.map(([v, l]) => <option key={v} value={v}>{l} ({v})</option>)}
-                          </select></label>
-                        {canCost && (
-                          <>
-                            <label className="flex flex-col gap-1 text-[12px] text-ink-2">Pack ({prod.base_unit})
-                              <input value={prod.pack_size} onChange={(e) => setProd({ ...prod, pack_size: e.target.value.replace(/[^\d.,]/g, '') })} className="w-20 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
-                            <label className="flex flex-col gap-1 text-[12px] text-ink-2">Precio pack (€)
-                              <input value={prod.pack_price} onChange={(e) => setProd({ ...prod, pack_price: e.target.value.replace(/[^\d.,]/g, '') })} className="w-24 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
-                          </>
-                        )}
-                        <button onClick={() => addProduct(s.id)} className="inline-flex h-9 items-center rounded-lg bg-ember px-3 text-[13px] font-medium text-cream hover:bg-ember-hi">Añadir</button>
+                      <div className="mt-2 rounded-lg border border-steel-300 bg-white p-3">
+                        <label className="mb-2 flex max-w-xs flex-col gap-1 text-[12px] text-ink-2">Nombre del insumo / producto
+                          <input value={prodName} onChange={(e) => setProdName(e.target.value)} placeholder="p. ej. Dientes de Ajo pelados" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+                        <FormatoForm lockedSupplier={s.id} onAdd={(f) => addProducto(s.id, f)} compact />
                       </div>
                     )}
 
                     {(s.products || []).length ? (
                       <div className="mt-3 overflow-hidden rounded-lg border border-steel-200">
                         {s.products.map((p, i) => (
-                          <div key={p.id} className={`bg-white ${i ? 'border-t border-steel-200' : ''}`}>
-                            {prodEdit && prodEdit.id === p.id ? (
-                              <div className="flex flex-wrap items-end gap-2 p-3">
-                                <input value={prodEdit.name} onChange={(e) => setProdEdit({ ...prodEdit, name: e.target.value })} className="w-40 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" />
-                                <select value={prodEdit.base_unit} onChange={(e) => setProdEdit({ ...prodEdit, base_unit: e.target.value })} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
-                                  {UNIT_CHOICES.map(([v, l]) => <option key={v} value={v}>{l} ({v})</option>)}
-                                </select>
-                                {canCost && <input value={prodEdit.pack_size} onChange={(e) => setProdEdit({ ...prodEdit, pack_size: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="Pack" className="w-16 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" />}
-                                {canCost && <input value={prodEdit.pack_price} onChange={(e) => setProdEdit({ ...prodEdit, pack_price: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="Precio €" className="w-24 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" />}
-                                <button onClick={saveProdEdit} className="inline-flex h-8 items-center rounded-lg bg-ember px-3 text-[12px] font-medium text-cream hover:bg-ember-hi">Guardar</button>
-                                <button onClick={() => setProdEdit(null)} className="inline-flex h-8 items-center rounded-lg steel-plate px-3 text-[12px] text-ink hover:bg-white">Cancelar</button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-3 px-3 py-2">
-                                <span className="flex-1 text-[13px] text-ink">{p.name}</span>
-                                {canCost && <span className="data text-[12px] text-ink-2">{p.unit_cost != null ? `${p.unit_cost} €/${p.base_unit}` : `— /${p.base_unit}`}</span>}
-                                {canEdit && <button onClick={() => setProdEdit({ id: p.id, name: p.name, base_unit: p.base_unit, pack_size: p.pack_size ?? '1', pack_price: p.pack_price ?? '' })} title="Editar" className="text-ink-3 hover:text-ink"><Pencil size={14} /></button>}
-                                {canEdit && <button onClick={() => removeProduct(p.id)} title="Quitar" className="text-ink-3 hover:text-danger"><Trash size={14} /></button>}
-                              </div>
-                            )}
+                          <div key={p.format_id} className={`flex items-center gap-3 bg-white px-3 py-2 ${i ? 'border-t border-steel-200' : ''}`}>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[13px] text-ink">{p.name}{p.description ? <span className="text-ink-3"> · {p.description}</span> : ''}</p>
+                            </div>
+                            {canCost && <span className="data text-[12px] text-ink-2">{p.display_cost != null ? `${eur(p.display_cost)}/${p.display_unit}` : `— /${p.base_unit}`}</span>}
+                            {canEdit && <button onClick={() => removeProducto(p.format_id)} title="Quitar" className="text-ink-3 hover:text-danger"><Trash size={14} /></button>}
                           </div>
                         ))}
                       </div>
-                    ) : <p className="mt-3 text-[12px] text-ink-3">Aún no hay productos de este proveedor.</p>}
+                    ) : <p className="mt-3 text-[12px] text-ink-3">Aún no hay insumos de este proveedor.</p>}
                   </div>
                 )}
               </div>
@@ -254,7 +191,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
         <div className="steel-plate grid place-items-center rounded-2xl py-16 text-center">
           <Truck size={28} className="text-ink-3" />
           <p className="pass-title mt-3 text-[18px] text-ink">Aún no hay proveedores</p>
-          <p className="mt-1 text-[13px] text-ink-2">{canEdit ? 'Añade tu primer proveedor y sus productos con precio.' : 'Cuando se añadan proveedores, aparecerán aquí.'}</p>
+          <p className="mt-1 text-[13px] text-ink-2">{canEdit ? 'Añade tu primer proveedor y sus insumos con precio.' : 'Cuando se añadan proveedores, aparecerán aquí.'}</p>
         </div>
       )}
     </div>

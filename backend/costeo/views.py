@@ -72,6 +72,19 @@ class PurchaseFormatViewSet(_TenantViewSet):
         if fmt.insumo.reference_format_id is None:
             fmt.insumo.reference_format = fmt
             fmt.insumo.save(update_fields=['reference_format', 'updated_at'])
+        # La unidad base del insumo se deriva del formato (canónica de su dimensión).
+        services.sync_insumo_base_unit(fmt.insumo)
+
+    def perform_destroy(self, instance):
+        insumo = instance.insumo
+        was_ref = insumo.reference_format_id == instance.id
+        super().perform_destroy(instance)
+        if was_ref:
+            # Reasigna la referencia al primer formato que quede (si hay) y re-deriva.
+            nxt = insumo.formats.first()
+            insumo.reference_format = nxt
+            insumo.save(update_fields=['reference_format', 'updated_at'])
+        services.sync_insumo_base_unit(insumo)
 
     @action(detail=True, methods=['post'])
     def register_price(self, request, pk=None):
@@ -99,6 +112,7 @@ class PurchaseFormatViewSet(_TenantViewSet):
         insumo = fmt.insumo
         insumo.reference_format = fmt
         insumo.save(update_fields=['reference_format', 'updated_at'])
+        services.sync_insumo_base_unit(insumo)
         services.cascade_refresh(insumo.restaurant)
         return Response(PurchaseFormatSerializer(fmt, context=self.get_serializer_context()).data)
 

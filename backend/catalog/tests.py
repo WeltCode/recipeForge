@@ -74,26 +74,39 @@ class CatalogTests(APITestCase):
         self.assertIn('pack_price', row)
         self.assertEqual(row['unit_cost'], '0.8000')
 
-    # ── Proveedor: datos ampliados + productos con precio ──
+    # ── Proveedor: datos ampliados + insumos que se le compran (vía formato) ──
+    def _buy(self, restaurant, supplier, name, price, unit_size, unit):
+        """Crea un insumo con un formato de compra que apunta al proveedor
+        (misma fuente que «Insumos y precios»)."""
+        from costeo import services
+        from costeo.models import Insumo, PurchaseFormat
+        ins = Insumo.objects.create(restaurant=restaurant, name=name)
+        f = PurchaseFormat.objects.create(insumo=ins, supplier=supplier, price=price,
+                                          unit_size=unit_size, unit_size_unit=unit)
+        ins.reference_format = f
+        ins.save(update_fields=['reference_format'])
+        services.sync_insumo_base_unit(ins)
+        return ins, f
+
     def test_supplier_products_and_fields(self):
-        self.prodA.supplier = None
-        self.prodA.save()
         sup = Supplier.objects.create(restaurant=self.rA, name='DistMar', tax_id='B-1', payment_terms='30 días')
-        Product.objects.create(restaurant=self.rA, name='Gambas', supplier=sup, base_unit='kg', pack_size=2, pack_price=30)
+        self._buy(self.rA, sup, 'Gambas', '30', '2', 'kg')  # 30 € por 2 kg → 15 €/kg
         self.client.force_authenticate(self.ownerA)
         row = [s for s in self.client.get(SUPPLIERS).json() if s['id'] == sup.id][0]
         self.assertEqual(row['tax_id'], 'B-1')
         self.assertEqual(row['payment_terms'], '30 días')
         self.assertEqual(row['product_count'], 1)
         self.assertEqual(row['products'][0]['name'], 'Gambas')
-        self.assertEqual(row['products'][0]['unit_cost'], '15.0000')  # 30/2
+        self.assertEqual(row['products'][0]['display_cost'], '15.00')  # 30/2
+        self.assertEqual(row['products'][0]['display_unit'], 'kg')
 
     def test_supplier_products_price_hidden_for_editor(self):
         sup = Supplier.objects.create(restaurant=self.rA, name='DistMar2')
-        Product.objects.create(restaurant=self.rA, name='X', supplier=sup, base_unit='kg', pack_size=2, pack_price=30)
+        self._buy(self.rA, sup, 'X', '30', '2', 'kg')
         self.client.force_authenticate(self.editorA)
         row = [s for s in self.client.get(SUPPLIERS).json() if s['id'] == sup.id][0]
-        self.assertNotIn('unit_cost', row['products'][0])
+        self.assertNotIn('display_cost', row['products'][0])
+        self.assertNotIn('price', row['products'][0])
 
     # ── Inventario de producción (separado de productos de proveedor) ──
     def test_inventory_separate_from_products(self):

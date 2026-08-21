@@ -19,6 +19,8 @@ class PurchaseFormatSerializer(serializers.ModelSerializer):
     supplier_name = serializers.SerializerMethodField()
     content_base = serializers.SerializerMethodField()
     cost_per_base = serializers.SerializerMethodField()
+    display_unit = serializers.SerializerMethodField()
+    display_cost = serializers.SerializerMethodField()
 
     class Meta:
         model = PurchaseFormat
@@ -26,7 +28,8 @@ class PurchaseFormatSerializer(serializers.ModelSerializer):
             'id', 'insumo', 'supplier', 'supplier_name', 'description',
             'price', 'price_includes_iva', 'iva_rate',
             'pack_levels', 'unit_size', 'unit_size_unit',
-            'content_base', 'cost_per_base', 'created_at', 'updated_at',
+            'content_base', 'cost_per_base', 'display_unit', 'display_cost',
+            'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
 
@@ -49,22 +52,39 @@ class PurchaseFormatSerializer(serializers.ModelSerializer):
     def get_content_base(self, obj):
         return self._safe(lambda: services.format_content_base(obj, obj.insumo))
 
+    def _cost_per_base(self, obj):
+        try:
+            return services.format_price_ex_iva(obj) / services.format_content_base(obj, obj.insumo)
+        except (services.CosteoError, UnitError):
+            return None
+
     def get_cost_per_base(self, obj):
-        return self._safe(lambda: services.format_price_ex_iva(obj) / services.format_content_base(obj, obj.insumo))
+        cpb = self._cost_per_base(obj)
+        return None if cpb is None else str(cpb)
+
+    def get_display_unit(self, obj):
+        return services.display_cost_per_unit(self._cost_per_base(obj), obj.insumo.base_unit)[0]
+
+    def get_display_cost(self, obj):
+        return services.display_cost_per_unit(self._cost_per_base(obj), obj.insumo.base_unit)[1]
 
 
 class InsumoSerializer(serializers.ModelSerializer):
     formats = PurchaseFormatSerializer(many=True, read_only=True)
     cost_per_base = serializers.SerializerMethodField()
+    display_unit = serializers.SerializerMethodField()
+    display_cost = serializers.SerializerMethodField()
 
     class Meta:
         model = Insumo
+        # base_unit es de solo lectura: se DERIVA del formato de compra (canónica).
         fields = [
             'id', 'name', 'base_unit', 'density_g_per_ml', 'weight_per_piece_g',
             'cleaning_yield', 'cooking_yield', 'merma_gross', 'merma_net',
-            'reference_format', 'formats', 'cost_per_base', 'created_at', 'updated_at',
+            'reference_format', 'formats', 'cost_per_base',
+            'display_unit', 'display_cost', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['base_unit', 'created_at', 'updated_at']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -73,16 +93,32 @@ class InsumoSerializer(serializers.ModelSerializer):
             # reference_format debe ser un formato del propio restaurante.
             self.fields['reference_format'].queryset = PurchaseFormat.objects.filter(insumo__restaurant=r)
 
-    def get_cost_per_base(self, obj):
+    def _cost_per_base(self, obj):
         try:
-            return str(services.insumo_gross_cost_per_base(obj))
+            return services.insumo_gross_cost_per_base(obj)
         except (services.CosteoError, UnitError):
             return None
+
+    def get_cost_per_base(self, obj):
+        cpb = self._cost_per_base(obj)
+        return None if cpb is None else str(cpb)
+
+    def get_display_unit(self, obj):
+        return services.display_cost_per_unit(self._cost_per_base(obj), obj.base_unit)[0]
+
+    def get_display_cost(self, obj):
+        return services.display_cost_per_unit(self._cost_per_base(obj), obj.base_unit)[1]
 
     def validate_reference_format(self, value):
         if value and self.instance and value.insumo_id != self.instance.id:
             raise serializers.ValidationError('El formato de referencia debe ser de este insumo.')
         return value
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        # Si cambió la referencia, la unidad base se re-deriva de su formato.
+        services.sync_insumo_base_unit(instance)
+        return instance
 
 
 class PriceHistorySerializer(serializers.ModelSerializer):

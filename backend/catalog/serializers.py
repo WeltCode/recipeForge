@@ -41,18 +41,35 @@ class SupplierSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['created_at']
 
+    def _formats(self, obj):
+        # Insumos que se le compran = formatos de compra que apuntan a este
+        # proveedor. Import perezoso para evitar dependencia circular con costeo.
+        from costeo.models import PurchaseFormat
+        return (PurchaseFormat.objects
+                .filter(supplier=obj)
+                .select_related('insumo', 'insumo__reference_format'))
+
     def get_product_count(self, obj):
-        return obj.products.count()
+        return self._formats(obj).values('insumo').distinct().count()
 
     def get_products(self, obj):
+        """Cada 'producto' del proveedor = un formato de compra de un insumo.
+        Comparte la MISMA información que «Insumos y precios» (misma fuente)."""
+        from costeo.serializers import PurchaseFormatSerializer
         can_cost = _can_see_cost(self.context)
         out = []
-        for p in obj.products.all():
-            row = {'id': p.id, 'name': p.name, 'base_unit': p.base_unit}
+        for f in self._formats(obj).order_by('insumo__name', '-updated_at'):
+            data = PurchaseFormatSerializer(f, context=self.context).data
+            row = {
+                'format_id': f.id, 'insumo_id': f.insumo_id, 'name': f.insumo.name,
+                'description': f.description, 'is_reference': f.insumo.reference_format_id == f.id,
+                'base_unit': f.insumo.base_unit,
+            }
             if can_cost:
-                row['pack_size'] = str(p.pack_size)
-                row['pack_price'] = str(p.pack_price)
-                row['unit_cost'] = str(p.unit_cost)
+                row['price'] = str(f.price)
+                row['price_includes_iva'] = f.price_includes_iva
+                row['display_unit'] = data.get('display_unit')
+                row['display_cost'] = data.get('display_cost')
             out.append(row)
         return out
 
