@@ -75,6 +75,11 @@ class PurchaseFormatViewSet(_TenantViewSet):
         # La unidad base del insumo se deriva del formato (canónica de su dimensión).
         services.sync_insumo_base_unit(fmt.insumo)
 
+    def perform_update(self, serializer):
+        fmt = serializer.save()
+        # Cambiar la presentación (p. ej. l→kg) re-deriva la unidad base del insumo.
+        services.sync_insumo_base_unit(fmt.insumo)
+
     def perform_destroy(self, instance):
         insumo = instance.insumo
         was_ref = insumo.reference_format_id == instance.id

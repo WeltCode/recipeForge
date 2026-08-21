@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import {
   listSuppliers, createSupplier, updateSupplier, deleteSupplier,
 } from '../lib/catalog'
-import { listInsumos, createInsumo, createFormato, deleteFormato, eur } from '../lib/costeo'
-import FormatoForm, { fmtToBody } from './costeo/FormatoForm'
+import { listInsumos, createInsumo, createFormato, updateFormato, deleteFormato, eur } from '../lib/costeo'
+import FormatoForm, { fmtToBody, fmtFromStored } from './costeo/FormatoForm'
 import { Truck, Plus, Pencil, Trash, X } from './icons'
 
 const EMPTY = {
@@ -22,6 +22,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
   const [expanded, setExpanded] = useState(null)
   const [prodFor, setProdFor] = useState(null) // proveedor al que se añade producto
   const [prodName, setProdName] = useState('')
+  const [prodEdit, setProdEdit] = useState(null) // format_id del insumo/formato en edición
 
   const load = () => {
     setLoading(true)
@@ -70,6 +71,10 @@ export default function ProveedoresSection({ canEdit, canCost }) {
   const removeProducto = async (formatId) => {
     if (!window.confirm('¿Quitar este formato de compra del proveedor? (El insumo se mantiene)')) return
     try { await deleteFormato(formatId); load() } catch (e) { setError(e.message) }
+  }
+  // Edita el precio / presentación de un formato ya guardado (sin borrar y recrear).
+  const saveProdEdit = async (formatId, fmt) => {
+    try { await updateFormato(formatId, fmtToBody(fmt)); setProdEdit(null); load() } catch (e) { setError(e.message) }
   }
 
   const field = (k, label, type = 'text') => (
@@ -171,12 +176,24 @@ export default function ProveedoresSection({ canEdit, canCost }) {
                     {(s.products || []).length ? (
                       <div className="mt-3 overflow-hidden rounded-lg border border-steel-200">
                         {s.products.map((p, i) => (
-                          <div key={p.format_id} className={`flex items-center gap-3 bg-white px-3 py-2 ${i ? 'border-t border-steel-200' : ''}`}>
-                            <div className="min-w-0 flex-1">
-                              <p className="truncate text-[13px] text-ink">{p.name}{p.description ? <span className="text-ink-3"> · {p.description}</span> : ''}</p>
-                            </div>
-                            {canCost && <span className="data text-[12px] text-ink-2">{p.display_cost != null ? `${eur(p.display_cost)}/${p.display_unit}` : `— /${p.base_unit}`}</span>}
-                            {canEdit && <button onClick={() => removeProducto(p.format_id)} title="Quitar" className="text-ink-3 hover:text-danger"><Trash size={14} /></button>}
+                          <div key={p.format_id} className={`bg-white ${i ? 'border-t border-steel-200' : ''}`}>
+                            {prodEdit === p.format_id ? (
+                              <div className="p-3">
+                                <p className="mb-2 text-[12px] font-medium text-ink">{p.name}</p>
+                                <FormatoForm key={`edit-${p.format_id}`} lockedSupplier={s.id} compact
+                                  initial={fmtFromStored(p)} submitLabel="Guardar"
+                                  onCancel={() => setProdEdit(null)} onAdd={(f) => saveProdEdit(p.format_id, f)} />
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-3 px-3 py-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="truncate text-[13px] text-ink">{p.name}{p.description ? <span className="text-ink-3"> · {p.description}</span> : ''}</p>
+                                </div>
+                                {canCost && <span className="data text-[12px] text-ink-2">{p.display_cost != null ? `${eur(p.display_cost)}/${p.display_unit}` : `— /${p.base_unit}`}</span>}
+                                {canEdit && canCost && <button onClick={() => setProdEdit(p.format_id)} title="Editar precio/presentación" className="text-ink-3 hover:text-ink"><Pencil size={14} /></button>}
+                                {canEdit && <button onClick={() => removeProducto(p.format_id)} title="Quitar" className="text-ink-3 hover:text-danger"><Trash size={14} /></button>}
+                              </div>
+                            )}
                           </div>
                         ))}
                       </div>

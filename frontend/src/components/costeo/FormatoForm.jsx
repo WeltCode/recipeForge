@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PRICE_PER, PRESENTACION_UNITS, buildFormatContent } from '../../lib/costeo'
+import { PRICE_PER, PRESENTACION_UNITS, buildFormatContent, numTrim } from '../../lib/costeo'
 
 // Valores por defecto de un formato de compra.
 export const EMPTY_FMT = {
@@ -19,18 +19,35 @@ export function fmtToBody(f) {
   }
 }
 
+// Reconstruye el estado del formulario desde un formato guardado (para editar).
+// Directo (kg/g/l/ml) = contenido de 1 unidad; presentación = envase de N unidades.
+export function fmtFromStored(s) {
+  const direct = (!s.pack_levels || s.pack_levels.length === 0) && Number(s.unit_size) === 1
+  return {
+    ...EMPTY_FMT,
+    description: s.description || '',
+    supplier: s.supplier ? String(s.supplier) : '',
+    price: numTrim(s.price),
+    price_includes_iva: !!s.price_includes_iva,
+    iva_rate: String(s.iva_rate ?? '0.10'),
+    price_por: direct ? s.unit_size_unit : 'presentacion',
+    pack_size: direct ? '1' : numTrim(s.unit_size),
+    pack_unit: s.unit_size_unit || 'l',
+  }
+}
+
 // Formulario de un formato de compra (siempre visible, sin desplegar). Al pulsar
 // "Añadir" entrega el formato a `onAdd` y se limpia. Se comparte entre
 // "Insumos y precios" y "Proveedores" para manejar la MISMA información.
-export default function FormatoForm({ suppliers = [], onAdd, lockedSupplier = null, compact = false }) {
-  const [fmt, setFmt] = useState(EMPTY_FMT)
+export default function FormatoForm({ suppliers = [], onAdd, lockedSupplier = null, compact = false, initial = null, submitLabel = 'Añadir', onCancel = null }) {
+  const [fmt, setFmt] = useState(initial || EMPTY_FMT)
   const set = (k, v) => setFmt((f) => ({ ...f, [k]: v }))
   const isPres = fmt.price_por === 'presentacion'
 
   const add = () => {
     if (!fmt.price) return
     onAdd({ ...fmt, supplier: lockedSupplier != null ? String(lockedSupplier) : fmt.supplier })
-    setFmt(EMPTY_FMT)
+    if (!initial) setFmt(EMPTY_FMT)   // en alta se limpia; en edición lo cierra el padre
   }
 
   return (
@@ -65,7 +82,8 @@ export default function FormatoForm({ suppliers = [], onAdd, lockedSupplier = nu
 
       <div className="mt-2 flex items-center gap-2">
         <input value={fmt.description} onChange={(e) => set('description', e.target.value)} placeholder="Descripción (opcional)" className="flex-1 rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" />
-        <button type="button" onClick={add} disabled={!fmt.price} className="inline-flex h-9 items-center rounded-lg bg-ember px-3 text-[13px] font-medium text-cream hover:bg-ember-hi disabled:opacity-50">Añadir</button>
+        {onCancel && <button type="button" onClick={onCancel} className="inline-flex h-9 items-center rounded-lg steel-plate px-3 text-[13px] font-medium text-ink hover:bg-white">Cancelar</button>}
+        <button type="button" onClick={add} disabled={!fmt.price} className="inline-flex h-9 items-center rounded-lg bg-ember px-3 text-[13px] font-medium text-cream hover:bg-ember-hi disabled:opacity-50">{submitLabel}</button>
       </div>
     </div>
   )

@@ -68,6 +68,11 @@ class SupplierSerializer(serializers.ModelSerializer):
             if can_cost:
                 row['price'] = str(f.price)
                 row['price_includes_iva'] = f.price_includes_iva
+                row['iva_rate'] = str(f.iva_rate)
+                # Campos del formato para reconstruir el editor (precio/presentación).
+                row['unit_size'] = str(f.unit_size)
+                row['unit_size_unit'] = f.unit_size_unit
+                row['pack_levels'] = f.pack_levels or []
                 row['display_unit'] = data.get('display_unit')
                 row['display_cost'] = data.get('display_cost')
             out.append(row)

@@ -284,6 +284,25 @@ class ApiTests(APITestCase):
         self.insA = make_insumo(self.rA, 'Leche', 'ml')
         make_format(self.insA, '7', [6], '1', 'l')
 
+    def test_edit_format_updates_price_and_rederives_base(self):
+        # Editar el formato (precio/presentación) sin borrar y recrear: PATCH.
+        ins = make_insumo(self.rA, 'Salsa X', 'ml')
+        f = make_format(ins, '25', [], '5', 'l')   # 25 €/5 L = 5 €/L
+        services.sync_insumo_base_unit(ins); ins.refresh_from_db()
+        self.assertEqual(ins.base_unit, 'ml')
+        self.client.force_authenticate(self.ownerA)
+        # Sube el precio a 30 (→ 6 €/L) y confirma el nuevo coste.
+        r = self.client.patch(f'/api/costeo/formatos/{f.id}/', {'price': '30'}, format='json')
+        self.assertEqual(r.status_code, 200)
+        f.refresh_from_db(); ins.refresh_from_db()
+        self.assertEqual(str(f.price), '30.0000')
+        self.assertEqual(services.display_cost_per_unit(services.insumo_gross_cost_per_base(ins), ins.base_unit), ('l', '6.00'))
+        # Cambia la presentación a kg → la base se re-deriva a g (canónica de masa).
+        r2 = self.client.patch(f'/api/costeo/formatos/{f.id}/', {'unit_size_unit': 'kg'}, format='json')
+        self.assertEqual(r2.status_code, 200)
+        ins.refresh_from_db()
+        self.assertEqual(ins.base_unit, 'g')
+
     def test_preview_no_persistence(self):
         self.client.force_authenticate(self.ownerA)
         before = Costing.objects.count()
