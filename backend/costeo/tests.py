@@ -215,6 +215,18 @@ class ServiceTests(APITestCase):
         res = services.compute(spec([line(ajo.id, quantity='1000', unit='g')]), self.r)
         self.assertEqual(res['lines'][0]['line_cost'], '11.4000')
 
+    def test_presentation_unit_5l_for_36(self):
+        # 1 unidad/presentación = 5 L a 36 € → 7,20 €/L; usar 5900 ml → 42,48 €.
+        soja = make_insumo(self.r, 'Salsa de Soja', 'ml')
+        make_format(soja, '36', [], '5', 'l')  # contenido 5 L = 5000 ml
+        services.sync_insumo_base_unit(soja); soja.refresh_from_db()
+        self.assertEqual(soja.base_unit, 'ml')
+        cpb = services.insumo_gross_cost_per_base(soja)
+        self.assertEqual(str(cpb), '0.0072')                       # 36/5000 €/ml
+        self.assertEqual(services.display_cost_per_unit(cpb, 'ml'), ('l', '7.20'))
+        res = services.compute(spec([line(soja.id, quantity='5900', unit='ml')]), self.r)
+        self.assertEqual(res['lines'][0]['line_cost'], '42.4800')  # 5900 × 36/5000
+
     def test_base_unit_volume_and_count(self):
         agua = make_insumo(self.r, 'Agua', 'kg')
         make_format(agua, '2', [], '1', 'l'); services.sync_insumo_base_unit(agua)
