@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import {
   listSuppliers, createSupplier, updateSupplier, deleteSupplier,
 } from '../lib/catalog'
-import { listInsumos, createInsumo, createFormato, updateFormato, deleteFormato, priceLabel } from '../lib/costeo'
+import { listInsumos, getInsumo, createInsumo, createFormato, updateFormato, deleteFormato, priceLabel } from '../lib/costeo'
 import FormatoForm, { fmtToBody, fmtFromStored } from './costeo/FormatoForm'
-import { Truck, Plus, Pencil, Trash, X } from './icons'
+import InsumoPreview from './costeo/InsumoPreview'
+import { Truck, Plus, Pencil, Trash, Eye, X } from './icons'
 
 const EMPTY = {
   name: '', tax_id: '', contact_name: '', email: '', phone: '',
@@ -23,6 +24,11 @@ export default function ProveedoresSection({ canEdit, canCost }) {
   const [prodFor, setProdFor] = useState(null) // proveedor al que se añade producto
   const [prodName, setProdName] = useState('')
   const [prodEdit, setProdEdit] = useState(null) // format_id del insumo/formato en edición
+  const [preview, setPreview] = useState(null)   // insumo a previsualizar (tarea 4)
+
+  const openPreview = async (insumoId) => {
+    try { setPreview(await getInsumo(insumoId)) } catch (e) { setError(e.message) }
+  }
 
   const load = () => {
     setLoading(true)
@@ -190,6 +196,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
                                   <p className="truncate text-[13px] text-ink">{p.name}{p.description ? <span className="text-ink-3"> · {p.description}</span> : ''}</p>
                                 </div>
                                 {canCost && <span className="data text-[12px] text-ink-2">{priceLabel(p) || `— /${p.base_unit}`}</span>}
+                                <button onClick={() => openPreview(p.insumo_id)} title="Ver insumo" className="text-ink-3 hover:text-ink"><Eye size={14} /></button>
                                 {canEdit && canCost && <button onClick={() => setProdEdit(p.format_id)} title="Editar precio/presentación" className="text-ink-3 hover:text-ink"><Pencil size={14} /></button>}
                                 {canEdit && <button onClick={() => removeProducto(p.format_id)} title="Quitar" className="text-ink-3 hover:text-danger"><Trash size={14} /></button>}
                               </div>
@@ -211,6 +218,8 @@ export default function ProveedoresSection({ canEdit, canCost }) {
           <p className="mt-1 text-[13px] text-ink-2">{canEdit ? 'Añade tu primer proveedor y sus insumos con precio.' : 'Cuando se añadan proveedores, aparecerán aquí.'}</p>
         </div>
       )}
+
+      {preview && <InsumoPreview insumo={preview} onClose={() => setPreview(null)} />}
     </div>
   )
 }

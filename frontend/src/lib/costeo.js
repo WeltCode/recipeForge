@@ -21,6 +21,7 @@ const j = (method, url, body) => authFetch(`${API_BASE}${url}`, {
 
 // ── Insumos ──
 export const listInsumos = () => j('GET', '/costeo/insumos/')
+export const getInsumo = (id) => j('GET', `/costeo/insumos/${id}/`)
 export const createInsumo = (b) => j('POST', '/costeo/insumos/', b)
 export const updateInsumo = (id, b) => j('PATCH', `/costeo/insumos/${id}/`, b)
 export const deleteInsumo = (id) => j('DELETE', `/costeo/insumos/${id}/`)
