@@ -41,3 +41,6 @@ PlanEscalabeRecipeForge.md
 
 # Herramienta de diseño Impeccable (caché y capturas)
 .impeccable/
+
+# Volcados de producción (datos del cliente) — nunca commitear
+backups/
