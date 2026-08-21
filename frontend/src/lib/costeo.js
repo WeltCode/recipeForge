@@ -79,6 +79,13 @@ export const numTrim = (v) => {
 }
 // Dinero con 2 decimales.
 export const eur = (v) => (v == null ? '—' : `${Number(v).toFixed(2)} €`)
+// Etiqueta de precio de un insumo/formato: "11.40 €/kg" (directo) o
+// "6.40 €/ud · 440 g" (presentación, muestra el contenido del envase).
+export function priceLabel(o) {
+  if (!o || o.display_cost == null) return null
+  const base = `${eur(o.display_cost)}/${o.display_unit}`
+  return o.display_content ? `${base} · ${o.display_content}` : base
+}
 export function foodCostColor(pct) {
   if (pct == null) return 'text-ink-3'
   const n = Number(pct)

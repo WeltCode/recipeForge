@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import {
   listSuppliers, createSupplier, updateSupplier, deleteSupplier,
 } from '../lib/catalog'
-import { listInsumos, createInsumo, createFormato, updateFormato, deleteFormato, eur } from '../lib/costeo'
+import { listInsumos, createInsumo, createFormato, updateFormato, deleteFormato, priceLabel } from '../lib/costeo'
 import FormatoForm, { fmtToBody, fmtFromStored } from './costeo/FormatoForm'
 import { Truck, Plus, Pencil, Trash, X } from './icons'
 
@@ -189,7 +189,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
                                 <div className="min-w-0 flex-1">
                                   <p className="truncate text-[13px] text-ink">{p.name}{p.description ? <span className="text-ink-3"> · {p.description}</span> : ''}</p>
                                 </div>
-                                {canCost && <span className="data text-[12px] text-ink-2">{p.display_cost != null ? `${eur(p.display_cost)}/${p.display_unit}` : `— /${p.base_unit}`}</span>}
+                                {canCost && <span className="data text-[12px] text-ink-2">{priceLabel(p) || `— /${p.base_unit}`}</span>}
                                 {canEdit && canCost && <button onClick={() => setProdEdit(p.format_id)} title="Editar precio/presentación" className="text-ink-3 hover:text-ink"><Pencil size={14} /></button>}
                                 {canEdit && <button onClick={() => removeProducto(p.format_id)} title="Quitar" className="text-ink-3 hover:text-danger"><Trash size={14} /></button>}
                               </div>

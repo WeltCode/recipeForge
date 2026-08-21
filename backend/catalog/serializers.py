@@ -75,6 +75,7 @@ class SupplierSerializer(serializers.ModelSerializer):
                 row['pack_levels'] = f.pack_levels or []
                 row['display_unit'] = data.get('display_unit')
                 row['display_cost'] = data.get('display_cost')
+                row['display_content'] = data.get('display_content')
             out.append(row)
         return out
 

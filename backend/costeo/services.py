@@ -99,6 +99,39 @@ def display_cost_per_unit(cost_per_base, base_unit):
     return unit, str((_d(cost_per_base) * factor).quantize(Q_MONEY, rounding=ROUND_HALF_UP))
 
 
+def _trim_decimal(d):
+    """Decimal sin ceros sobrantes ni notación científica ('440.0000' → '440')."""
+    return format(_d(d).normalize(), 'f')
+
+
+def format_display(fmt):
+    """Cómo MOSTRAR el precio de un formato, según cómo se compra:
+    - Presentación (envase de N u de peso/vol, p. ej. bote de 440 g a 6,40 €):
+      precio POR UNIDAD/envase + el contenido ('6,40 €/ud · 440 g'). NO se pasa a
+      kg/l aunque el coste interno sí se calcule por gramo.
+    - Directo (kg/g/l/ml): precio por la unidad de compra grande ('11.40 €/kg').
+    Devuelve {'unit', 'cost', 'content'} (content solo en presentación)."""
+    try:
+        price = format_price_ex_iva(fmt)
+    except (CosteoError,):
+        return {'unit': None, 'cost': None, 'content': None}
+    levels = fmt.pack_levels or []
+    is_pres = bool(levels) or _d(fmt.unit_size) != Decimal('1')
+    if is_pres:
+        n_units = Decimal('1')
+        for lv in levels:
+            n_units *= _d(lv)
+        cost = (price / n_units).quantize(Q_MONEY, rounding=ROUND_HALF_UP)
+        return {'unit': 'ud', 'cost': str(cost),
+                'content': f'{_trim_decimal(fmt.unit_size)} {fmt.unit_size_unit}'}
+    try:
+        cpb = price / format_content_base(fmt, fmt.insumo)
+    except (CosteoError, units.UnitError):
+        return {'unit': None, 'cost': None, 'content': None}
+    unit, cost = display_cost_per_unit(cpb, fmt.insumo.base_unit)
+    return {'unit': unit, 'cost': cost, 'content': None}
+
+
 def insumo_net_cost_per_base(insumo, cleaning=None, cooking=None):
     gross = insumo_gross_cost_per_base(insumo)
     c = _d(cleaning) if cleaning is not None else _d(insumo.cleaning_yield)

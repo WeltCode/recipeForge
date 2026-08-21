@@ -227,6 +227,23 @@ class ServiceTests(APITestCase):
         res = services.compute(spec([line(soja.id, quantity='5900', unit='ml')]), self.r)
         self.assertEqual(res['lines'][0]['line_cost'], '42.4800')  # 5900 × 36/5000
 
+    def test_format_display_direct_vs_presentation(self):
+        # Directo (precio por kg) → "11.40 €/kg".
+        ajo = make_insumo(self.r, 'Ajo', 'g'); fa = make_format(ajo, '11.40', [], '1', 'kg')
+        services.sync_insumo_base_unit(ajo)
+        self.assertEqual(services.format_display(fa), {'unit': 'kg', 'cost': '11.40', 'content': None})
+        # Presentación (bote de 440 g a 6,40 €) → "6.40 €/ud · 440 g" (NO por kg).
+        com = make_insumo(self.r, 'Comino', 'g'); fc = make_format(com, '6.40', [], '440', 'g')
+        services.sync_insumo_base_unit(com)
+        self.assertEqual(services.format_display(fc), {'unit': 'ud', 'cost': '6.40', 'content': '440 g'})
+        # Presentación de 5 L a 36 € → "36.00 €/ud · 5 l" (el coste interno sigue en €/ml).
+        soja = make_insumo(self.r, 'Soja', 'ml'); fs = make_format(soja, '36', [], '5', 'l')
+        services.sync_insumo_base_unit(soja)
+        self.assertEqual(services.format_display(fs), {'unit': 'ud', 'cost': '36.00', 'content': '5 l'})
+        # Pero el cálculo de receta sigue correcto: 5900 ml → 42,48 €.
+        res = services.compute(spec([line(soja.id, quantity='5900', unit='ml')]), self.r)
+        self.assertEqual(res['lines'][0]['line_cost'], '42.4800')
+
     def test_base_unit_volume_and_count(self):
         agua = make_insumo(self.r, 'Agua', 'kg')
         make_format(agua, '2', [], '1', 'l'); services.sync_insumo_base_unit(agua)

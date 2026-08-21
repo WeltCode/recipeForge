@@ -21,6 +21,7 @@ class PurchaseFormatSerializer(serializers.ModelSerializer):
     cost_per_base = serializers.SerializerMethodField()
     display_unit = serializers.SerializerMethodField()
     display_cost = serializers.SerializerMethodField()
+    display_content = serializers.SerializerMethodField()
 
     class Meta:
         model = PurchaseFormat
@@ -28,7 +29,7 @@ class PurchaseFormatSerializer(serializers.ModelSerializer):
             'id', 'insumo', 'supplier', 'supplier_name', 'description',
             'price', 'price_includes_iva', 'iva_rate',
             'pack_levels', 'unit_size', 'unit_size_unit',
-            'content_base', 'cost_per_base', 'display_unit', 'display_cost',
+            'content_base', 'cost_per_base', 'display_unit', 'display_cost', 'display_content',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']
@@ -63,10 +64,13 @@ class PurchaseFormatSerializer(serializers.ModelSerializer):
         return None if cpb is None else str(cpb)
 
     def get_display_unit(self, obj):
-        return services.display_cost_per_unit(self._cost_per_base(obj), obj.insumo.base_unit)[0]
+        return services.format_display(obj)['unit']
 
     def get_display_cost(self, obj):
-        return services.display_cost_per_unit(self._cost_per_base(obj), obj.insumo.base_unit)[1]
+        return services.format_display(obj)['cost']
+
+    def get_display_content(self, obj):
+        return services.format_display(obj)['content']
 
 
 class InsumoSerializer(serializers.ModelSerializer):
@@ -74,6 +78,7 @@ class InsumoSerializer(serializers.ModelSerializer):
     cost_per_base = serializers.SerializerMethodField()
     display_unit = serializers.SerializerMethodField()
     display_cost = serializers.SerializerMethodField()
+    display_content = serializers.SerializerMethodField()
 
     class Meta:
         model = Insumo
@@ -82,7 +87,7 @@ class InsumoSerializer(serializers.ModelSerializer):
             'id', 'name', 'base_unit', 'density_g_per_ml', 'weight_per_piece_g',
             'cleaning_yield', 'cooking_yield', 'merma_gross', 'merma_net',
             'reference_format', 'formats', 'cost_per_base',
-            'display_unit', 'display_cost', 'created_at', 'updated_at',
+            'display_unit', 'display_cost', 'display_content', 'created_at', 'updated_at',
         ]
         read_only_fields = ['base_unit', 'created_at', 'updated_at']
 
@@ -103,11 +108,17 @@ class InsumoSerializer(serializers.ModelSerializer):
         cpb = self._cost_per_base(obj)
         return None if cpb is None else str(cpb)
 
+    def _disp(self, obj):
+        return services.format_display(obj.reference_format) if obj.reference_format_id else {'unit': None, 'cost': None, 'content': None}
+
     def get_display_unit(self, obj):
-        return services.display_cost_per_unit(self._cost_per_base(obj), obj.base_unit)[0]
+        return self._disp(obj)['unit']
 
     def get_display_cost(self, obj):
-        return services.display_cost_per_unit(self._cost_per_base(obj), obj.base_unit)[1]
+        return self._disp(obj)['cost']
+
+    def get_display_content(self, obj):
+        return self._disp(obj)['content']
 
     def validate_reference_format(self, value):
         if value and self.instance and value.insumo_id != self.instance.id:

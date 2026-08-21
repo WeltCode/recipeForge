@@ -1,16 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
   listInsumos, createInsumo, updateInsumo, deleteInsumo,
-  createFormato, deleteFormato, registerPrice, numTrim, eur,
+  createFormato, deleteFormato, registerPrice, numTrim, eur, priceLabel,
 } from '../../lib/costeo'
 import { listSuppliers } from '../../lib/catalog'
 import FormatoForm, { fmtToBody } from './FormatoForm'
 import { Coins, Plus, Pencil, Trash, Eye, X } from '../icons'
 
 const EMPTY_INS = { name: '' }
-
-// "11.40 €/kg" a partir de los campos display del backend.
-const priceLabel = (o) => (o?.display_cost != null ? `${eur(o.display_cost)}/${o.display_unit}` : null)
 
 export default function InsumosPanel({ canEdit }) {
   const [rows, setRows] = useState([])
@@ -179,7 +176,7 @@ function InsumoPreview({ insumo, onClose }) {
                     <p className="truncate text-[13px] font-medium text-ink">{f.description || 'Formato'} {isRef && <span className="ml-1 rounded-full bg-ember/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-ember-deep">referencia</span>}</p>
                     <p className="text-[11px] text-ink-3">{f.supplier_name ? `${f.supplier_name} · ` : ''}{eur(f.price)}{f.price_includes_iva ? ' (con IVA)' : ''} · {(f.pack_levels || []).join('×') || '1'} × {numTrim(f.unit_size)} {f.unit_size_unit}</p>
                   </div>
-                  <span className="data shrink-0 text-[13px] text-ink">{f.display_cost != null ? `${eur(f.display_cost)}/${f.display_unit}` : '—'}</span>
+                  <span className="data shrink-0 text-[13px] text-ink">{priceLabel(f) || '—'}</span>
                 </div>
               )
             })}

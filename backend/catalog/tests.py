@@ -90,15 +90,17 @@ class CatalogTests(APITestCase):
 
     def test_supplier_products_and_fields(self):
         sup = Supplier.objects.create(restaurant=self.rA, name='DistMar', tax_id='B-1', payment_terms='30 días')
-        self._buy(self.rA, sup, 'Gambas', '30', '2', 'kg')  # 30 € por 2 kg → 15 €/kg
+        # Caja/unidad de 2 kg a 30 € = presentación → se muestra "30 €/ud · 2 kg".
+        self._buy(self.rA, sup, 'Gambas', '30', '2', 'kg')
         self.client.force_authenticate(self.ownerA)
         row = [s for s in self.client.get(SUPPLIERS).json() if s['id'] == sup.id][0]
         self.assertEqual(row['tax_id'], 'B-1')
         self.assertEqual(row['payment_terms'], '30 días')
         self.assertEqual(row['product_count'], 1)
         self.assertEqual(row['products'][0]['name'], 'Gambas')
-        self.assertEqual(row['products'][0]['display_cost'], '15.00')  # 30/2
-        self.assertEqual(row['products'][0]['display_unit'], 'kg')
+        self.assertEqual(row['products'][0]['display_cost'], '30.00')     # precio por unidad
+        self.assertEqual(row['products'][0]['display_unit'], 'ud')
+        self.assertEqual(row['products'][0]['display_content'], '2 kg')   # contenido del envase
 
     def test_supplier_products_price_hidden_for_editor(self):
         sup = Supplier.objects.create(restaurant=self.rA, name='DistMar2')
