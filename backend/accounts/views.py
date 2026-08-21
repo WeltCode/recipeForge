@@ -1,8 +1,10 @@
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
@@ -10,15 +12,90 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import Restaurant, Role, generate_temp_password
+from .models import (
+    PlanChangeRequest, Restaurant, Role,
+    generate_temp_password, get_user_restaurant, get_user_role,
+)
 from .permissions import IsSuperAdmin
 from .serializers import (
     CustomTokenObtainPairSerializer,
     MeSerializer,
+    PlanChangeRequestSerializer,
     RestaurantSerializer,
     RoleSerializer,
     UserAdminSerializer,
 )
+
+
+class ProfileAvatarView(APIView):
+    """Sube o quita la foto de perfil del usuario autenticado."""
+
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def _url(self, request, prof):
+        return request.build_absolute_uri(f'/api/media/{prof.avatar.name}') if prof.avatar else None
+
+    def post(self, request):
+        prof = getattr(request.user, 'profile', None)
+        if prof is None:
+            return Response({'detail': 'Sin perfil.'}, status=400)
+        f = request.FILES.get('avatar')
+        if not f:
+            return Response({'avatar': 'Falta el archivo.'}, status=400)
+        prof.avatar = f
+        prof.save(update_fields=['avatar'])
+        return Response({'avatar': self._url(request, prof)})
+
+    def delete(self, request):
+        prof = getattr(request.user, 'profile', None)
+        if prof and prof.avatar:
+            prof.avatar.delete(save=False)
+            prof.avatar = None
+            prof.save(update_fields=['avatar'])
+        return Response({'avatar': None})
+
+
+class PlanChangeRequestViewSet(viewsets.ModelViewSet):
+    """Solicitudes de cambio de plan. El OWNER de un restaurante crea la suya;
+    el superadmin las ve todas y las marca como aplicadas/rechazadas."""
+
+    serializer_class = PlanChangeRequestSerializer
+    permission_classes = [IsAuthenticated]
+    http_method_names = ['get', 'post', 'patch', 'head', 'options']
+
+    def get_queryset(self):
+        u = self.request.user
+        if u.is_superuser:
+            qs = PlanChangeRequest.objects.select_related('restaurant').all()
+            rid = self.request.query_params.get('restaurant')
+            if rid:
+                qs = qs.filter(restaurant_id=rid)
+            status = self.request.query_params.get('status')
+            return qs.filter(status=status) if status else qs
+        r = get_user_restaurant(u)
+        return PlanChangeRequest.objects.filter(restaurant=r) if r else PlanChangeRequest.objects.none()
+
+    def perform_create(self, serializer):
+        u = self.request.user
+        if u.is_superuser:
+            restaurant = Restaurant.objects.filter(pk=self.request.data.get('restaurant')).first()
+        else:
+            if get_user_role(u) != 'owner':
+                raise PermissionDenied('Solo el dueño puede solicitar un cambio de plan.')
+            restaurant = get_user_restaurant(u)
+        if not restaurant:
+            raise ValidationError('Sin restaurante.')
+        # El estado siempre nace pendiente (solo el superadmin lo resuelve).
+        serializer.save(restaurant=restaurant, created_by=u, status=PlanChangeRequest.STATUS_PENDING)
+
+    def perform_update(self, serializer):
+        if not self.request.user.is_superuser:
+            raise PermissionDenied('Solo el administrador puede resolver solicitudes.')
+        instance = serializer.save()
+        if instance.status != PlanChangeRequest.STATUS_PENDING and instance.resolved_at is None:
+            instance.resolved_at = timezone.now()
+            instance.save(update_fields=['resolved_at'])
 
 
 class ChangePasswordView(APIView):

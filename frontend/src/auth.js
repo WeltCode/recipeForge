@@ -174,6 +174,27 @@ export async function changePassword(current_password, new_password) {
   return res.json()
 }
 
+// Sube la foto de perfil (multipart) y guarda su URL en el cliente.
+export async function uploadAvatar(file) {
+  const fd = new FormData()
+  fd.append('avatar', file)
+  const res = await authFetch(`${API_BASE}/auth/avatar/`, { method: 'POST', body: fd })
+  if (!res.ok) {
+    let detail = `Error ${res.status}`
+    try { const d = await res.json(); detail = Object.values(d).flat().join(' ') || detail } catch { /* sin cuerpo */ }
+    throw new Error(detail)
+  }
+  const data = await res.json()
+  setAvatar(data.avatar)
+  return data.avatar
+}
+export async function deleteAvatar() {
+  const res = await authFetch(`${API_BASE}/auth/avatar/`, { method: 'DELETE' })
+  if (!res.ok) throw new Error(`Error ${res.status}`)
+  setAvatar('')
+  return null
+}
+
 export function logout() {
   clearSession()
 }

@@ -246,6 +246,7 @@ class UserProfile(models.Model):
         on_delete=models.SET_NULL, related_name='members',
     )
     phone = models.CharField(max_length=40, blank=True)
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     # True mientras el usuario use una contraseña temporal/por defecto: al entrar
     # se le obliga a definir la suya. Se pone al crear (auto) y al restablecer.
     must_change_password = models.BooleanField(default=False)
@@ -264,6 +265,38 @@ def ensure_profile(sender, instance, created, raw=False, **kwargs):
     """
     if created and not raw:
         UserProfile.objects.create(user=instance)
+
+
+class PlanChangeRequest(models.Model):
+    """Solicitud de cambio de plan hecha por el owner de un restaurante. El
+    superadmin la ve y activa el plan a mano (el cobro es manual por ahora)."""
+
+    STATUS_PENDING = 'pending'
+    STATUS_DONE = 'done'
+    STATUS_REJECTED = 'rejected'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pendiente'),
+        (STATUS_DONE, 'Aplicada'),
+        (STATUS_REJECTED, 'Rechazada'),
+    ]
+
+    restaurant = models.ForeignKey(
+        Restaurant, on_delete=models.CASCADE, related_name='plan_requests',
+    )
+    requested_plan = models.CharField(max_length=20, choices=PLAN_CHOICES)
+    note = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    created_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at', '-id']
+
+    def __str__(self):
+        return f'{self.restaurant.name} → {self.get_requested_plan_display()} ({self.status})'
 
 
 SUPERADMIN = 'superadmin'  # rol de plataforma (is_superuser), no es un rol de restaurante

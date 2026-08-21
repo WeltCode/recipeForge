@@ -81,6 +81,45 @@ class UserCreationTests(APITestCase):
         self.assertTrue(u.check_password(temp))
         self.assertTrue(u.profile.must_change_password)
 
+    def test_owner_requests_plan_change(self):
+        owner = User.objects.create_user('owner@rest.com', password='OwnerClave2026')
+        Membership.objects.create(user=owner, restaurant=self.rest, role=Role.objects.get(restaurant=self.rest, key='owner'))
+        viewer = User.objects.create_user('viewer@rest.com', password='ViewerClave2026')
+        Membership.objects.create(user=viewer, restaurant=self.rest, role=Role.objects.get(restaurant=self.rest, key='viewer'))
+        # Owner puede solicitar.
+        self.client.force_authenticate(owner)
+        r = self.client.post('/api/plan-requests/', {'requested_plan': 'business', 'note': 'quiero escandallo'}, format='json')
+        self.assertEqual(r.status_code, 201, r.data)
+        req_id = r.data['id']
+        # Un viewer NO puede solicitar.
+        self.client.force_authenticate(viewer)
+        self.assertEqual(self.client.post('/api/plan-requests/', {'requested_plan': 'business'}, format='json').status_code, 403)
+        # El superadmin ve la solicitud pendiente en el restaurante.
+        self.client.force_authenticate(self.superadmin)
+        row = [x for x in self.client.get('/api/restaurants/').json() if x['id'] == self.rest.id][0]
+        self.assertEqual(row['pending_plan_request']['requested_plan'], 'business')
+        # Y puede marcarla como aplicada.
+        r2 = self.client.patch(f'/api/plan-requests/{req_id}/', {'status': 'done'}, format='json')
+        self.assertEqual(r2.status_code, 200)
+        from accounts.models import PlanChangeRequest
+        self.assertIsNotNone(PlanChangeRequest.objects.get(id=req_id).resolved_at)
+
+    def test_avatar_upload_and_clear(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        u = User.objects.create_user('pic@rest.com', password='PicClave2026')
+        self.client.force_authenticate(u)
+        png = (b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00'
+               b'\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82')
+        img = SimpleUploadedFile('a.png', png, content_type='image/png')
+        r = self.client.post('/api/auth/avatar/', {'avatar': img}, format='multipart')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertTrue(r.data['avatar'])
+        u.refresh_from_db()
+        self.assertTrue(u.profile.avatar)
+        r2 = self.client.delete('/api/auth/avatar/')
+        self.assertEqual(r2.status_code, 200)
+        self.assertIsNone(r2.data['avatar'])
+
     def test_create_restaurant_with_owner_email(self):
         self.client.force_authenticate(self.superadmin)
         resp = self.client.post('/api/restaurants/', {

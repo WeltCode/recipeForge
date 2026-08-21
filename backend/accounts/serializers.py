@@ -5,6 +5,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import (
     Membership,
+    PlanChangeRequest,
     Restaurant,
     Role,
     ROLE_ORDER,
@@ -150,6 +151,20 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['restaurant_plan'] = r.plan if r else None
         data['restaurant_logo'] = _abs_logo(r, self.context)
         return data
+
+
+class PlanChangeRequestSerializer(serializers.ModelSerializer):
+    restaurant_name = serializers.SerializerMethodField()
+    requested_plan_display = serializers.CharField(source='get_requested_plan_display', read_only=True)
+
+    class Meta:
+        model = PlanChangeRequest
+        fields = ['id', 'restaurant', 'restaurant_name', 'requested_plan',
+                  'requested_plan_display', 'note', 'status', 'created_at', 'resolved_at']
+        read_only_fields = ['restaurant', 'created_at', 'resolved_at']
+
+    def get_restaurant_name(self, obj):
+        return obj.restaurant.name
 
 
 class RoleSerializer(serializers.ModelSerializer):
@@ -316,6 +331,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
     recipe_count = serializers.SerializerMethodField()
     member_count = serializers.SerializerMethodField()
     members = serializers.SerializerMethodField()
+    pending_plan_request = serializers.SerializerMethodField()
 
     # Owner inicial (opcional). Entra con su CORREO; contraseña temporal si no se da.
     owner_username = serializers.CharField(write_only=True, required=False, allow_blank=True)
@@ -333,10 +349,15 @@ class RestaurantSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'code_prefix', 'tax_id', 'default_template', 'plan', 'plan_status',
                   'trial_ends_at', 'pdf_exports_count',
                   'contact_email', 'contact_phone', 'address', 'logo',
-                  'created_at', 'recipe_count', 'member_count', 'members',
+                  'created_at', 'recipe_count', 'member_count', 'members', 'pending_plan_request',
                   'owner_username', 'owner_password', 'owner_role',
                   'owner_first_name', 'owner_last_name', 'owner_email', 'owner_phone']
         read_only_fields = ['trial_ends_at', 'pdf_exports_count']
+
+    def get_pending_plan_request(self, obj):
+        req = obj.plan_requests.filter(status=PlanChangeRequest.STATUS_PENDING).first()
+        return {'id': req.id, 'requested_plan': req.requested_plan,
+                'requested_plan_display': req.get_requested_plan_display()} if req else None
 
     def get_recipe_count(self, obj):
         return obj.recipes.count()

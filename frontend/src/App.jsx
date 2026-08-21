@@ -15,6 +15,7 @@ import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
 import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getTitle, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
 import { ForcedPasswordScreen } from './components/ChangePassword'
+import AjustesSection from './components/AjustesSection'
 import Logo from './components/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -362,29 +363,6 @@ function UsuariosSection({ username, role, title, plan }) {
           </p>
         </>
       )}
-    </div>
-  )
-}
-
-// Sección Ajustes (básica): restaurante, plan y "Mejorar plan".
-function AjustesSection({ restaurantName, plan, onUpgrade }) {
-  return (
-    <div className="max-w-2xl">
-      <h2 className="rf-cond text-2xl font-600 uppercase tracking-wide text-[#1c1611]" style={{ fontWeight: 600 }}>Ajustes</h2>
-      <div className="rf-steel rf-edge mt-4 space-y-4 rounded-2xl border border-[#c4ccd2] p-5">
-        <div>
-          <p className="rf-cond text-xs font-600 uppercase tracking-wide text-[#7a736b]" style={{ fontWeight: 600 }}>Restaurante</p>
-          <p className="text-lg font-bold text-[#1c1611]">{restaurantName || '—'}</p>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e8531f]/25 bg-[#fff6ef] p-4">
-          <div>
-            <p className="rf-cond text-xs font-600 uppercase tracking-wide text-[#8a3d15]" style={{ fontWeight: 600 }}>Tu plan</p>
-            <p className="text-lg font-bold text-[#b5420f]">{AJUSTES_PLAN_LABELS[plan] || plan || '—'}</p>
-          </div>
-          <button onClick={onUpgrade} className="rf-ember-btn rf-cond rounded-xl px-4 py-2.5 text-sm font-600 uppercase tracking-wide text-white" style={{ fontWeight: 600 }}>Mejorar plan</button>
-        </div>
-        <p className="text-xs text-[#9a9188]">El perfil, logo y plantillas por defecto se gestionan con el administrador. Ampliaremos esta sección.</p>
-      </div>
     </div>
   )
 }
@@ -967,7 +945,8 @@ function App() {
       { id: 'proveedores', label: 'Proveedores', icon: Truck, locked: !feat('suppliers') },
       ...(canTeam ? [{ id: 'equipo', label: 'Usuarios y roles', icon: Users, group: 'Gestión', locked: !feat('multiuser') }] : []),
       { id: 'plan', label: 'Mi plan', icon: Tag, group: 'Gestión' },
-      ...(canTeam ? [{ id: 'ajustes', label: 'Ajustes', icon: Gear, group: 'Gestión' }] : []),
+      // Ajustes disponible para todos los planes EXCEPTO la prueba de 14 días.
+      ...(getPlan() !== 'prueba' ? [{ id: 'ajustes', label: 'Ajustes', icon: Gear, group: 'Gestión' }] : []),
     ]
 
     let sectionContent = null
@@ -1003,7 +982,7 @@ function App() {
     } else if (section === 'plan') {
       sectionContent = <PlanSection plan={getPlan()} onRequest={() => setShowUpgrade(true)} />
     } else if (section === 'ajustes') {
-      sectionContent = <AjustesSection restaurantName={restaurantName} plan={getPlan()} onUpgrade={() => setShowUpgrade(true)} />
+      sectionContent = <AjustesSection restaurantName={restaurantName} plan={getPlan()} role={role} />
     }
 
     return (
