@@ -364,39 +364,11 @@ export default function EscandallosPanel({ canEdit }) {
       {error && <div className="mb-4 rounded-lg border border-danger/30 bg-danger/8 px-4 py-2.5 text-[13px] text-danger">{error}</div>}
 
       {loading ? <p className="text-sm text-ink-3">Cargando…</p> : rows.length ? (
-        <div className="overflow-x-auto rounded-2xl steel-plate">
-          <table className="w-full min-w-[760px] border-collapse">
-            <thead>
-              <tr className="border-b border-steel-300 text-left text-[11px] uppercase tracking-wide text-ink-3">
-                <th className="p-3">Plato</th><th className="p-3 text-right">Coste total</th><th className="p-3 text-right">Coste/ración</th>
-                <th className="p-3 text-right">Food cost</th><th className="p-3 text-right">PVP sug.</th><th className="p-3 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((e) => {
-                const b = e.breakdown && !e.breakdown.error ? e.breakdown : null
-                return (
-                  <tr key={e.id} className="border-b border-steel-200 last:border-0 hover:bg-steel-50">
-                    <td className="p-3">
-                      <p className="text-[14px] font-medium text-ink">{e.name}{e.is_subrecipe && <span className="ml-2 rounded-full bg-steel-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-ink-2">subreceta</span>}</p>
-                      <p className="text-[11px] text-ink-3">{e.servings} rac.{e.breakdown?.error ? ` · ${e.breakdown.error}` : ''}</p>
-                    </td>
-                    <td className="p-3 text-right"><span className="data text-[13px] text-ink">{b ? eur(b.total_cost) : '—'}</span></td>
-                    <td className="p-3 text-right"><span className="data text-[13px] text-ink">{b && !e.is_subrecipe ? eur(b.cost_per_serving) : '—'}</span></td>
-                    <td className={`p-3 text-right ${b ? foodCostColor(b.food_cost_pct) : ''}`}><span className="data text-[13px] font-medium">{b?.food_cost_pct != null ? `${b.food_cost_pct}%` : '—'}</span></td>
-                    <td className="p-3 text-right"><span className="data text-[13px] text-ink-2">{b && !e.is_subrecipe ? eur(b.pvp_inc_iva) : '—'}</span></td>
-                    <td className="p-3">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => setShowEye(e)} title="Ver" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Eye size={16} /></button>
-                        {canEdit && <button onClick={() => openEdit(e.id)} title="Editar" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Pencil size={16} /></button>}
-                        {canEdit && <button onClick={() => remove(e)} title="Eliminar" className="grid h-9 w-9 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={16} /></button>}
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+        <div className="space-y-6">
+          <EscGroup kind="prod" title="Producciones" rows={rows.filter((e) => e.is_subrecipe)}
+            canEdit={canEdit} onView={setShowEye} onEdit={openEdit} onRemove={remove} />
+          <EscGroup kind="venta" title="Platos de venta" rows={rows.filter((e) => !e.is_subrecipe)}
+            canEdit={canEdit} onView={setShowEye} onEdit={openEdit} onRemove={remove} />
         </div>
       ) : (
         <div className="steel-plate grid place-items-center rounded-2xl py-16 text-center">
@@ -408,6 +380,79 @@ export default function EscandallosPanel({ canEdit }) {
 
       {showEye && <EscandalloPreview esc={showEye} onClose={() => setShowEye(null)} />}
     </div>
+  )
+}
+
+// Una estación de la línea: Producciones (lotes/subrecetas que alimentan platos)
+// o Platos de venta (lo que va a la carta). Cabecera con lámpara + tabla con las
+// columnas que importan a ese tipo.
+function EscGroup({ kind, title, rows, canEdit, onView, onEdit, onRemove }) {
+  const isProd = kind === 'prod'
+  const cols = isProd ? ['Coste total', 'Coste/porción', 'Peso/porción']
+                      : ['Coste total', 'Coste/ración', 'Food cost', 'PVP sug.']
+  const lamp = isProd
+    ? { background: 'var(--rf-gold)', boxShadow: '0 0 0 3px rgba(216,155,58,0.16)' }
+    : { background: 'radial-gradient(circle at 38% 32%, #ffd7a1, var(--rf-lamp) 58%, var(--rf-ember) 100%)', boxShadow: '0 0 8px 1px rgba(255,154,61,0.7)' }
+  return (
+    <section>
+      <header className="mb-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 px-0.5">
+        <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={lamp} />
+        <h2 className="pass-title text-[15px] tracking-[0.05em] text-ink">{title}</h2>
+        <span className="data rounded-full bg-steel-200 px-2 py-0.5 text-[11px] font-medium text-ink-2">{rows.length}</span>
+        <span className="hidden text-[11.5px] text-ink-3 sm:inline">· {isProd ? 'lotes y subrecetas que alimentan tus platos' : 'lo que va a la carta, con food cost y PVP'}</span>
+      </header>
+
+      {rows.length ? (
+        <div className="overflow-x-auto rounded-2xl steel-plate">
+          <table className="w-full min-w-[600px] border-collapse">
+            <thead>
+              <tr className="border-b border-steel-300 text-left text-[11px] uppercase tracking-wide text-ink-3">
+                <th className="p-3">{isProd ? 'Producción' : 'Plato'}</th>
+                {cols.map((c) => <th key={c} className="p-3 text-right">{c}</th>)}
+                <th className="p-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((e) => {
+                const b = e.breakdown && !e.breakdown.error ? e.breakdown : null
+                return (
+                  <tr key={e.id} className="border-b border-steel-200 last:border-0 hover:bg-steel-50">
+                    <td className="p-3">
+                      <p className="text-[14px] font-medium text-ink">{e.name}</p>
+                      <p className="text-[11px] text-ink-3">
+                        {isProd ? (b?.portions ? `${b.portions} porciones` : `${e.servings} rac.`) : `${e.servings} rac.`}
+                        {e.breakdown?.error ? ` · ${e.breakdown.error}` : ''}
+                      </p>
+                    </td>
+                    <td className="p-3 text-right"><span className="data text-[13px] text-ink">{b ? eur(b.total_cost) : '—'}</span></td>
+                    {isProd ? <>
+                      <td className="p-3 text-right"><span className="data text-[13px] text-ink">{b?.cost_per_portion ? eur(b.cost_per_portion) : '—'}</span></td>
+                      <td className="p-3 text-right"><span className="data text-[13px] text-ink-2">{b?.weight_per_portion ? `${numTrim(b.weight_per_portion)} ${b.yield_unit}` : '—'}</span></td>
+                    </> : <>
+                      <td className="p-3 text-right"><span className="data text-[13px] text-ink">{b ? eur(b.cost_per_serving) : '—'}</span></td>
+                      <td className={`p-3 text-right ${b ? foodCostColor(b.food_cost_pct) : ''}`}><span className="data text-[13px] font-medium">{b?.food_cost_pct != null ? `${b.food_cost_pct}%` : '—'}</span></td>
+                      <td className="p-3 text-right"><span className="data text-[13px] text-ink-2">{b ? eur(b.pvp_inc_iva) : '—'}</span></td>
+                    </>}
+                    <td className="p-3">
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => onView(e)} title="Ver" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Eye size={16} /></button>
+                        {canEdit && <button onClick={() => onEdit(e.id)} title="Editar" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Pencil size={16} /></button>}
+                        {canEdit && <button onClick={() => onRemove(e)} title="Eliminar" className="grid h-9 w-9 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={16} /></button>}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <div className="steel-plate rounded-2xl px-5 py-6 text-[13px] text-ink-3">
+          {isProd ? 'Aún no hay producciones. Al crear un escandallo elige «Producción».'
+                  : 'Aún no hay platos de venta. Al crear un escandallo elige «Plato de venta».'}
+        </div>
+      )}
+    </section>
   )
 }
 
