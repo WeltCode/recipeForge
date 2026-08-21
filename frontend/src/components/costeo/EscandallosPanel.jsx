@@ -11,6 +11,11 @@ const dot = (v) => String(v ?? '').replace(',', '.')
 const num = (v) => Number(String(v ?? '').replace(',', '.')) || 0
 // Unidad base del insumo deducida de la unidad de uso de la línea.
 const baseFromUnit = (u) => (['g', 'kg', 'ml', 'l', 'ud', 'pack'].includes(u) ? u : (u === 'cl' ? 'ml' : 'g'))
+// Dimensión de cada unidad base y unidades compatibles (misma familia): así la
+// línea nunca pide una conversión imposible (p. ej. masa↔volumen sin densidad).
+const DIM_OF = { g: 'masa', kg: 'masa', ml: 'vol', l: 'vol', ud: 'count', pack: 'pack' }
+const UNITS_BY_DIM = { masa: [['g', 'g'], ['kg', 'kg']], vol: [['ml', 'ml'], ['l', 'l']], count: [['ud', 'ud']], pack: [['pack', 'pack']] }
+const unitsForBase = (base) => UNITS_BY_DIM[DIM_OF[base]] || MERMA_UNITS
 const newLine = () => ({ component_type: 'insumo', ref: '', unit: 'g', gross: '', net: '', quantity: '' })
 
 const EMPTY = {
@@ -255,7 +260,7 @@ export default function EscandallosPanel({ canEdit }) {
                   <div className="flex flex-wrap items-center gap-2">
                     <select
                       value={`${l.component_type}:${l.ref}`}
-                      onChange={(e) => { const [t, id] = e.target.value.split(':'); setForm((f) => ({ ...f, lines: f.lines.map((x, idx) => idx === i ? { ...x, component_type: t, ref: id } : x) })); setDirty(true) }}
+                      onChange={(e) => { const [t, id] = e.target.value.split(':'); const ins = t === 'insumo' ? insumoById(id) : null; const u = ins?.base_unit; setForm((f) => ({ ...f, lines: f.lines.map((x, idx) => idx === i ? { ...x, component_type: t, ref: id, ...(u ? { unit: u } : {}) } : x) })); setDirty(true) }}
                       className="min-w-[160px] flex-1 rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
                       <option value="insumo:">Insumo o subreceta…</option>
                       {insumos.length > 0 && <optgroup label="Insumos">{insumos.map((x) => <option key={`i${x.id}`} value={`insumo:${x.id}`}>{x.name}</option>)}</optgroup>}
@@ -263,7 +268,7 @@ export default function EscandallosPanel({ canEdit }) {
                     </select>
                     {!isIns && <input value={l.quantity} onChange={(e) => setLine(i, 'quantity', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="Cant." className="w-20 rounded-lg border border-steel-300 bg-white px-2 py-2 text-[13px] text-ink outline-none focus:border-ember/50" />}
                     <select value={l.unit} onChange={(e) => setLine(i, 'unit', e.target.value)} className="w-[74px] rounded-lg border border-steel-300 bg-white px-1.5 py-2 text-[13px] text-ink outline-none focus:border-ember/50">
-                      {MERMA_UNITS.map(([v]) => <option key={v} value={v}>{v}</option>)}
+                      {(isIns && l.ref ? unitsForBase(insumoById(l.ref)?.base_unit) : MERMA_UNITS).map(([v]) => <option key={v} value={v}>{v}</option>)}
                     </select>
                     <button onClick={() => removeLine(i)} className="grid h-9 w-9 flex-none place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
                   </div>

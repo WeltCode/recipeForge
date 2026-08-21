@@ -100,11 +100,23 @@ class ServiceTests(APITestCase):
         res = services.compute(spec([line(huevo.id, quantity='180', unit='g')]), self.r)
         self.assertEqual(res['lines'][0]['line_cost'], '0.6000')  # 180 g/60 = 3 ud × 0,20
 
-    def test_missing_bridge_raises_clear_error(self):
+    def test_missing_bridge_marks_line_incomplete(self):
+        # Masa sobre insumo en volumen sin densidad: NO se puede convertir, pero
+        # la línea queda incompleta (no suma) en vez de romper todo el escandallo.
         liq = make_insumo(self.r, 'Liq', 'ml')  # sin densidad
         make_format(liq, '10', [], '1000', 'ml')
-        with self.assertRaises(UnitError):
-            services.compute(spec([line(liq.id, quantity='100', unit='g')]), self.r)
+        ok = make_insumo(self.r, 'Solido', 'g')
+        make_format(ok, '10', [], '1000', 'g')  # 0,01/g
+        res = services.compute(spec([
+            line(liq.id, quantity='100', unit='g'),   # incompatible → incompleta
+            line(ok.id, quantity='100', unit='g'),    # 1,00 → sí suma
+        ]), self.r)
+        self.assertTrue(res['lines'][0]['incomplete'])
+        self.assertIsNone(res['lines'][0]['line_cost'])
+        self.assertIsNone(res['lines'][0]['quantity_base'])
+        self.assertEqual(res['lines_missing'], 1)
+        self.assertEqual(res['lines'][1]['line_cost'], '1.0000')
+        self.assertEqual(res['total_cost'], '1.0000')  # solo la línea válida
 
     # ── Merma ──
     def test_merma_cleaning_only(self):
@@ -312,9 +324,12 @@ class ApiTests(APITestCase):
         # food cost fuera de rango
         r2 = self.client.post('/api/costeo/preview/', {'target_food_cost': '1.5', 'lines': [{'insumo': self.insA.id, 'quantity': '5', 'unit': 'ml'}]}, format='json')
         self.assertEqual(r2.status_code, 400)
-        # unidad incompatible (masa sobre insumo de volumen sin densidad)
+        # unidad incompatible (masa sobre insumo de volumen sin densidad): NO es
+        # un 400; el preview responde 200 con la línea marcada como incompleta.
         r3 = self.client.post('/api/costeo/preview/', {'lines': [{'insumo': self.insA.id, 'quantity': '5', 'unit': 'g'}]}, format='json')
-        self.assertEqual(r3.status_code, 400)
+        self.assertEqual(r3.status_code, 200)
+        self.assertTrue(r3.data['lines'][0]['incomplete'])
+        self.assertEqual(r3.data['lines_missing'], 1)
 
 
 class UnitTests(APITestCase):

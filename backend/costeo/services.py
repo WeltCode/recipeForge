@@ -99,17 +99,18 @@ def compute(spec, restaurant, _stack=None):
             insumo = insumos.get(l['insumo_id'])
             if not insumo:
                 raise CosteoError('Insumo no encontrado en tu restaurante.')
-            qty_base = units.convert_to_base(
-                qty, unit, insumo.base_unit,
-                density=insumo.density_g_per_ml, weight_per_piece=insumo.weight_per_piece_g)
-            # Precio TOLERANTE: si el insumo aún no tiene precio de referencia, la
-            # línea queda "incompleta" (no suma) en vez de romper el cálculo.
+            # TOLERANTE: si falta el precio de referencia o no se puede convertir la
+            # unidad a la base del insumo (p. ej. masa↔volumen sin densidad), la línea
+            # queda "incompleta" (no suma) en vez de romper todo el escandallo.
             try:
+                qty_base = units.convert_to_base(
+                    qty, unit, insumo.base_unit,
+                    density=insumo.density_g_per_ml, weight_per_piece=insumo.weight_per_piece_g)
                 gross = insumo_gross_cost_per_base(insumo)
                 net = insumo_net_cost_per_base(insumo, l.get('cleaning_yield_override'), l.get('cooking_yield_override'))
                 line_cost = qty_base * net
-            except CosteoError:
-                gross = net = line_cost = None
+            except (CosteoError, units.UnitError):
+                qty_base = gross = net = line_cost = None
             lines_out.append({
                 'order': l.get('order', len(lines_out) + 1),
                 'component_type': 'insumo', 'component_id': insumo.id, 'name': insumo.name,
@@ -231,7 +232,7 @@ def _present_line(x):
         'name': x['name'],
         'quantity': _s(x['quantity'], Q_QTY),
         'unit': x['unit'],
-        'quantity_base': _s(x['quantity_base'], Q_QTY),
+        'quantity_base': _sn(x['quantity_base'], Q_QTY),
         'base_unit': x['base_unit'],
         'incomplete': x.get('incomplete', False),
         'gross_cost_per_base': _sn(x['gross_cost_per_base'], Q_BASE),

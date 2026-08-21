@@ -25,9 +25,9 @@ export function greeting() {
 }
 
 export function initials(name = '') {
-  const parts = name.trim().split(/[\s_-]+/).filter(Boolean)
+  const parts = (name || '').trim().split(/[\s_-]+/).filter(Boolean)
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
-  return name.trim().slice(0, 2).toUpperCase() || '?'
+  return (name || '').trim().slice(0, 2).toUpperCase() || '?'
 }
 
 export function totalTimeLabel(r) {
