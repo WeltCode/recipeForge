@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import Logo from './Logo'
-import { authFetch } from '../auth'
+import { authFetch, getFirstName } from '../auth'
 import RestaurantDetail from './RestaurantDetail'
 import UserManager from './UserManager'
-import { greeting, initials, Embers } from '../lib/ui'
+import { greeting, capitalize, initials, Embers } from '../lib/ui'
 import { LogOut, Plus, Search, Book, User, Cloche, Sparkle, X, Flame } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -118,7 +118,7 @@ function AdminDashboard({
               <Flame size={13} /> Panel de administración
             </span>
             <h1 className="mt-3 text-4xl font-bold tracking-tight text-white md:text-5xl">
-              {greeting()}, <span className="text-[#ff9a3d]">{username}</span>
+              {greeting()}, <span className="text-[#ff9a3d]">{capitalize(getFirstName() || username)}</span>
             </h1>
             <p className="mt-2 text-sm text-white/55">Gestiona los restaurantes de la plataforma.</p>
           </div>

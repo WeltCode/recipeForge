@@ -24,6 +24,12 @@ export function greeting() {
   return 'Buenas noches'
 }
 
+// Primera letra en mayúscula (para saludar por nombre): "carlos" -> "Carlos".
+export function capitalize(s) {
+  const t = (s || '').trim()
+  return t ? t.charAt(0).toUpperCase() + t.slice(1) : t
+}
+
 export function initials(name = '') {
   const parts = (name || '').trim().split(/[\s_-]+/).filter(Boolean)
   if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()

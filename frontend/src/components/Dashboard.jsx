@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
-import { feat, getFeatures, getUsage, getPlan } from '../auth'
+import { feat, getFeatures, getUsage, getPlan, getFirstName } from '../auth'
 import recipeIconWhite from '../assets/recipeforge-icon-white.svg'
 import { Search, Plus, Pencil, Doc, Trash, X, Flame, Fork, Clock, ChefHat, Sparkle } from './icons'
-import { greeting, totalTimeLabel } from '../lib/ui'
+import { greeting, capitalize, totalTimeLabel } from '../lib/ui'
 
 const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
 
@@ -20,10 +20,11 @@ const PLAN_META = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', busines
 function Saludo({ username, role, plan }) {
   const meta = ROLE_META[role] || ROLE_META.viewer
   const destacado = role === 'owner' || role === 'manager' || role === 'superadmin'
+  const name = capitalize(getFirstName() || username)
   return (
     <div className="mb-6">
       <h1 className="rf-cond text-3xl uppercase tracking-tight text-ink md:text-4xl" style={{ fontWeight: 600 }}>
-        {greeting()}, <span className="text-ember-deep">{username}</span>
+        {greeting()}, <span className="text-ember-deep">{name}</span>
       </h1>
       <p className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-ink-2">
         <span className="pass-title inline-flex items-center gap-1 rounded-full bg-carbon px-2.5 py-0.5 text-[11px] tracking-wide text-ember-hi">
