@@ -9,9 +9,12 @@ import { LogOut, Plus, Search, Book, User, Cloche, Sparkle, X, Flame } from './i
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
 const emptyNew = {
-  name: '', code_prefix: '', owner_username: '', owner_password: '', owner_role: 'owner',
-  contact_email: '', contact_phone: '', address: '',
+  name: '', code_prefix: '', tax_id: '', contact_email: '', contact_phone: '', address: '',
+  default_template: 'formal', plan: 'prueba',
+  owner_first_name: '', owner_last_name: '', owner_email: '', owner_phone: '', owner_role: 'owner',
 }
+const TEMPLATE_OPTS = [['formal', 'Formal'], ['moderna', 'Moderna'], ['tradicional', 'Tradicional'], ['llamativa', 'Llamativa']]
+const PLAN_OPTS = [['prueba', 'Prueba (14 días)'], ['basico', 'Básico'], ['pro', 'Premium'], ['business', 'Business']]
 
 function AdminDashboard({
   username, recipes, canDelete, onLogout,
@@ -25,6 +28,7 @@ function AdminDashboard({
   const [nuevo, setNuevo] = useState({ ...emptyNew })
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
+  const [ownerCred, setOwnerCred] = useState(null) // { login, password } tras crear
 
   const loadRestaurants = async () => {
     try {
@@ -60,9 +64,10 @@ function AdminDashboard({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(nuevo),
       })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(Object.values(err).flat().join(' '))
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(Object.values(data).flat().join(' '))
+      if (data.owner_generated_password) {
+        setOwnerCred({ login: nuevo.owner_email, password: data.owner_generated_password })
       }
       setNuevo({ ...emptyNew })
       setShowCreate(false)
@@ -199,6 +204,18 @@ function AdminDashboard({
         )}
       </main>
 
+      {/* Contraseña temporal del dueño recién creado (mostrar una vez) */}
+      {ownerCred && (
+        <div className="fixed inset-x-0 top-4 z-[60] mx-auto flex max-w-md items-start justify-between gap-3 rounded-xl border border-[#e8531f]/40 bg-[#fff3ea] px-4 py-3 shadow-xl">
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-[#8a3d15]">Dueño creado · «{ownerCred.login}»</p>
+            <p className="mt-0.5 text-[12px] text-[#5a5650]">Comparte esta contraseña temporal; la cambiará al entrar.</p>
+            <p className="rf-mono mt-1.5 select-all rounded-md bg-white px-2.5 py-1 text-[14px] font-medium text-[#1c1611]">{ownerCred.password}</p>
+          </div>
+          <button onClick={() => setOwnerCred(null)} className="shrink-0 text-[#9a9188] hover:text-[#5a5650]"><X size={16} /></button>
+        </div>
+      )}
+
       {/* Modal crear restaurante */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
@@ -212,42 +229,56 @@ function AdminDashboard({
             </div>
 
             <form onSubmit={createRestaurant} className="space-y-4 overflow-y-auto p-6">
-              <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
-                  Nombre del restaurante
-                  <input required value={nuevo.name} onChange={(e) => setNuevo({ ...nuevo, name: e.target.value })}
-                    className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20" placeholder="Ceviche 103" />
-                </label>
-                <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
-                  Prefijo código
-                  <input value={nuevo.code_prefix} onChange={(e) => setNuevo({ ...nuevo, code_prefix: e.target.value.toUpperCase() })}
-                    className="rf-mono w-28 rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 uppercase focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20" placeholder="CV103" maxLength={12} />
-                </label>
-              </div>
+              {(() => { const inp = 'rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20'
+                const fld = (label, key, opts = {}) => (
+                  <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">{label}
+                    <input required={opts.required} type={opts.type || 'text'} value={nuevo[key]}
+                      onChange={(e) => setNuevo({ ...nuevo, [key]: opts.upper ? e.target.value.toUpperCase() : e.target.value })}
+                      className={`${inp} ${opts.mono ? 'rf-mono uppercase' : ''}`} placeholder={opts.ph || ''} maxLength={opts.maxLength} autoComplete="off" />
+                  </label>
+                )
+                return (
+                <>
+                  <div>
+                    <p className="rf-cond mb-2 text-xs font-600 uppercase tracking-[0.12em] text-[#7a736b]" style={{ fontWeight: 600 }}>Datos del restaurante</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {fld('Nombre del restaurante *', 'name', { required: true, ph: 'Ceviche 103' })}
+                      {fld('CIF / NIF *', 'tax_id', { required: true, ph: 'B-12345678' })}
+                      {fld('Dirección *', 'address', { required: true })}
+                      {fld('Teléfono *', 'contact_phone', { required: true })}
+                      {fld('Correo de contacto *', 'contact_email', { required: true, type: 'email', ph: 'contacto@rest.com' })}
+                      {fld('Prefijo de código *', 'code_prefix', { required: true, mono: true, upper: true, ph: 'CV103', maxLength: 12 })}
+                      <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Plantilla de fichas
+                        <select value={nuevo.default_template} onChange={(e) => setNuevo({ ...nuevo, default_template: e.target.value })} className={inp}>
+                          {TEMPLATE_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select></label>
+                      <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Plan de suscripción
+                        <select value={nuevo.plan} onChange={(e) => setNuevo({ ...nuevo, plan: e.target.value })} className={inp}>
+                          {PLAN_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select></label>
+                    </div>
+                    <p className="mt-2 text-[11px] text-[#9a9188]">El logo se sube al abrir el restaurante.</p>
+                  </div>
 
-              <div className="rf-steel rf-edge rounded-xl border border-[#c4ccd2] p-4">
-                <p className="rf-cond mb-3 flex items-center gap-1.5 text-xs font-600 uppercase tracking-[0.12em] text-[#7a736b]" style={{ fontWeight: 600 }}><User size={13} /> Usuario de acceso</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <input required value={nuevo.owner_username} onChange={(e) => setNuevo({ ...nuevo, owner_username: e.target.value })}
-                    className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20" placeholder="Usuario" autoComplete="off" />
-                  <input required type="password" value={nuevo.owner_password} onChange={(e) => setNuevo({ ...nuevo, owner_password: e.target.value })}
-                    className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20" placeholder="Contraseña" autoComplete="new-password" />
-                </div>
-                <select value={nuevo.owner_role} onChange={(e) => setNuevo({ ...nuevo, owner_role: e.target.value })}
-                  className="mt-3 w-full rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm focus:border-[#e8531f] focus:outline-none">
-                  <option value="owner">Owner (dueño: todo + gestión)</option>
-                  <option value="manager">Manager (chef: crear/editar/borrar)</option>
-                  <option value="editor">Editor (editar, sin crear/borrar)</option>
-                  <option value="viewer">Viewer (cocina: solo consulta)</option>
-                </select>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <input value={nuevo.contact_email} onChange={(e) => setNuevo({ ...nuevo, contact_email: e.target.value })}
-                  className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20" placeholder="Email (opcional)" type="email" />
-                <input value={nuevo.contact_phone} onChange={(e) => setNuevo({ ...nuevo, contact_phone: e.target.value })}
-                  className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20" placeholder="Teléfono (opcional)" />
-              </div>
+                  <div className="rf-steel rf-edge rounded-xl border border-[#c4ccd2] p-4">
+                    <p className="rf-cond mb-3 flex items-center gap-1.5 text-xs font-600 uppercase tracking-[0.12em] text-[#7a736b]" style={{ fontWeight: 600 }}><User size={13} /> Usuario dueño (entra con su correo)</p>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {fld('Nombre *', 'owner_first_name', { required: true })}
+                      {fld('Apellido', 'owner_last_name', {})}
+                      {fld('Correo *', 'owner_email', { required: true, type: 'email', ph: 'dueno@rest.com' })}
+                      {fld('Teléfono', 'owner_phone', {})}
+                    </div>
+                    <label className="mt-3 flex flex-col gap-1 text-[12px] text-[#6a635c]">Rol
+                      <select value={nuevo.owner_role} onChange={(e) => setNuevo({ ...nuevo, owner_role: e.target.value })} className={inp}>
+                        <option value="owner">Owner (dueño: todo + gestión)</option>
+                        <option value="manager">Manager (chef: crear/editar/borrar)</option>
+                        <option value="editor">Editor (editar, sin crear/borrar)</option>
+                        <option value="viewer">Viewer (cocina: solo consulta)</option>
+                      </select></label>
+                    <p className="mt-2 text-[11px] text-[#8a837b]">Se generará una contraseña temporal que el dueño cambiará al entrar.</p>
+                  </div>
+                </>
+                ) })()}
 
               {error && <p className="rounded-lg bg-[#fbeae5] px-3 py-2 text-sm text-[#8f2c12]">{error}</p>}
 

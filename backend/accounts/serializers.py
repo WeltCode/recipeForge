@@ -8,6 +8,7 @@ from .models import (
     Restaurant,
     Role,
     ROLE_ORDER,
+    generate_temp_password,
     get_membership,
     get_user_features,
     get_user_permissions,
@@ -34,6 +35,9 @@ class MeSerializer(serializers.ModelSerializer):
     features = serializers.SerializerMethodField()
     usage = serializers.SerializerMethodField()
     title = serializers.SerializerMethodField()
+    phone = serializers.SerializerMethodField()
+    must_change_password = serializers.SerializerMethodField()
+    avatar = serializers.SerializerMethodField()
     restaurant = serializers.SerializerMethodField()
     restaurant_name = serializers.SerializerMethodField()
     restaurant_prefix = serializers.SerializerMethodField()
@@ -44,9 +48,26 @@ class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name',
-                  'role', 'permissions', 'features', 'usage', 'title', 'restaurant', 'restaurant_name',
+                  'role', 'permissions', 'features', 'usage', 'title', 'phone',
+                  'must_change_password', 'avatar', 'restaurant', 'restaurant_name',
                   'restaurant_prefix', 'restaurant_logo', 'restaurant_default_template',
                   'restaurant_plan']
+
+    def get_phone(self, obj):
+        p = getattr(obj, 'profile', None)
+        return p.phone if p else ''
+
+    def get_must_change_password(self, obj):
+        p = getattr(obj, 'profile', None)
+        return bool(p.must_change_password) if p else False
+
+    def get_avatar(self, obj):
+        p = getattr(obj, 'profile', None)
+        if p and getattr(p, 'avatar', None):
+            request = self.context.get('request')
+            path = f'/api/media/{p.avatar.name}'
+            return request.build_absolute_uri(path) if request else path
+        return None
 
     def get_role(self, obj):
         return get_user_role(obj)
@@ -117,6 +138,9 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['permissions'] = get_user_permissions(user)
         data['features'] = get_user_features(user)
         data['username'] = user.username
+        data['first_name'] = user.first_name
+        prof = getattr(user, 'profile', None)
+        data['must_change_password'] = bool(prof.must_change_password) if prof else False
         m = get_membership(user)
         data['title'] = m.title if m else ''
         data['restaurant'] = r.id if r else None
@@ -140,13 +164,19 @@ class RoleSerializer(serializers.ModelSerializer):
 
 
 class UserAdminSerializer(serializers.ModelSerializer):
-    """Gestión de usuarios de un restaurante (Super Admin u Owner)."""
+    """Gestión de usuarios de un restaurante (Super Admin u Owner).
+
+    Usuarios de restaurante: se identifican y entran con su CORREO (username =
+    email). La contraseña se GENERA por defecto (temporal) y el usuario la cambia
+    al entrar. Superadmins de plataforma: se crean con `username` explícito."""
 
     role = serializers.CharField(required=False)  # key: owner|manager|editor|viewer
     role_name = serializers.SerializerMethodField()
     title = serializers.CharField(required=False, allow_blank=True)
+    phone = serializers.CharField(required=False, allow_blank=True)
+    # Contraseña opcional: si no viene se genera una temporal (se devuelve una vez).
     password = serializers.CharField(
-        write_only=True, required=False, validators=[validate_password]
+        write_only=True, required=False, allow_blank=True, validators=[validate_password]
     )
     restaurant = serializers.PrimaryKeyRelatedField(
         queryset=Restaurant.objects.all(), required=False, allow_null=True
@@ -155,8 +185,10 @@ class UserAdminSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'password', 'role', 'role_name',
-                  'title', 'restaurant', 'restaurant_name', 'is_active']
+        fields = ['id', 'username', 'first_name', 'last_name', 'email', 'phone',
+                  'password', 'role', 'role_name', 'title', 'restaurant',
+                  'restaurant_name', 'is_active']
+        extra_kwargs = {'username': {'required': False}}
 
     def get_restaurant_name(self, obj):
         m = obj.memberships.select_related('restaurant').first()
@@ -174,42 +206,80 @@ class UserAdminSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         role_key = validated_data.pop('role', 'viewer')
         title = validated_data.pop('title', '')
+        phone = validated_data.pop('phone', '')
         restaurant = validated_data.pop('restaurant', None)
-        password = validated_data.pop('password', None)
-        if not password:
-            raise serializers.ValidationError({'password': 'La contraseña es obligatoria.'})
+        password = validated_data.pop('password', None) or None
+        is_super = role_key == 'superadmin'
+        email = (validated_data.get('email') or '').strip()
+
+        # Identidad de acceso: restaurante = correo; superadmin = username explícito.
+        if is_super:
+            if not validated_data.get('username'):
+                raise serializers.ValidationError({'username': 'El usuario es obligatorio.'})
+        else:
+            if not email:
+                raise serializers.ValidationError({'email': 'El correo es obligatorio.'})
+            validated_data['username'] = email
+        if User.objects.filter(username__iexact=validated_data['username']).exists():
+            key = 'username' if is_super else 'email'
+            raise serializers.ValidationError({key: 'Ya existe una cuenta con ese correo/usuario.'})
+
         # Límite de usuarios por plan del restaurante (no aplica a superadmins).
-        if role_key != 'superadmin' and restaurant is not None:
+        if not is_super and restaurant is not None:
             max_users = plan_features(restaurant)['max_users']
             if restaurant.memberships.count() >= max_users:
                 raise serializers.ValidationError({
                     'plan': f'El plan {restaurant.get_plan_display()} permite hasta '
                             f'{max_users} usuario(s). Sube de plan para añadir más.'
                 })
+
+        # Contraseña: si el admin no la puso, se genera una temporal y se fuerza cambio.
+        generated = None
+        if not password:
+            password = generate_temp_password()
+            generated = password
+
         user = User(**validated_data)
-        if role_key == 'superadmin':
-            # Admin de plataforma: se identifica por is_superuser, sin membership.
+        if is_super:
             user.is_superuser = True
             user.is_staff = True
         user.set_password(password)
-        user.save()  # el signal crea un UserProfile dormido; usamos Membership
-        if role_key != 'superadmin' and restaurant is not None:
+        user.save()  # el signal crea el UserProfile
+        prof = user.profile
+        prof.phone = phone
+        prof.must_change_password = bool(generated)
+        prof.save(update_fields=['phone', 'must_change_password'])
+        if not is_super and restaurant is not None:
             Membership.objects.create(
                 user=user, restaurant=restaurant,
                 role=self._role_for(restaurant, role_key), title=title,
             )
+        self._generated_password = generated
         return user
 
     def update(self, instance, validated_data):
         role_key = validated_data.pop('role', None)
         title = validated_data.pop('title', serializers.empty)
+        phone = validated_data.pop('phone', serializers.empty)
         restaurant = validated_data.pop('restaurant', serializers.empty)
-        password = validated_data.pop('password', None)
+        password = validated_data.pop('password', None) or None
+        validated_data.pop('username', None)  # el username no se edita aquí
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if password:
             instance.set_password(password)
         instance.save()
+
+        if phone is not serializers.empty:
+            prof = instance.profile
+            prof.phone = phone
+            if password:
+                prof.must_change_password = False
+            prof.save(update_fields=['phone', 'must_change_password'])
+        elif password:
+            prof = instance.profile
+            prof.must_change_password = False
+            prof.save(update_fields=['must_change_password'])
 
         m = instance.memberships.first()
         target_restaurant = restaurant if restaurant is not serializers.empty else (m.restaurant if m else None)
@@ -230,6 +300,12 @@ class UserAdminSerializer(serializers.ModelSerializer):
         data['role'] = get_user_role(instance)
         m = instance.memberships.first()
         data['title'] = m.title if m else ''
+        prof = getattr(instance, 'profile', None)
+        data['phone'] = prof.phone if prof else ''
+        data['must_change_password'] = prof.must_change_password if prof else False
+        # La contraseña temporal generada se devuelve UNA vez (tras crear/restablecer).
+        if getattr(self, '_generated_password', None):
+            data['generated_password'] = self._generated_password
         return data
 
 
@@ -241,19 +317,25 @@ class RestaurantSerializer(serializers.ModelSerializer):
     member_count = serializers.SerializerMethodField()
     members = serializers.SerializerMethodField()
 
-    owner_username = serializers.CharField(write_only=True, required=False)
+    # Owner inicial (opcional). Entra con su CORREO; contraseña temporal si no se da.
+    owner_username = serializers.CharField(write_only=True, required=False, allow_blank=True)
     owner_password = serializers.CharField(
-        write_only=True, required=False, validators=[validate_password]
+        write_only=True, required=False, allow_blank=True, validators=[validate_password]
     )
     owner_role = serializers.CharField(write_only=True, required=False)  # key
+    owner_first_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    owner_last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    owner_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
+    owner_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = Restaurant
-        fields = ['id', 'name', 'code_prefix', 'default_template', 'plan', 'plan_status',
+        fields = ['id', 'name', 'code_prefix', 'tax_id', 'default_template', 'plan', 'plan_status',
                   'trial_ends_at', 'pdf_exports_count',
                   'contact_email', 'contact_phone', 'address', 'logo',
                   'created_at', 'recipe_count', 'member_count', 'members',
-                  'owner_username', 'owner_password', 'owner_role']
+                  'owner_username', 'owner_password', 'owner_role',
+                  'owner_first_name', 'owner_last_name', 'owner_email', 'owner_phone']
         read_only_fields = ['trial_ends_at', 'pdf_exports_count']
 
     def get_recipe_count(self, obj):
@@ -277,6 +359,8 @@ class RestaurantSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['logo'] = _abs_logo(instance, self.context)  # servir por el proxy, no r2.dev
+        if getattr(self, '_owner_generated_password', None):
+            data['owner_generated_password'] = self._owner_generated_password
         return data
 
     def _ensure_trial_clock(self, restaurant):
@@ -290,28 +374,41 @@ class RestaurantSerializer(serializers.ModelSerializer):
             restaurant.save(update_fields=['trial_ends_at'])
 
     def create(self, validated_data):
-        owner_username = validated_data.pop('owner_username', None)
-        owner_password = validated_data.pop('owner_password', None)
         owner_role = validated_data.pop('owner_role', 'owner')
+        first = validated_data.pop('owner_first_name', '')
+        last = validated_data.pop('owner_last_name', '')
+        phone = validated_data.pop('owner_phone', '')
+        owner_password = validated_data.pop('owner_password', None) or None
+        # El correo es el identificador de acceso; se acepta owner_email o el viejo
+        # owner_username por compatibilidad.
+        owner_login = (validated_data.pop('owner_email', '') or validated_data.pop('owner_username', '') or '').strip()
 
-        if owner_username and User.objects.filter(username=owner_username).exists():
-            raise serializers.ValidationError(
-                {'owner_username': 'Ya existe un usuario con ese nombre.'}
-            )
+        if owner_login and User.objects.filter(username__iexact=owner_login).exists():
+            raise serializers.ValidationError({'owner_email': 'Ya existe una cuenta con ese correo.'})
 
         restaurant = Restaurant.objects.create(**validated_data)  # signal crea los 4 roles
         self._ensure_trial_clock(restaurant)
 
-        if owner_username and owner_password:
-            user = User(username=owner_username)
+        if owner_login:
+            generated = None
+            if not owner_password:
+                owner_password = generate_temp_password()
+                generated = owner_password
+            user = User(username=owner_login, email=owner_login, first_name=first, last_name=last)
             user.set_password(owner_password)
             user.save()
+            prof = user.profile
+            prof.phone = phone
+            prof.must_change_password = bool(generated)
+            prof.save(update_fields=['phone', 'must_change_password'])
             role = Role.objects.filter(restaurant=restaurant, key=owner_role).first()
             Membership.objects.create(user=user, restaurant=restaurant, role=role)
+            self._owner_generated_password = generated
         return restaurant
 
     def update(self, instance, validated_data):
-        for f in ('owner_username', 'owner_password', 'owner_role'):
+        for f in ('owner_username', 'owner_password', 'owner_role', 'owner_first_name',
+                  'owner_last_name', 'owner_email', 'owner_phone'):
             validated_data.pop(f, None)
         instance = super().update(instance, validated_data)
         self._ensure_trial_clock(instance)

@@ -1,7 +1,21 @@
+import secrets
+import string
+
 from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+
+
+def generate_temp_password(length=10):
+    """Contraseña temporal legible que cumple los validadores de Django
+    (mezcla mayúscula, minúscula y dígito; longitud ≥ 8)."""
+    alphabet = string.ascii_letters + string.digits
+    while True:
+        pw = ''.join(secrets.choice(alphabet) for _ in range(length))
+        if (any(c.islower() for c in pw) and any(c.isupper() for c in pw)
+                and any(c.isdigit() for c in pw)):
+            return pw
 
 
 # Plantillas de ficha técnica disponibles (diseños de exportación/impresión).
@@ -112,6 +126,7 @@ class Restaurant(models.Model):
         max_length=12, blank=True,
         help_text='Prefijo para los códigos de receta, ej. LT o CV103.',
     )
+    tax_id = models.CharField(max_length=40, blank=True)  # CIF/NIF del restaurante
     # Suscripción (el plan lo lee la app para permisos/límites; el cobro se
     # gestiona manual por ahora, Stripe más adelante).
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default=PLAN_BASICO)
@@ -230,6 +245,10 @@ class UserProfile(models.Model):
         Restaurant, null=True, blank=True,
         on_delete=models.SET_NULL, related_name='members',
     )
+    phone = models.CharField(max_length=40, blank=True)
+    # True mientras el usuario use una contraseña temporal/por defecto: al entrar
+    # se le obliga a definir la suya. Se pone al crear (auto) y al restablecer.
+    must_change_password = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

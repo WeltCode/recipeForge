@@ -149,7 +149,7 @@ function Login({ onSuccess, notice }) {
 
                 <form onSubmit={handleSubmit} className="mt-6 space-y-4">
                   <div>
-                    <label className="rf-cond mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-[#7a736b]" style={{ fontWeight: 500 }}>Usuario</label>
+                    <label className="rf-cond mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-[#7a736b]" style={{ fontWeight: 500 }}>Correo</label>
                     <div className="relative">
                       <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9a9188]">
                         <User size={19} />
@@ -160,7 +160,7 @@ function Login({ onSuccess, notice }) {
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         autoComplete="username"
-                        placeholder="tu usuario"
+                        placeholder="tu@correo.com"
                         className="w-full rounded-xl border border-[#b9c0c6] bg-white py-3 pl-11 pr-4 text-[#1c1611] shadow-[inset_0_1px_3px_rgba(20,16,8,0.10)] outline-none transition placeholder:text-[#a8a099] focus:border-[#e8531f] focus:ring-2 focus:ring-[#e8531f]/25"
                       />
                     </div>

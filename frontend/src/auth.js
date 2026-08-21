@@ -11,6 +11,9 @@ const KEYS = {
   plan: 'rf_plan',
   title: 'rf_title',
   username: 'rf_username',
+  firstName: 'rf_first_name',
+  avatar: 'rf_avatar',
+  mustChange: 'rf_must_change',
   restaurant: 'rf_restaurant',
   restaurantName: 'rf_restaurant_name',
   restaurantPrefix: 'rf_restaurant_prefix',
@@ -64,6 +67,19 @@ export function getTitle() {
 export function getUsername() {
   return localStorage.getItem(KEYS.username)
 }
+export function getFirstName() {
+  return localStorage.getItem(KEYS.firstName) || ''
+}
+export function getAvatar() {
+  return localStorage.getItem(KEYS.avatar) || ''
+}
+export function mustChangePassword() {
+  return localStorage.getItem(KEYS.mustChange) === '1'
+}
+export function setAvatar(url) {
+  if (url) localStorage.setItem(KEYS.avatar, url)
+  else localStorage.removeItem(KEYS.avatar)
+}
 export function getRestaurantName() {
   return localStorage.getItem(KEYS.restaurantName)
 }
@@ -80,7 +96,7 @@ export function isAuthenticated() {
   return Boolean(getAccess())
 }
 
-function storeSession({ access, refresh, role, permissions, features, usage, plan, title, username, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template }) {
+function storeSession({ access, refresh, role, permissions, features, usage, plan, title, username, first_name, avatar, must_change_password, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template }) {
   if (access) localStorage.setItem(KEYS.access, access)
   if (refresh) localStorage.setItem(KEYS.refresh, refresh)
   if (role) localStorage.setItem(KEYS.role, role)
@@ -90,6 +106,9 @@ function storeSession({ access, refresh, role, permissions, features, usage, pla
   if (plan) localStorage.setItem(KEYS.plan, plan)
   if (title != null) localStorage.setItem(KEYS.title, title)
   if (username) localStorage.setItem(KEYS.username, username)
+  if (first_name != null) localStorage.setItem(KEYS.firstName, first_name)
+  if (avatar != null) localStorage.setItem(KEYS.avatar, avatar || '')
+  if (must_change_password != null) localStorage.setItem(KEYS.mustChange, must_change_password ? '1' : '0')
   if (restaurant != null) localStorage.setItem(KEYS.restaurant, String(restaurant))
   if (restaurant_name) localStorage.setItem(KEYS.restaurantName, restaurant_name)
   if (restaurant_prefix) localStorage.setItem(KEYS.restaurantPrefix, restaurant_prefix)
@@ -127,6 +146,8 @@ export async function login(username, password) {
     plan: data.restaurant_plan,
     title: data.title,
     username: data.username,
+    first_name: data.first_name,
+    must_change_password: data.must_change_password,
     restaurant: data.restaurant,
     restaurant_name: data.restaurant_name,
     restaurant_prefix: data.restaurant_prefix,
@@ -134,6 +155,23 @@ export async function login(username, password) {
     restaurant_default_template: data.restaurant_default_template,
   })
   return data
+}
+
+// Cambia la contraseña del usuario autenticado. Al terminar, limpia el flag de
+// cambio obligatorio en el cliente.
+export async function changePassword(current_password, new_password) {
+  const res = await authFetch(`${API_BASE}/auth/change-password/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current_password, new_password }),
+  })
+  if (!res.ok) {
+    let detail = `Error ${res.status}`
+    try { const d = await res.json(); detail = Object.values(d).flat().join(' ') || detail } catch { /* sin cuerpo */ }
+    throw new Error(detail)
+  }
+  localStorage.setItem(KEYS.mustChange, '0')
+  return res.json()
 }
 
 export function logout() {
@@ -156,6 +194,9 @@ export async function refreshMe() {
       plan: data.restaurant_plan,
       title: data.title,
       username: data.username,
+      first_name: data.first_name,
+      avatar: data.avatar,
+      must_change_password: data.must_change_password,
       restaurant: data.restaurant,
       restaurant_name: data.restaurant_name,
       restaurant_prefix: data.restaurant_prefix,

@@ -13,7 +13,8 @@ import CosteoSection from './components/CosteoSection'
 import { AllergenPicker } from './components/AllergenPicker'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
-import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getTitle, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, IDLE_LIMIT_MS } from './auth'
+import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getTitle, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
+import { ForcedPasswordScreen } from './components/ChangePassword'
 import Logo from './components/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -402,6 +403,7 @@ function App() {
 
   // ── Sesión / rol ──
   const [authed, setAuthed] = useState(isAuthenticated())
+  const [mustChange, setMustChange] = useState(mustChangePassword())
   const [role, setRole] = useState(getRole())
   const [view, setView] = useState('dashboard') // 'dashboard' | 'editor'
   const [section, setSection] = useState('recetas') // sección activa del shell (usuario normal)
@@ -427,6 +429,7 @@ function App() {
     refreshMe().then((data) => {
       if (!data) return
       setRole(data.role)
+      setMustChange(mustChangePassword())
       setActiveRestaurant((prev) => ({
         name: data.restaurant_name ?? prev.name,
         logo: data.restaurant_logo ?? prev.logo,
@@ -873,12 +876,18 @@ function App() {
         onSuccess={(data) => {
           localStorage.removeItem('rf_logout_reason')
           setAuthed(true)
+          setMustChange(mustChangePassword())
           setRole(data.role)
           setView('dashboard')
           setSessionExpired(false)
         }}
       />
     )
+  }
+
+  // ── CONTRASEÑA TEMPORAL: obligar a definir una propia antes de entrar ──────
+  if (mustChange) {
+    return <ForcedPasswordScreen onDone={() => setMustChange(false)} onLogout={handleLogout} />
   }
 
   // ── MODO EXPORTACIÓN ──────────────────────────────────────────────────────

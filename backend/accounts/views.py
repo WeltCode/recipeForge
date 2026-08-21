@@ -1,11 +1,16 @@
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
-from .models import Restaurant, Role
+from .models import Restaurant, Role, generate_temp_password
 from .permissions import IsSuperAdmin
 from .serializers import (
     CustomTokenObtainPairSerializer,
@@ -14,6 +19,31 @@ from .serializers import (
     RoleSerializer,
     UserAdminSerializer,
 )
+
+
+class ChangePasswordView(APIView):
+    """El usuario autenticado cambia su propia contraseña (usada también para el
+    cambio obligatorio tras entrar con una contraseña temporal)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        current = request.data.get('current_password') or ''
+        new = request.data.get('new_password') or ''
+        if not user.check_password(current):
+            return Response({'current_password': 'La contraseña actual no es correcta.'}, status=400)
+        try:
+            validate_password(new, user)
+        except DjangoValidationError as e:
+            return Response({'new_password': list(e.messages)}, status=400)
+        user.set_password(new)
+        user.save()
+        prof = getattr(user, 'profile', None)
+        if prof and prof.must_change_password:
+            prof.must_change_password = False
+            prof.save(update_fields=['must_change_password'])
+        return Response({'detail': 'Contraseña actualizada.'})
 
 
 class LoginView(TokenObtainPairView):
@@ -51,6 +81,20 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         elif role:
             qs = qs.filter(memberships__role__key=role)
         return qs.distinct()
+
+    @action(detail=True, methods=['post'])
+    def reset_password(self, request, pk=None):
+        """Restablece la contraseña a una temporal (se devuelve una vez) y obliga
+        al usuario a cambiarla al entrar."""
+        user = self.get_object()
+        temp = generate_temp_password()
+        user.set_password(temp)
+        user.save()
+        prof = getattr(user, 'profile', None)
+        if prof:
+            prof.must_change_password = True
+            prof.save(update_fields=['must_change_password'])
+        return Response({'generated_password': temp})
 
 
 class RestaurantViewSet(viewsets.ModelViewSet):
