@@ -195,6 +195,12 @@ export const ArrowLeft = (p) => (
   </Svg>
 )
 
+export const ChevronRight = (p) => (
+  <Svg {...p}>
+    <path d="M9 6l6 6-6 6" />
+  </Svg>
+)
+
 export const Layers = (p) => (
   <Svg {...p}>
     <path d="M12 3.5 21 8l-9 4.5L3 8z" />

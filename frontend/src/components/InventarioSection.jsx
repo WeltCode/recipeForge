@@ -3,9 +3,11 @@ import {
   listInventory, createInventory, updateInventory, deleteInventory, adjustInventory,
   listPartidas, createPartida, deletePartida, UNIT_CHOICES,
 } from '../lib/catalog'
-import { Inventory, Plus, Pencil, Trash, X, Flame } from './icons'
+import { Inventory, Plus, Pencil, Trash, X, Flame, ChevronRight } from './icons'
 
 const EMPTY = { name: '', partida: '', quantity: '0', unit: 'ud', stock_min: '0', notes: '' }
+const ALL = '__all__'   // ver todas las partidas juntas
+const NONE = '__none__' // insumos sin partida
 
 export default function InventarioSection({ canEdit }) {
   const [rows, setRows] = useState([])
@@ -13,7 +15,7 @@ export default function InventarioSection({ canEdit }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [onlyLow, setOnlyLow] = useState(false)
-  const [filterPartida, setFilterPartida] = useState('all') // all | none | id
+  const [open, setOpen] = useState(null)   // null = rejilla de tarjetas | id | NONE | ALL
   const [newPartida, setNewPartida] = useState('')
   const [editing, setEditing] = useState(null) // null | new | id
   const [form, setForm] = useState(EMPTY)
@@ -29,13 +31,23 @@ export default function InventarioSection({ canEdit }) {
   }
   useEffect(load, [onlyLow])
 
-  const filtered = useMemo(() => {
-    if (filterPartida === 'all') return rows
-    if (filterPartida === 'none') return rows.filter((i) => !i.partida)
-    return rows.filter((i) => String(i.partida) === String(filterPartida))
-  }, [rows, filterPartida])
+  // Tarjetas: una por partida (+ "Sin partida" si hay huérfanos).
+  const cards = useMemo(() => {
+    const byId = (id) => rows.filter((i) => String(i.partida) === String(id))
+    const list = partidas.map((p) => ({ key: String(p.id), id: p.id, name: p.name, items: byId(p.id) }))
+    const orphans = rows.filter((i) => !i.partida)
+    if (orphans.length) list.push({ key: NONE, id: null, name: 'Sin partida', items: orphans })
+    return list
+  }, [rows, partidas])
 
-  const openNew = () => { setForm({ ...EMPTY, partida: filterPartida !== 'all' && filterPartida !== 'none' ? filterPartida : '' }); setEditing('new') }
+  const openItems = useMemo(() => {
+    if (open === ALL) return rows
+    if (open === NONE) return rows.filter((i) => !i.partida)
+    return rows.filter((i) => String(i.partida) === String(open))
+  }, [rows, open])
+  const openName = open === ALL ? 'Todas las partidas' : open === NONE ? 'Sin partida' : (partidas.find((p) => String(p.id) === String(open))?.name || '')
+
+  const openNew = () => { setForm({ ...EMPTY, partida: open && open !== ALL && open !== NONE ? open : '' }); setEditing('new') }
   const openEdit = (i) => {
     setForm({ name: i.name, partida: i.partida ?? '', quantity: String(i.quantity ?? '0'), unit: i.unit, stock_min: String(i.stock_min ?? '0'), notes: i.notes || '' })
     setEditing(i.id)
@@ -48,7 +60,7 @@ export default function InventarioSection({ canEdit }) {
   }
   const removePartida = async (p) => {
     if (!window.confirm(`¿Eliminar la partida "${p.name}"? Los insumos quedarán sin partida.`)) return
-    try { await deletePartida(p.id); if (String(filterPartida) === String(p.id)) setFilterPartida('all'); load() } catch (e) { setError(e.message) }
+    try { await deletePartida(p.id); if (String(open) === String(p.id)) setOpen(null); load() } catch (e) { setError(e.message) }
   }
 
   const save = async () => {
@@ -76,10 +88,10 @@ export default function InventarioSection({ canEdit }) {
 
   return (
     <div className="pb-6">
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="rf-cond text-3xl uppercase tracking-tight text-ink" style={{ fontWeight: 600 }}>Inventario</h1>
-          <p className="mt-1 text-sm text-ink-2">Lo que tienes producido y almacenado, con su cantidad, clasificado por partidas de cocina.</p>
+          <p className="mt-1 text-sm text-ink-2">Lo que tienes producido y almacenado, organizado por partidas de cocina.</p>
         </div>
         {canEdit && (
           <button onClick={openNew} className="inline-flex h-11 items-center gap-2 rounded-lg bg-ember px-4 text-sm font-medium text-cream shadow-[0_8px_20px_-8px_rgba(238,90,28,.7)] transition hover:bg-ember-hi">
@@ -90,27 +102,18 @@ export default function InventarioSection({ canEdit }) {
 
       {error && <div className="mb-4 rounded-lg border border-danger/30 bg-danger/8 px-4 py-2.5 text-[13px] text-danger">{error}</div>}
 
-      {/* Partidas */}
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <Chip active={filterPartida === 'all'} onClick={() => setFilterPartida('all')}>Todas</Chip>
-        {partidas.map((p) => (
-          <span key={p.id} className="inline-flex items-center">
-            <Chip active={String(filterPartida) === String(p.id)} onClick={() => setFilterPartida(p.id)}>{p.name} <span className="data opacity-60">{p.item_count}</span></Chip>
-            {canEdit && <button onClick={() => removePartida(p)} title="Eliminar partida" className="ml-0.5 text-ink-3 hover:text-danger"><X size={13} /></button>}
-          </span>
-        ))}
-        <Chip active={filterPartida === 'none'} onClick={() => setFilterPartida('none')}>Sin partida</Chip>
+      {/* Controles */}
+      <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <label className="inline-flex items-center gap-2 text-[13px] text-ink-2">
+          <input type="checkbox" checked={onlyLow} onChange={(e) => setOnlyLow(e.target.checked)} className="accent-[#e8531f]" /> Solo bajo mínimo
+        </label>
         {canEdit && (
-          <span className="inline-flex items-center gap-1">
-            <input value={newPartida} onChange={(e) => setNewPartida(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addPartida()} placeholder="Nueva partida (Fritos, Fríos…)" className="h-9 w-48 rounded-lg border border-steel-300 bg-white px-2.5 text-[13px] text-ink outline-none focus:border-ember/50" />
-            <button onClick={addPartida} className="grid h-9 w-9 place-items-center rounded-lg bg-soot text-cream hover:bg-carbon-2"><Plus size={16} /></button>
+          <span className="inline-flex items-center gap-1.5">
+            <input value={newPartida} onChange={(e) => setNewPartida(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addPartida()} placeholder="Nueva partida (Fritos, Fríos…)" className="h-9 w-52 rounded-lg border border-steel-300 bg-white px-2.5 text-[13px] text-ink outline-none focus:border-ember/50" />
+            <button onClick={addPartida} title="Añadir partida" className="grid h-9 w-9 place-items-center rounded-lg bg-soot text-cream hover:bg-carbon-2"><Plus size={16} /></button>
           </span>
         )}
       </div>
-
-      <label className="mb-4 inline-flex items-center gap-2 text-[13px] text-ink-2">
-        <input type="checkbox" checked={onlyLow} onChange={(e) => setOnlyLow(e.target.checked)} className="accent-[#e8531f]" /> Solo bajo mínimo
-      </label>
 
       {editing && (
         <div className="mb-6 rounded-2xl steel-plate p-5">
@@ -162,55 +165,123 @@ export default function InventarioSection({ canEdit }) {
 
       {loading ? (
         <p className="text-sm text-ink-3">Cargando…</p>
-      ) : filtered.length ? (
-        <div className="overflow-x-auto rounded-2xl steel-plate">
-          <table className="w-full min-w-[560px] border-collapse">
-            <thead>
-              <tr className="border-b border-steel-300 text-left text-[11px] uppercase tracking-wide text-ink-3">
-                <th className="p-3">Insumo</th><th className="p-3">Partida</th><th className="p-3">Cantidad</th>
-                {canEdit && <th className="p-3 text-right">Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((i) => (
-                <tr key={i.id} className="border-b border-steel-200 last:border-0 hover:bg-steel-50">
-                  <td className="p-3">
-                    <p className="text-[14px] font-medium text-ink">{i.name}</p>
-                    {i.notes && <p className="text-[12px] text-ink-3">{i.notes}</p>}
-                  </td>
-                  <td className="p-3">{i.partida_name ? <span className="rounded-full bg-steel-200 px-2.5 py-1 text-[11px] font-medium text-ink-2">{i.partida_name}</span> : <span className="text-[12px] text-ink-3">—</span>}</td>
-                  <td className="p-3">
-                    <span className="data text-[13px] text-ink">{i.quantity} {i.unit}</span>
-                    {i.low_stock && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-ember/12 px-2 py-0.5 text-[10px] font-semibold uppercase text-ember-deep"><Flame size={10} /> bajo</span>}
-                    {Number(i.stock_min) > 0 && <p className="text-[11px] text-ink-3">mín. {i.stock_min}</p>}
-                  </td>
-                  {canEdit && (
-                    <td className="p-3">
-                      <div className="flex justify-end gap-1">
-                        <button onClick={() => setAdjFor(i)} className="rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white">Cantidad</button>
-                        <button onClick={() => openEdit(i)} title="Editar" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Pencil size={16} /></button>
-                        <button onClick={() => remove(i)} title="Eliminar" className="grid h-9 w-9 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={16} /></button>
+      ) : open === null ? (
+        /* ── REJILLA DE TARJETAS POR PARTIDA ── */
+        (cards.length || rows.length) ? (
+          <>
+            <div className="mb-3 flex items-center justify-between">
+              <p className="pass-title text-[13px] tracking-[0.1em] text-ink-3">Partidas</p>
+              {rows.length > 0 && (
+                <button onClick={() => setOpen(ALL)} className="inline-flex items-center gap-1 text-[13px] font-medium text-ember-deep hover:text-ember">
+                  Ver todo junto <ChevronRight size={15} />
+                </button>
+              )}
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {cards.map((c) => {
+                const low = c.items.filter((i) => i.low_stock).length
+                return (
+                  <div key={c.key} className="group relative overflow-hidden rounded-2xl steel-plate transition hover:shadow-[var(--shadow-plate)]">
+                    <button onClick={() => setOpen(c.key)} className="block w-full p-5 text-left">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="mb-1 flex items-center gap-2">
+                            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={low ? { background: 'radial-gradient(circle at 38% 32%, #ffd7a1, var(--rf-lamp) 58%, var(--rf-ember) 100%)', boxShadow: '0 0 8px 1px rgba(255,154,61,.7)' } : { background: 'var(--rf-gold)' }} aria-hidden />
+                            <h3 className="pass-title truncate text-[17px] text-ink">{c.name}</h3>
+                          </div>
+                          <p className="text-[12px] text-ink-3">{c.items.length} {c.items.length === 1 ? 'insumo' : 'insumos'}</p>
+                        </div>
+                        <span className="data grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-carbon text-[16px] font-semibold text-cream">{c.items.length}</span>
                       </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <div className="mt-3 flex items-center justify-between border-t border-steel-200 pt-3">
+                        {low ? (
+                          <span className="inline-flex items-center gap-1 text-[12px] font-medium text-ember-deep"><Flame size={12} /> {low} bajo mínimo</span>
+                        ) : (
+                          <span className="text-[12px] text-ok">Todo al día</span>
+                        )}
+                        <span className="inline-flex items-center gap-0.5 text-[12px] font-medium text-ink-2 group-hover:text-ink">Abrir <ChevronRight size={14} /></span>
+                      </div>
+                    </button>
+                    {canEdit && c.id != null && (
+                      <button onClick={() => removePartida(c)} title="Eliminar partida" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-lg text-ink-3 opacity-0 transition hover:bg-danger/8 hover:text-danger group-hover:opacity-100"><X size={15} /></button>
+                    )}
+                  </div>
+                )
+              })}
+              {canEdit && !cards.length && (
+                <div className="steel-plate grid place-items-center rounded-2xl py-10 text-center">
+                  <p className="text-[13px] text-ink-3">Crea una partida (Fríos, Calientes, Fritos…) para empezar a organizar tu inventario.</p>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="steel-plate grid place-items-center rounded-2xl py-16 text-center">
+            <Inventory size={28} className="text-ink-3" />
+            <p className="pass-title mt-3 text-[18px] text-ink">{onlyLow ? 'Nada bajo mínimo' : 'Aún no hay inventario'}</p>
+            <p className="mt-1 text-[13px] text-ink-2">{canEdit ? 'Crea una partida y añade lo que tengas producido.' : 'Cuando se añada inventario, aparecerá aquí.'}</p>
+          </div>
+        )
       ) : (
-        <div className="steel-plate grid place-items-center rounded-2xl py-16 text-center">
-          <Inventory size={28} className="text-ink-3" />
-          <p className="pass-title mt-3 text-[18px] text-ink">{onlyLow ? 'Nada bajo mínimo' : 'Aún no hay insumos'}</p>
-          <p className="mt-1 text-[13px] text-ink-2">{canEdit ? 'Añade lo que tengas producido y clasifícalo por partidas.' : 'Cuando se añadan insumos, aparecerán aquí.'}</p>
+        /* ── DETALLE: una partida (o todas juntas) ── */
+        <div>
+          <button onClick={() => setOpen(null)} className="mb-3 inline-flex items-center gap-1 text-[13px] font-medium text-ink-2 hover:text-ink">
+            <ChevronRight size={15} className="rotate-180" /> Todas las partidas
+          </button>
+          <div className="mb-3 flex items-center gap-2">
+            <h2 className="pass-title text-[20px] text-ink">{openName}</h2>
+            <span className="data rounded-full bg-steel-200 px-2.5 py-0.5 text-[12px] font-medium text-ink-2">{openItems.length}</span>
+          </div>
+
+          {openItems.length ? (
+            open === ALL ? (
+              /* Todas juntas: agrupadas por partida */
+              <div className="space-y-5">
+                {cards.map((c) => c.items.length ? (
+                  <div key={c.key}>
+                    <p className="pass-title mb-2 text-[13px] text-ink-2">{c.name} <span className="data text-ink-3">· {c.items.length}</span></p>
+                    <ItemList items={c.items} canEdit={canEdit} onAdjust={setAdjFor} onEdit={openEdit} onRemove={remove} />
+                  </div>
+                ) : null)}
+              </div>
+            ) : (
+              <ItemList items={openItems} canEdit={canEdit} onAdjust={setAdjFor} onEdit={openEdit} onRemove={remove} />
+            )
+          ) : (
+            <div className="steel-plate rounded-2xl px-5 py-10 text-center text-[13px] text-ink-3">
+              Esta partida aún no tiene insumos. {canEdit && 'Usa «Nuevo insumo» para añadir.'}
+            </div>
+          )}
         </div>
       )}
     </div>
   )
 }
 
-function Chip({ active, onClick, children }) {
+// Lista limpia de insumos de inventario (nombre, cantidad, mínimo, acciones).
+function ItemList({ items, canEdit, onAdjust, onEdit, onRemove }) {
   return (
-    <button onClick={onClick} className={`inline-flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[13px] font-medium transition-colors ${active ? 'bg-soot text-cream' : 'steel-plate text-ink-2 hover:text-ink'}`}>{children}</button>
+    <div className="overflow-hidden rounded-2xl steel-plate">
+      {items.map((i, idx) => (
+        <div key={i.id} className={`flex items-center gap-4 px-4 py-3 sm:px-5 ${idx ? 'border-t border-steel-200' : ''} ${i.low_stock ? 'bg-ember/[.04]' : ''}`}>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[14px] font-medium text-ink">{i.name}</p>
+            {i.notes && <p className="truncate text-[12px] text-ink-3">{i.notes}</p>}
+          </div>
+          <div className="shrink-0 text-right">
+            <p className="data text-[15px] font-semibold text-ink">{i.quantity} {i.unit}</p>
+            {Number(i.stock_min) > 0 && <p className="text-[11px] text-ink-3">mín. {i.stock_min}</p>}
+          </div>
+          {i.low_stock && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ember/12 px-2 py-0.5 text-[10px] font-semibold uppercase text-ember-deep"><Flame size={10} /> bajo</span>}
+          {canEdit && (
+            <div className="flex shrink-0 items-center gap-1">
+              <button onClick={() => onAdjust(i)} className="rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white">Cantidad</button>
+              <button onClick={() => onEdit(i)} title="Editar" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Pencil size={16} /></button>
+              <button onClick={() => onRemove(i)} title="Eliminar" className="grid h-9 w-9 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={16} /></button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
   )
 }
