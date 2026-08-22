@@ -20,7 +20,7 @@ const newLine = () => ({ component_type: 'insumo', ref: '', unit: 'g', gross: ''
 
 const EMPTY = {
   id: null, name: '', is_subrecipe: true, servings: '1',
-  yield_quantity: '', yield_unit: 'g', portions: '', target_food_cost: '0.30', iva_rate: '0.10', sale_price: '',
+  yield_quantity: '', yield_unit: 'g', portions: '', target_food_cost: '30', iva_rate: '10', sale_price: '',
   lines: [newLine()],
 }
 
@@ -97,7 +97,9 @@ export default function EscandallosPanel({ canEdit }) {
       setForm({
         id: e.id, name: e.name, is_subrecipe: e.is_subrecipe, servings: String(e.servings),
         yield_quantity: numTrim(e.yield_quantity), yield_unit: e.yield_unit || 'g', portions: e.portions ? String(e.portions) : '',
-        target_food_cost: String(e.target_food_cost ?? '0.30'), iva_rate: String(e.iva_rate ?? '0.10'),
+        // Se guardan como fracción (0.30) pero se editan como % (30).
+        target_food_cost: numTrim((Number(e.target_food_cost ?? 0.30) * 100).toFixed(2)),
+        iva_rate: numTrim((Number(e.iva_rate ?? 0.10) * 100).toFixed(2)),
         sale_price: e.sale_price ?? '',
         lines: (e.lines || []).map((l) => {
           const netN = num(l.quantity), yld = num(l.cleaning_yield_override)
@@ -140,7 +142,9 @@ export default function EscandallosPanel({ canEdit }) {
     name: f.name, is_subrecipe: f.is_subrecipe, servings: Number(f.servings) || 1,
     yield_quantity: f.is_subrecipe ? (dot(f.yield_quantity) || null) : null, yield_unit: f.yield_unit,
     portions: f.is_subrecipe && f.portions ? Number(f.portions) : null,
-    target_food_cost: dot(f.target_food_cost) || '0.30', iva_rate: dot(f.iva_rate) || '0.10',
+    // El usuario los escribe como % (30, 10, 20.78) → se envían como fracción.
+    target_food_cost: String((num(f.target_food_cost) || 30) / 100),
+    iva_rate: String((num(f.iva_rate) || 0) / 100),
     sale_price: f.sale_price ? dot(f.sale_price) : null,
     // Entran las líneas con insumo/subreceta y cantidad. En insumos, la cantidad
     // que va al plato es el NETO y la merma se aplica como override = neto/bruto
@@ -229,12 +233,18 @@ export default function EscandallosPanel({ canEdit }) {
                   <input value={form.servings} onChange={(e) => setMeta('servings', e.target.value.replace(/[^\d]/g, ''))} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
                 <label className="flex flex-col gap-1 text-[13px] text-ink-2">Precio de venta (con IVA)
                   <input value={form.sale_price} onChange={(e) => setMeta('sale_price', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 20" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
-                <label className="flex flex-col gap-1 text-[13px] text-ink-2">Food cost objetivo
-                  <input value={form.target_food_cost} onChange={(e) => setMeta('target_food_cost', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0.30" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
-                <label className="flex flex-col gap-1 text-[13px] text-ink-2">IVA
-                  <input value={form.iva_rate} onChange={(e) => setMeta('iva_rate', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="0.10" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2" title="El % del precio de venta que debería costar la materia prima. Es tu objetivo de rentabilidad: de aquí sale el PVP sugerido. En hostelería suele estar entre 25 % y 35 %.">
+                  Food cost objetivo (%)
+                  <input value={form.target_food_cost} onChange={(e) => setMeta('target_food_cost', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="30" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
+                <label className="flex flex-col gap-1 text-[13px] text-ink-2">IVA (%)
+                  <input value={form.iva_rate} onChange={(e) => setMeta('iva_rate', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="10" className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" /></label>
               </>}
             </div>
+            {!form.is_subrecipe && (
+              <p className="mt-2 text-[12px] text-ink-3">
+                <span className="font-medium text-ink-2">Food cost objetivo</span>: el % del precio de venta que quieres que cueste la materia prima (p. ej. 30 %). Con él se calcula el PVP sugerido. Escríbelos como número: 30, 10 o 20,78.
+              </p>
+            )}
 
             {/* Importar de una receta existente */}
             {!form.id && recipes.length > 0 && (
