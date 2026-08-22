@@ -177,92 +177,109 @@ function PlanVal({ v }) {
   return <span className="data text-[13px] text-ink">{v}</span>
 }
 
-function PlanSection({ plan, onRequest }) {
+// Líneas de características por plan (para las tarjetas).
+const PLAN_FEATURES_LIST = (p) => [
+  [`${p.maxRec} recetas`, true],
+  [`${p.maxU} ${p.maxU === 1 ? 'usuario' : 'usuarios'}`, true],
+  ['PDF sin marca de agua', !p.marca],
+  [p.plantillas ? 'Plantillas de diseño (4)' : 'Plantilla básica', true],
+  ['Alérgenos UE', p.alerg],
+  ['Escandallo (costes)', p.escand],
+  ['Inventario y proveedores', p.inv],
+]
+
+function PlanSection({ plan, role }) {
   const cur = PLAN_DEFS[plan] || PLAN_DEFS.basico
   const usage = getUsage()
   const idx = PLAN_ORDER.indexOf(plan)
-  const recetasUso = cur.maxRec === 'Ilimitadas'
-    ? String(usage.recipes_total ?? 0)
-    : `${usage.recipes_total ?? 0} / ${cur.maxRec}`
+  const isOwner = role === 'owner' || role === 'superadmin'
+  const recetasUso = cur.maxRec === 'Ilimitadas' ? String(usage.recipes_total ?? 0) : `${usage.recipes_total ?? 0} / ${cur.maxRec}`
   const pdfUso = usage.pdf_exports_count != null ? String(usage.pdf_exports_count) : '—'
+
+  const [sending, setSending] = useState('')      // key del plan que se está solicitando
+  const [requested, setRequested] = useState('')  // key del plan solicitado (confirmación)
+  const [reqError, setReqError] = useState('')
+
+  const request = async (key) => {
+    setSending(key); setReqError(''); setRequested('')
+    try {
+      const res = await authFetch(`${API_BASE}/plan-requests/`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requested_plan: key }),
+      })
+      if (!res.ok) throw new Error(Object.values(await res.json()).flat().join(' '))
+      setRequested(key)
+    } catch (e) { setReqError(e.message) } finally { setSending('') }
+  }
 
   return (
     <div className="pb-6">
       {/* Plan actual (zona caliente) */}
       <div className="hot-zone overflow-hidden rounded-2xl border border-white/10 shadow-[var(--shadow-forge)]">
-        <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 p-6 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="pass-title text-[12px] tracking-[0.14em] text-cream-dim">Tu plan actual</p>
-            <h2 className="pass-title mt-2 text-[34px] text-cream">{cur.name}</h2>
-            <p className="mt-1 text-[14px] text-cream-dim">{cur.resumen}</p>
+            <h2 className="pass-title mt-2 text-[38px] leading-none text-cream">{cur.name}</h2>
+            <p className="mt-1.5 text-[14px] text-cream-dim">{cur.resumen}</p>
           </div>
-          <div className="flex flex-col items-start gap-2 sm:items-end">
-            {idx < PLAN_ORDER.length - 1 ? (
-              <button onClick={onRequest} className="inline-flex h-11 items-center gap-2 rounded-lg bg-ember px-4 text-sm font-medium text-cream shadow-[0_8px_20px_-8px_rgba(238,90,28,.7)] transition hover:bg-ember-hi">
-                <Flame size={16} /> Solicitar mejora
-              </button>
-            ) : (
-              <span className="text-[13px] text-ember-hi">Estás en el plan máximo.</span>
-            )}
-            <p className="text-[12px] text-cream-dim">El administrador activa el cambio.</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-3 divide-x divide-white/10 border-t border-white/10">
-          {[['Recetas', recetasUso], ['Usuarios', `— / ${cur.maxU}`], ['PDF usados', pdfUso]].map(([k, v]) => (
-            <div key={k} className="px-5 py-3.5">
-              <p className="text-[11px] uppercase tracking-wide text-cream-dim">{k}</p>
-              <p className="data mt-0.5 text-[18px] font-medium text-cream">{v}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Comparativa */}
-      <h3 className="pass-title mb-4 mt-8 text-[20px] text-ink">Compara los planes</h3>
-      <div className="steel-plate overflow-x-auto rounded-2xl">
-        <table className="w-full min-w-[640px] border-collapse">
-          <thead>
-            <tr className="border-b border-steel-300">
-              <th className="p-4 text-left" />
-              {PLAN_ORDER.map((k) => {
-                const actual = k === plan
-                return (
-                  <th key={k} className={`p-4 text-center ${actual ? 'bg-ember/8' : ''}`}>
-                    <p className="pass-title text-[17px] text-ink">{PLAN_DEFS[k].name}</p>
-                    {actual && <span className="mt-1 inline-block rounded-full bg-ember px-2 py-0.5 text-[10px] font-semibold uppercase text-cream">Actual</span>}
-                  </th>
-                )
-              })}
-            </tr>
-          </thead>
-          <tbody>
-            {PLAN_ROWS.map(([label, val]) => (
-              <tr key={label} className="border-b border-steel-200 last:border-0">
-                <td className="p-4 text-[13px] font-medium text-ink-2">{label}</td>
-                {PLAN_ORDER.map((k) => (
-                  <td key={k} className={`p-4 text-center ${k === plan ? 'bg-ember/8' : ''}`}><PlanVal v={val(PLAN_DEFS[k])} /></td>
-                ))}
-              </tr>
+          <div className="grid grid-cols-3 gap-4 sm:gap-6">
+            {[['Recetas', recetasUso], ['Usuarios', `— / ${cur.maxU}`], ['PDF', pdfUso]].map(([k, v]) => (
+              <div key={k}>
+                <p className="text-[11px] uppercase tracking-wide text-cream-dim">{k}</p>
+                <p className="data mt-0.5 text-[20px] font-medium text-cream">{v}</p>
+              </div>
             ))}
-            <tr>
-              <td className="p-4" />
-              {PLAN_ORDER.map((k) => (
-                <td key={k} className={`p-4 text-center ${k === plan ? 'bg-ember/8' : ''}`}>
-                  {k === plan ? (
-                    <span className="text-[12px] text-ink-3">En uso</span>
-                  ) : (
-                    <button onClick={onRequest} className={`inline-flex h-9 items-center rounded-lg px-3 text-[13px] font-medium transition ${PLAN_ORDER.indexOf(k) > idx ? 'bg-ember text-cream hover:bg-ember-hi' : 'steel-plate text-ink hover:bg-white'}`}>
-                      {PLAN_ORDER.indexOf(k) > idx ? 'Mejorar' : 'Cambiar'}
-                    </button>
-                  )}
-                </td>
-              ))}
-            </tr>
-          </tbody>
-        </table>
+          </div>
+        </div>
       </div>
 
-      <div className="mt-4 flex items-start gap-2.5 rounded-xl bg-steel-200/60 p-4">
+      {/* Confirmación / aviso */}
+      {requested && (
+        <div className="mt-4 flex items-center gap-2 rounded-xl border border-ember/30 bg-[#fff3ea] px-4 py-3 text-[13px] text-ember-deep">
+          <Flame size={15} /> Solicitaste el plan <span className="font-semibold">{PLAN_DEFS[requested]?.name}</span>. El administrador lo activará; te avisará cuando esté listo.
+        </div>
+      )}
+      {reqError && <div className="mt-4 rounded-xl border border-danger/30 bg-danger/8 px-4 py-2.5 text-[13px] text-danger">{reqError}</div>}
+      {!isOwner && <p className="mt-4 text-[13px] text-ink-3">El cambio de plan lo solicita el dueño del restaurante.</p>}
+
+      {/* Tarjetas de planes */}
+      <h3 className="pass-title mb-4 mt-8 text-[20px] text-ink">Elige tu plan</h3>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {PLAN_ORDER.map((key) => {
+          const p = PLAN_DEFS[key]
+          const isCurrent = key === plan
+          const isUp = PLAN_ORDER.indexOf(key) > idx
+          const done = requested === key
+          return (
+            <div key={key} className={`relative flex flex-col overflow-hidden rounded-2xl border p-5 transition ${isCurrent ? 'border-ember/50 bg-ember/[.05] shadow-[var(--shadow-plate)]' : 'border-steel-300 steel-plate hover:shadow-[var(--shadow-plate)]'}`}>
+              {isCurrent && <span className="absolute right-3 top-3 rounded-full bg-ember px-2 py-0.5 text-[10px] font-semibold uppercase text-cream">Actual</span>}
+              <h4 className="pass-title text-[22px] text-ink">{p.name}</h4>
+              <p className="mt-1 min-h-[36px] text-[12.5px] text-ink-2">{p.resumen}</p>
+              <ul className="mt-3 flex-1 space-y-1.5 border-t border-steel-200 pt-3">
+                {PLAN_FEATURES_LIST(p).map(([label, ok]) => (
+                  <li key={label} className={`flex items-start gap-1.5 text-[12.5px] ${ok ? 'text-ink-2' : 'text-ink-3 line-through opacity-60'}`}>
+                    <span className={`mt-0.5 shrink-0 ${ok ? 'text-ember' : 'text-ink-3'}`}>{ok ? '✓' : '—'}</span>{label}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-4">
+                {isCurrent ? (
+                  <span className="inline-flex h-10 w-full items-center justify-center rounded-lg bg-steel-200 text-[13px] font-medium text-ink-2">En uso</span>
+                ) : isOwner ? (
+                  <button onClick={() => request(key)} disabled={!!sending || done}
+                    className={`inline-flex h-10 w-full items-center justify-center gap-1.5 rounded-lg text-[13px] font-medium transition disabled:opacity-70 ${isUp ? 'bg-ember text-cream hover:bg-ember-hi' : 'steel-plate text-ink hover:bg-white'}`}>
+                    {done ? 'Solicitado ✓' : sending === key ? 'Enviando…' : (<><Flame size={14} /> Solicitar {p.name}</>)}
+                  </button>
+                ) : (
+                  <span className="inline-flex h-10 w-full items-center justify-center rounded-lg border border-steel-300 text-[12px] text-ink-3">Solo el dueño</span>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-steel-200/60 p-4">
         <span className="mt-0.5 text-ember">✓</span>
         <p className="text-[13px] text-ink-2">
           Cambiar de plan <span className="font-medium text-ink">nunca borra tus datos</span>. Al bajar de plan se conservan todas las recetas; solo se ocultan las funciones no incluidas, que reaparecen al volver a subir.
@@ -980,7 +997,7 @@ function App() {
         ? <UsuariosSection username={username} role={role} title={getTitle()} plan={getPlan()} />
         : <LockedSection icon={Users} title="Usuarios y roles" requiredPlan="Premium" points={['Varios usuarios en tu cocina', 'Roles y permisos por persona', 'Modo consulta para cocineros']} />
     } else if (section === 'plan') {
-      sectionContent = <PlanSection plan={getPlan()} onRequest={() => setShowUpgrade(true)} />
+      sectionContent = <PlanSection plan={getPlan()} role={role} />
     } else if (section === 'ajustes') {
       sectionContent = <AjustesSection restaurantName={restaurantName} plan={getPlan()} role={role} />
     }
