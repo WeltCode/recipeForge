@@ -8,6 +8,29 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api
 const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
 const PLAN_OPTS = [['basico', 'Básico'], ['pro', 'Premium'], ['business', 'Business']]
 
+// Redimensiona la foto a un cuadrado pequeño en el navegador ANTES de subir, para
+// que la subida a R2 sea casi instantánea (una foto de móvil de varios MB → ~30 KB).
+function resizeImage(file, size = 256, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')
+      const scale = Math.max(size / img.width, size / img.height) // recorte "cover" centrado
+      const w = img.width * scale
+      const h = img.height * scale
+      ctx.drawImage(img, (size - w) / 2, (size - h) / 2, w, h)
+      canvas.toBlob((blob) => (blob ? resolve(new File([blob], 'avatar.jpg', { type: 'image/jpeg' })) : reject(new Error('No se pudo procesar la imagen.'))), 'image/jpeg', quality)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Imagen no válida.')) }
+    img.src = url
+  })
+}
+
 // Sección Ajustes: foto de perfil (todos), cambio de contraseña (todos) y
 // solicitud de cambio de plan (solo owner). Oculta para el plan de prueba.
 export default function AjustesSection({ restaurantName, plan, role }) {
@@ -24,9 +47,12 @@ export default function AjustesSection({ restaurantName, plan, role }) {
     e.target.value = ''
     if (!f) return
     if (!f.type.startsWith('image/')) { setPhotoMsg('El archivo debe ser una imagen.'); return }
-    setBusy(true); setPhotoMsg('')
-    try { setAvatarUrl(await uploadAvatar(f)); setPhotoMsg('Foto actualizada.') }
-    catch (err) { setPhotoMsg(err.message) } finally { setBusy(false) }
+    setBusy(true); setPhotoMsg('Subiendo…')
+    try {
+      const small = await resizeImage(f)
+      setAvatarUrl(await uploadAvatar(small))
+      setPhotoMsg('Foto actualizada.')
+    } catch (err) { setPhotoMsg(err.message) } finally { setBusy(false) }
   }
   const onRemove = async () => {
     setBusy(true); setPhotoMsg('')

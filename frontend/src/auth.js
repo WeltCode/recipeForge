@@ -177,7 +177,7 @@ export async function changePassword(current_password, new_password) {
 // Sube la foto de perfil (multipart) y guarda su URL en el cliente.
 export async function uploadAvatar(file) {
   const fd = new FormData()
-  fd.append('avatar', file)
+  fd.append('avatar', file, file.name || 'avatar.jpg')
   const res = await authFetch(`${API_BASE}/auth/avatar/`, { method: 'POST', body: fd })
   if (!res.ok) {
     let detail = `Error ${res.status}`
