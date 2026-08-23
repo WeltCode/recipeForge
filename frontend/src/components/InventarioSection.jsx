@@ -203,7 +203,7 @@ export default function InventarioSection({ canEdit }) {
                       </div>
                     </button>
                     {canEdit && c.id != null && (
-                      <button onClick={() => removePartida(c)} title="Eliminar partida" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-lg text-ink-3 opacity-0 transition hover:bg-danger/8 hover:text-danger group-hover:opacity-100"><X size={15} /></button>
+                      <button onClick={() => removePartida(c)} title="Eliminar partida" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-lg text-ink-3 opacity-60 transition hover:bg-danger/8 hover:text-danger hover:opacity-100"><X size={15} /></button>
                     )}
                   </div>
                 )
@@ -231,6 +231,12 @@ export default function InventarioSection({ canEdit }) {
           <div className="mb-3 flex items-center gap-2">
             <h2 className="pass-title text-[20px] text-ink">{openName}</h2>
             <span className="data rounded-full bg-steel-200 px-2.5 py-0.5 text-[12px] font-medium text-ink-2">{openItems.length}</span>
+            {canEdit && open !== ALL && open !== NONE && (
+              <button onClick={() => removePartida(partidas.find((p) => String(p.id) === String(open)))}
+                className="ml-auto inline-flex items-center gap-1 rounded-lg border border-danger/30 bg-danger/8 px-2.5 py-1.5 text-[12px] font-medium text-danger hover:bg-danger/12">
+                <Trash size={14} /> Eliminar partida
+              </button>
+            )}
           </div>
 
           {openItems.length ? (
