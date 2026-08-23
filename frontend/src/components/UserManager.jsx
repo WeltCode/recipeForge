@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { authFetch } from '../auth'
-import { Trash, Plus, User, Lock, X } from './icons'
+import { initials } from '../lib/ui'
+import { Trash, Plus, Lock, X } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
@@ -114,41 +115,43 @@ function UserManager({ restaurantId, admins = false }) {
     }
   }
 
-  const inputCls = 'rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20'
+  const inputCls = 'rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/60 focus:ring-2 focus:ring-ember/15'
+  const field = (label, key, opts = {}) => (
+    <label className="flex flex-col gap-1 text-[12px] text-ink-2">{label}
+      <input required={opts.required} type={opts.type || 'text'} value={newUser[key]}
+        onChange={(e) => setNewUser({ ...newUser, [key]: e.target.value })}
+        placeholder={opts.ph || ''} autoComplete="off" className={inputCls} /></label>
+  )
 
   return (
     <div className="space-y-4">
       {/* Crear usuario */}
-      <form onSubmit={createUser} className="rf-steel rf-edge rounded-xl border border-[#c4ccd2] p-4">
+      <form onSubmit={createUser} className="rounded-2xl steel-plate p-5">
+        <p className="pass-title mb-3 text-[14px] text-ink">{admins ? 'Nuevo administrador' : 'Nuevo usuario'}</p>
         {admins ? (
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
             <input required value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} className={inputCls} placeholder="Usuario" autoComplete="off" />
             <input required type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} className={inputCls} placeholder="Contraseña" autoComplete="new-password" />
-            <button type="submit" disabled={loading} className="rf-cell rf-cond flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm uppercase tracking-wide text-white transition hover:bg-[#241a14] disabled:opacity-60" style={{ fontWeight: 600 }}>
+            <button type="submit" disabled={loading} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">
               <Plus size={16} /> {loading ? 'Creando…' : 'Añadir admin'}
             </button>
           </div>
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Nombre *
-                <input required value={newUser.first_name} onChange={(e) => setNewUser({ ...newUser, first_name: e.target.value })} className={inputCls} autoComplete="off" /></label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Apellido
-                <input value={newUser.last_name} onChange={(e) => setNewUser({ ...newUser, last_name: e.target.value })} className={inputCls} autoComplete="off" /></label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Correo *
-                <input required type="email" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} className={inputCls} placeholder="tu@correo.com" autoComplete="off" /></label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Teléfono *
-                <input required value={newUser.phone} onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })} className={inputCls} autoComplete="off" /></label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Rol *
-                <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} className={`${inputCls} bg-white`} title={ROLE_HELP[newUser.role]}>
+              {field('Nombre *', 'first_name', { required: true })}
+              {field('Apellido', 'last_name')}
+              {field('Correo *', 'email', { required: true, type: 'email', ph: 'tu@correo.com' })}
+              {field('Teléfono *', 'phone', { required: true })}
+              <label className="flex flex-col gap-1 text-[12px] text-ink-2">Rol *
+                <select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} className={inputCls} title={ROLE_HELP[newUser.role]}>
                   {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
                 </select></label>
-              <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Cargo (opcional)
-                <input value={newUser.title} onChange={(e) => setNewUser({ ...newUser, title: e.target.value })} className={inputCls} placeholder="ej. Sous chef" autoComplete="off" /></label>
+              {field('Cargo (opcional)', 'title', { ph: 'ej. Sous chef' })}
             </div>
-            <div className="mt-3 flex items-center justify-between gap-3">
-              <p className="text-[12px] text-[#8a837b]">Se generará una contraseña temporal que el usuario cambiará al entrar.</p>
-              <button type="submit" disabled={loading} className="rf-cell rf-cond flex shrink-0 items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm uppercase tracking-wide text-white transition hover:bg-[#241a14] disabled:opacity-60" style={{ fontWeight: 600 }}>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[12px] text-ink-3">Se generará una contraseña temporal que el usuario cambiará al entrar.</p>
+              <button type="submit" disabled={loading} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">
                 <Plus size={16} /> {loading ? 'Creando…' : 'Añadir usuario'}
               </button>
             </div>
@@ -158,51 +161,44 @@ function UserManager({ restaurantId, admins = false }) {
 
       {/* Contraseña temporal generada (mostrar una vez, para compartir) */}
       {tempCred && (
-        <div className="flex items-start justify-between gap-3 rounded-xl border border-[#e8531f]/30 bg-[#fff3ea] px-4 py-3">
+        <div className="flex items-start justify-between gap-3 rounded-xl border border-ember/30 bg-[#fff3ea] px-4 py-3">
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-[#8a3d15]">Contraseña temporal de «{tempCred.login}»</p>
-            <p className="mt-1 text-[13px] text-[#5a5650]">Compártela con el usuario. Deberá cambiarla al iniciar sesión.</p>
-            <p className="data mt-1.5 select-all rounded-md bg-white px-2.5 py-1 text-[14px] font-medium text-[#1c1611]">{tempCred.password}</p>
+            <p className="text-[13px] font-medium text-ember-deep">Contraseña temporal de «{tempCred.login}»</p>
+            <p className="mt-0.5 text-[12px] text-ink-2">Compártela con el usuario. Deberá cambiarla al iniciar sesión.</p>
+            <p className="data mt-1.5 select-all rounded-md bg-white px-2.5 py-1 text-[14px] font-medium text-ink">{tempCred.password}</p>
           </div>
-          <button onClick={() => setTempCred(null)} className="shrink-0 text-[#9a9188] hover:text-[#5a5650]"><X size={16} /></button>
+          <button onClick={() => setTempCred(null)} className="shrink-0 text-ink-3 hover:text-ink"><X size={16} /></button>
         </div>
       )}
 
       {/* Lista */}
       {users.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-[#c4ccd2] px-4 py-6 text-center text-sm text-[#9a9188]">
+        <p className="rounded-xl border border-dashed border-steel-300 px-4 py-8 text-center text-[13px] text-ink-3">
           {admins ? 'Aún no hay administradores.' : 'Este restaurante aún no tiene usuarios.'}
         </p>
       ) : (
-        <div className="divide-y divide-[#d5dade] overflow-hidden rounded-xl border border-[#c4ccd2]">
-          {users.map((u) => {
+        <div className="overflow-hidden rounded-2xl steel-plate">
+          {users.map((u, idx) => {
             const login = u.email || u.username
             const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ')
             return (
-              <div key={u.id} className="flex flex-col gap-3 bg-white/50 px-4 py-3 transition hover:bg-[#fff3ea]/60 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className="flex items-center gap-2 font-medium text-[#1c1611]">
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-white"><User size={15} /></span>
-                    {fullName || login}
-                  </span>
-                  {fullName && <span className="text-xs text-[#8a837b]">{login}</span>}
-                  {admins ? (
-                    <span className="rf-cond inline-flex items-center rounded-full bg-[#e8531f]/12 px-2.5 py-0.5 text-xs uppercase tracking-wide text-[#b5420f]" style={{ fontWeight: 600 }}>Super Admin</span>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <select value={u.role || 'viewer'} onChange={(e) => patchUser(u.id, { role: e.target.value })} className="rounded-md border border-[#b9c0c6] bg-white px-2 py-1 text-xs" title={ROLE_HELP[u.role]}>
-                        {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                      </select>
-                      {u.title && <span className="text-xs text-[#8a3d15]">· {u.title}</span>}
-                      {u.must_change_password && <span className="rounded-full bg-[#f0e3c9] px-2 py-0.5 text-[10px] font-medium text-[#8a6a1f]">contraseña temporal</span>}
-                    </div>
-                  )}
+              <div key={u.id} className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-5 ${idx ? 'border-t border-steel-200' : ''}`}>
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-[12px] font-semibold text-white">{initials(fullName || login)}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-medium text-ink">{fullName || login}</p>
+                  <p className="truncate text-[12px] text-ink-3">{login}{u.title ? ` · ${u.title}` : ''}</p>
                 </div>
-                <div className="flex items-center gap-1.5 sm:justify-end">
-                  <button onClick={() => resetPassword(u.id, login)} title="Restablecer contraseña"
-                    className="flex items-center gap-1 rounded-lg border border-[#c4ccd2] bg-white px-2 py-1.5 text-xs text-[#5a5650] hover:bg-[#f1f3f4]"><Lock size={14} /> Restablecer</button>
-                  <button onClick={() => deleteUser(u.id, login)} title="Eliminar"
-                    className="rounded-lg border border-[#b03418]/25 bg-[#fbeae5] px-2 py-1.5 text-[#a4331a] hover:bg-[#f6d9d1]"><Trash size={15} /></button>
+                {u.must_change_password && <span className="rounded-full bg-[#f0e3c9] px-2 py-0.5 text-[10px] font-medium text-[#8a6a1f]">contraseña temporal</span>}
+                {admins ? (
+                  <span className="pass-title rounded-full bg-ember/12 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-ember-deep">Super Admin</span>
+                ) : (
+                  <select value={u.role || 'viewer'} onChange={(e) => patchUser(u.id, { role: e.target.value })} className="rounded-lg border border-steel-300 bg-white px-2.5 py-1.5 text-[12px] text-ink outline-none focus:border-ember/60" title={ROLE_HELP[u.role]}>
+                    {Object.entries(ROLE_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                )}
+                <div className="flex shrink-0 items-center gap-1">
+                  <button onClick={() => resetPassword(u.id, login)} title="Restablecer contraseña" className="inline-flex items-center gap-1 rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white"><Lock size={14} /> Restablecer</button>
+                  <button onClick={() => deleteUser(u.id, login)} title="Eliminar" className="grid h-9 w-9 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
                 </div>
               </div>
             )
@@ -210,7 +206,7 @@ function UserManager({ restaurantId, admins = false }) {
         </div>
       )}
 
-      {message && <p className="rounded-lg border border-[#c4ccd2] bg-white/60 px-3 py-2 text-sm text-[#5a5650]">{message}</p>}
+      {message && <p className="rounded-lg border border-steel-300 bg-white/60 px-3 py-2 text-[13px] text-ink-2">{message}</p>}
     </div>
   )
 }
