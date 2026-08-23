@@ -33,7 +33,7 @@ function resizeImage(file, size = 256, quality = 0.85) {
 
 // Sección Ajustes: foto de perfil (todos), cambio de contraseña (todos) y
 // solicitud de cambio de plan (solo owner). Oculta para el plan de prueba.
-export default function AjustesSection({ restaurantName, plan, role }) {
+export default function AjustesSection({ restaurantName, plan, role, onAvatarChange }) {
   const isOwner = role === 'owner' || role === 'superadmin'
   const [avatar, setAvatarUrl] = useState(getAvatar())
   const [photoMsg, setPhotoMsg] = useState('')
@@ -52,11 +52,12 @@ export default function AjustesSection({ restaurantName, plan, role }) {
       const small = await resizeImage(f)
       setAvatarUrl(await uploadAvatar(small))
       setPhotoMsg('Foto actualizada.')
+      onAvatarChange && onAvatarChange()
     } catch (err) { setPhotoMsg(err.message) } finally { setBusy(false) }
   }
   const onRemove = async () => {
     setBusy(true); setPhotoMsg('')
-    try { await deleteAvatar(); setAvatarUrl(''); setPhotoMsg('Foto quitada.') }
+    try { await deleteAvatar(); setAvatarUrl(''); setPhotoMsg('Foto quitada.'); onAvatarChange && onAvatarChange() }
     catch (err) { setPhotoMsg(err.message) } finally { setBusy(false) }
   }
 

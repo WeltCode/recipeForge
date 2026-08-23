@@ -6,6 +6,15 @@ import { initials } from '../lib/ui'
 const ROLE_LABELS = { superadmin: 'Super Admin', owner: 'Owner', manager: 'Manager', editor: 'Editor', viewer: 'Viewer' }
 const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
 
+// Avatar del usuario: foto de perfil subida si existe, si no las iniciales.
+function Avatar({ avatar, name, size = 36 }) {
+  const cls = 'shrink-0 overflow-hidden rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-white'
+  const style = { width: size, height: size, fontSize: Math.round(size * 0.34) }
+  return avatar
+    ? <img src={avatar} alt="" className={`${cls} object-cover`} style={style} />
+    : <span className={`flex items-center justify-center font-bold ${cls}`} style={style}>{initials(name)}</span>
+}
+
 function Burger({ size = 22 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -16,7 +25,7 @@ function Burger({ size = 22 }) {
 
 // Barra lateral de navegación (la "línea del pase" en acero). Las secciones
 // bloqueadas por el plan muestran un candado. En móvil se pliega a un cajón.
-export default function AppShell({ sections, active, onNavigate, username, role, plan, restaurantName, onLogout, children }) {
+export default function AppShell({ sections, active, onNavigate, username, role, plan, restaurantName, avatar, onLogout, children }) {
   const [open, setOpen] = useState(false)
   const go = (id) => { onNavigate(id); setOpen(false) }
 
@@ -75,7 +84,7 @@ export default function AppShell({ sections, active, onNavigate, username, role,
 
       <div className="border-t border-white/10 p-3">
         <div className="flex items-center gap-2.5 px-2 py-1.5">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-xs font-bold text-white">{initials(username)}</span>
+          <Avatar avatar={avatar} name={username} size={36} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-white/90">{username}</p>
             <p className="rf-cond truncate text-[11px] uppercase tracking-wide text-[#ffcf9e]">
@@ -101,7 +110,7 @@ export default function AppShell({ sections, active, onNavigate, username, role,
       <header className="rf-hot rf-grain sticky top-0 z-30 flex items-center justify-between border-b border-black/40 px-4 py-3 lg:hidden">
         <button onClick={() => setOpen(true)} className="text-white" aria-label="Abrir menú"><Burger /></button>
         <Logo variant="dark" className="text-lg" />
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-[11px] font-bold text-white">{initials(username)}</span>
+        <Avatar avatar={avatar} name={username} size={32} />
       </header>
 
       {/* Cajón lateral (móvil) */}

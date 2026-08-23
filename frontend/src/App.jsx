@@ -13,7 +13,7 @@ import CosteoSection from './components/CosteoSection'
 import { AllergenPicker } from './components/AllergenPicker'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
-import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getTitle, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
+import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getTitle, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, getAvatar, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
 import { ForcedPasswordScreen } from './components/ChangePassword'
 import AjustesSection from './components/AjustesSection'
 import Logo from './components/Logo'
@@ -399,6 +399,7 @@ function App() {
   // ── Sesión / rol ──
   const [authed, setAuthed] = useState(isAuthenticated())
   const [mustChange, setMustChange] = useState(mustChangePassword())
+  const [avatar, setAvatar] = useState(getAvatar())
   const [role, setRole] = useState(getRole())
   const [view, setView] = useState('dashboard') // 'dashboard' | 'editor'
   const [section, setSection] = useState('recetas') // sección activa del shell (usuario normal)
@@ -425,6 +426,7 @@ function App() {
       if (!data) return
       setRole(data.role)
       setMustChange(mustChangePassword())
+      setAvatar(getAvatar())
       setActiveRestaurant((prev) => ({
         name: data.restaurant_name ?? prev.name,
         // El logo es el del restaurante actual (null si no tiene); no heredar el anterior.
@@ -1001,13 +1003,13 @@ function App() {
     } else if (section === 'plan') {
       sectionContent = <PlanSection plan={getPlan()} role={role} />
     } else if (section === 'ajustes') {
-      sectionContent = <AjustesSection restaurantName={restaurantName} plan={getPlan()} role={role} />
+      sectionContent = <AjustesSection restaurantName={restaurantName} plan={getPlan()} role={role} onAvatarChange={() => setAvatar(getAvatar())} />
     }
 
     return (
       <AppShell
         sections={userSections} active={section} onNavigate={setSection}
-        username={username} role={role} plan={getPlan()} restaurantName={restaurantName} onLogout={handleLogout}
+        username={username} role={role} plan={getPlan()} restaurantName={restaurantName} avatar={avatar} onLogout={handleLogout}
       >
         {connBanner}
         {sectionContent}
