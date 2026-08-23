@@ -879,6 +879,15 @@ function App() {
           setRole(data.role)
           setView('dashboard')
           setSessionExpired(false)
+          // El shell ya está montado, así que el useEffect de arranque no vuelve a
+          // correr: hay que refrescar aquí el estado que no se lee en cada render
+          // (avatar y restaurante) para no mostrar los del usuario anterior.
+          setAvatar(getAvatar())
+          setActiveRestaurant({
+            name: getRestaurantName(),
+            logo: getRestaurantLogo(),
+            defaultTemplate: getRestaurantDefaultTemplate() || 'formal',
+          })
         }}
       />
     )

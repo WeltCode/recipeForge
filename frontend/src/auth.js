@@ -149,6 +149,9 @@ export async function login(username, password) {
     title: data.title,
     username: data.username,
     first_name: data.first_name,
+    // Se guarda aunque venga null: así un usuario sin foto NO hereda la del
+    // usuario anterior en este navegador (igual que el logo del restaurante).
+    avatar: data.avatar ?? '',
     must_change_password: data.must_change_password,
     restaurant: data.restaurant,
     restaurant_name: data.restaurant_name,

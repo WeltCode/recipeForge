@@ -142,6 +142,14 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['first_name'] = user.first_name
         prof = getattr(user, 'profile', None)
         data['must_change_password'] = bool(prof.must_change_password) if prof else False
+        # Avatar: se incluye en el login para que el cliente no muestre la foto del
+        # usuario anterior hasta recargar (el estado se refresca al iniciar sesión).
+        avatar_url = None
+        if prof and getattr(prof, 'avatar', None):
+            request = self.context.get('request')
+            avatar_path = f'/api/media/{prof.avatar.name}'
+            avatar_url = request.build_absolute_uri(avatar_path) if request else avatar_path
+        data['avatar'] = avatar_url
         m = get_membership(user)
         data['title'] = m.title if m else ''
         data['restaurant'] = r.id if r else None
