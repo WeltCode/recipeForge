@@ -3,7 +3,7 @@ import Logo from './Logo'
 import { authFetch, getFirstName } from '../auth'
 import RestaurantDetail from './RestaurantDetail'
 import UserManager from './UserManager'
-import { greeting, capitalize, initials, Embers } from '../lib/ui'
+import { greeting, capitalize, initials, Embers, StatusLamp } from '../lib/ui'
 import { LogOut, Plus, Search, Book, User, Cloche, Sparkle, X, Flame } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -99,8 +99,11 @@ function AdminDashboard({
   return (
     <div className="rf-steel-surface min-h-screen">
       <header className="rf-hot rf-grain rf-pass-edge relative overflow-hidden">
-        <Embers count={14} />
-        <div className="relative mx-auto max-w-6xl px-5 pb-24 pt-6 md:px-8">
+        <Embers count={18} />
+        {/* Resplandores de forja */}
+        <div aria-hidden className="pointer-events-none absolute -left-28 -top-28 h-80 w-80 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,138,76,0.22), transparent 68%)' }} />
+        <div aria-hidden className="pointer-events-none absolute right-[-6rem] top-[-4rem] h-72 w-72 rounded-full" style={{ background: 'radial-gradient(circle, rgba(232,83,31,0.16), transparent 66%)' }} />
+        <div className="relative mx-auto max-w-6xl px-5 pb-28 pt-6 md:px-8">
           <div className="flex items-center justify-between gap-3">
             <Logo variant="dark" className="text-2xl" />
             <div className="flex items-center gap-2.5">
@@ -113,31 +116,35 @@ function AdminDashboard({
             </div>
           </div>
 
-          <div className="mt-10">
-            <span className="rf-cond inline-flex items-center gap-1.5 rounded-full border border-[#ff9a3d]/25 bg-[#e8531f]/15 px-3 py-1 text-xs font-medium uppercase tracking-[0.12em] text-[#ffcf9e]">
-              <Flame size={13} /> Panel de administración
+          <div className="mt-12">
+            <span className="rf-cond inline-flex items-center gap-1.5 rounded-full border border-[#ff9a3d]/25 bg-[#e8531f]/15 px-3 py-1 text-xs font-medium uppercase tracking-[0.14em] text-[#ffcf9e]">
+              <StatusLamp size={8} /> Panel de administración
             </span>
-            <h1 className="mt-3 text-4xl font-bold tracking-tight text-white md:text-5xl">
-              {greeting()}, <span className="text-[#ff9a3d]">{capitalize(getFirstName() || username)}</span>
+            <h1 className="rf-cond mt-4 text-5xl uppercase leading-[0.92] tracking-tight text-white md:text-6xl" style={{ fontWeight: 600 }}>
+              {greeting()},<br /><span className="text-[#ff9a3d] drop-shadow-[0_3px_16px_rgba(232,83,31,0.5)]">{capitalize(getFirstName() || username)}</span>
             </h1>
-            <p className="mt-2 text-sm text-white/55">Gestiona los restaurantes de la plataforma.</p>
+            <p className="mt-3 max-w-md text-sm text-white/55">El puesto de mando de la plataforma: todos tus restaurantes, sus recetas y su gente.</p>
           </div>
         </div>
       </header>
 
       <main className="relative z-10 mx-auto max-w-6xl px-5 pb-24 md:px-8">
-        {/* tira de instrumentos */}
-        <div className="-mt-14 grid grid-cols-3 divide-x divide-[#c4ccd2] overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-edge shadow-[0_18px_44px_-20px_rgba(20,16,8,0.6)]">
-          <Readout icon={<Cloche size={19} />} value={totals.restaurants} label="Restaurantes" />
-          <Readout icon={<Book size={19} />} value={totals.recipes} label="Recetas totales" />
-          <Readout icon={<User size={19} />} value={totals.users} label="Usuarios" />
+        {/* Clúster de instrumentos (oscuro), montado sobre el filo del pase */}
+        <div className="-mt-16 grid gap-3 sm:grid-cols-3">
+          <Gauge icon={<Cloche size={18} />} value={totals.restaurants} label="Restaurantes" tint="#ff6a2c" />
+          <Gauge icon={<Book size={18} />} value={totals.recipes} label="Recetas totales" tint="#ff9a3d" />
+          <Gauge icon={<User size={18} />} value={totals.users} label="Usuarios" tint="#d89b3a" />
         </div>
 
         {/* toolbar */}
         <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="rf-cond text-3xl font-600 uppercase tracking-[0.06em] text-[#1c1611]" style={{ fontWeight: 600 }}>Restaurantes</h2>
-            <p className="rf-mono text-xs text-[#6a635c]">Entra a un restaurante para gestionar sus recetas y usuarios.</p>
+            <div className="flex items-center gap-2.5">
+              <span className="h-4 w-1 rounded-full bg-ember" />
+              <h2 className="rf-cond text-3xl uppercase tracking-[0.04em] text-[#1c1611]" style={{ fontWeight: 600 }}>Restaurantes</h2>
+              <span className="rf-mono rounded-full bg-[#dfe3e7] px-2 py-0.5 text-[12px] font-medium text-[#5a5650]">{filtered.length}</span>
+            </div>
+            <p className="rf-mono mt-1 text-xs text-[#6a635c]">Entra a un restaurante para gestionar sus recetas y usuarios.</p>
           </div>
           <div className="flex items-center gap-2">
             <div className="relative sm:w-56">
@@ -164,43 +171,57 @@ function AdminDashboard({
             <p className="mt-1 text-sm text-[#6a635c]">Crea el primero para empezar.</p>
           </div>
         ) : (
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-7 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((r, i) => (
               <button
                 key={r.id}
                 onClick={() => onSelectRestaurant(r)}
-                className="rf-steel rf-edge rf-rise group flex flex-col overflow-hidden rounded-2xl border border-[#b1b9c0] text-left shadow-[0_12px_32px_-16px_rgba(20,16,8,0.55)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_22px_44px_-18px_rgba(20,16,8,0.65)]"
-                style={{ animationDelay: `${Math.min(i * 50, 400)}ms` }}
+                className="rf-rise group relative flex flex-col overflow-hidden rounded-[20px] border border-[#b1b9c0] rf-steel rf-edge text-left shadow-[0_14px_34px_-18px_rgba(20,16,8,0.55)] transition duration-300 hover:-translate-y-1.5 hover:border-[#e8531f]/45 hover:shadow-[0_28px_52px_-20px_rgba(20,16,8,0.7),0_0_40px_-14px_rgba(232,83,31,0.55)]"
+                style={{ animationDelay: `${Math.min(i * 55, 440)}ms` }}
               >
-                {/* cabecera negra tipo rótulo de línea */}
-                <div className="rf-hot rf-grain relative flex h-24 items-center gap-3.5 px-5">
+                {/* filo de brasa que se enciende al pasar */}
+                <span aria-hidden className="absolute inset-x-0 top-0 z-10 h-[3px] origin-left scale-x-0 bg-gradient-to-r from-[#ff9a3d] via-[#e8531f] to-transparent transition-transform duration-300 group-hover:scale-x-100" />
+                {/* cabecera: zona caliente con monograma/logo */}
+                <div className="rf-hot rf-grain relative flex h-28 items-center gap-4 overflow-hidden px-5">
+                  <div aria-hidden className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full opacity-0 transition-opacity duration-300 group-hover:opacity-100" style={{ background: 'radial-gradient(circle, rgba(255,138,76,0.4), transparent 70%)' }} />
                   {r.logo ? (
-                    <span className="rf-steel rf-edge relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-[#9aa2a9]/60 p-1 shadow-md">
+                    <span className="rf-steel rf-edge relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-[#9aa2a9]/60 p-1 shadow-lg">
                       <img src={r.logo} alt={r.name} className="h-full w-full object-contain" />
                     </span>
                   ) : (
-                    <span className="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-xl font-bold text-white shadow-md">
+                    <span className="rf-cond relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ff8a4c] to-[#c8371a] text-2xl text-white shadow-[0_8px_20px_-6px_rgba(232,83,31,0.8)]" style={{ fontWeight: 600 }}>
                       {initials(r.name)}
                     </span>
                   )}
-                  {r.code_prefix && (
-                    <span className="rf-cell rf-cond relative rounded-md px-2 py-1 text-xs font-600 uppercase tracking-[0.1em] text-[#ffcf9e] shadow-sm" style={{ fontWeight: 600 }}>
-                      {r.code_prefix}
-                    </span>
-                  )}
+                  <div className="relative min-w-0">
+                    {r.code_prefix && (
+                      <span className="rf-cell rf-cond inline-block rounded-md px-2 py-1 text-xs uppercase tracking-[0.14em] text-[#ffcf9e] shadow-sm" style={{ fontWeight: 600 }}>
+                        {r.code_prefix}
+                      </span>
+                    )}
+                  </div>
                   {r.pending_plan_request && (
-                    <span className="rf-cond absolute right-3 top-3 rounded-full bg-[#d89b3a] px-2 py-0.5 text-[10px] font-600 uppercase tracking-wide text-white shadow" style={{ fontWeight: 600 }} title={`Solicita: ${r.pending_plan_request.requested_plan_display}`}>
-                      Solicitud de plan
+                    <span className="rf-cond absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#d89b3a] px-2 py-0.5 text-[10px] uppercase tracking-wide text-white shadow" style={{ fontWeight: 600 }} title={`Solicita: ${r.pending_plan_request.requested_plan_display}`}>
+                      <StatusLamp size={6} /> Solicitud
                     </span>
                   )}
                 </div>
+                {/* cuerpo */}
                 <div className="flex flex-1 flex-col p-5">
-                  <h3 className="text-xl font-bold leading-tight text-[#1c1611]">{r.name}</h3>
-                  {r.contact_email && <p className="mt-1 truncate text-xs text-[#9a9188]">{r.contact_email}</p>}
-                  <div className="rf-mono mt-4 flex items-center gap-4 border-t border-[#c9d0d5] pt-3 text-sm text-[#6a635c]">
-                    <span className="flex items-center gap-1.5"><Book size={15} /> {r.recipe_count}</span>
-                    <span className="flex items-center gap-1.5"><User size={15} /> {r.member_count}</span>
-                    <span className="ml-auto text-[#b1b9c0] transition group-hover:translate-x-0.5 group-hover:text-[#e8531f]">→</span>
+                  <h3 className="rf-cond text-[22px] uppercase leading-tight tracking-[0.01em] text-[#1c1611]" style={{ fontWeight: 600 }}>{r.name}</h3>
+                  <p className="mt-0.5 truncate text-xs text-[#9a9188]">{r.contact_email || 'Sin contacto'}</p>
+                  <div className="mt-4 flex items-end gap-5 border-t border-[#c9d0d5] pt-3.5">
+                    <div>
+                      <p className="rf-cond text-[20px] leading-none text-[#1c1611]" style={{ fontWeight: 600 }}>{r.recipe_count}</p>
+                      <p className="rf-mono mt-0.5 text-[10px] uppercase tracking-[0.12em] text-[#8a837b]">recetas</p>
+                    </div>
+                    <div>
+                      <p className="rf-cond text-[20px] leading-none text-[#1c1611]" style={{ fontWeight: 600 }}>{r.member_count}</p>
+                      <p className="rf-mono mt-0.5 text-[10px] uppercase tracking-[0.12em] text-[#8a837b]">usuarios</p>
+                    </div>
+                    <span className="rf-cond ml-auto inline-flex items-center gap-1 self-center rounded-full bg-[#eef1f3] px-3 py-1.5 text-[11px] uppercase tracking-wide text-[#6a635c] transition group-hover:bg-ember group-hover:text-cream" style={{ fontWeight: 600 }}>
+                      Gestionar <span className="transition-transform group-hover:translate-x-0.5">→</span>
+                    </span>
                   </div>
                 </div>
               </button>
@@ -320,16 +341,18 @@ function AdminDashboard({
 }
 
 // Segmento de la tira de instrumentos (readout de fogón).
-function Readout({ icon, value, label }) {
+// Instrumento de fogón: gauge oscuro con número condensado grande y acento de calor.
+function Gauge({ icon, value, label, tint }) {
   return (
-    <div className="flex items-center gap-3 px-3 py-3 sm:gap-3.5 sm:px-5 sm:py-4">
-      <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#2a1c14] to-[#17130f] text-[#ff9a3d] shadow-inner ring-1 ring-black/20 sm:flex">
-        {icon}
-      </span>
-      <div className="min-w-0">
-        <p className="rf-cond text-2xl leading-none text-[#1c1611] sm:text-3xl" style={{ fontWeight: 600 }}>{value}</p>
-        <p className="rf-cond mt-1 truncate text-[10px] uppercase tracking-[0.1em] text-[#7a736b] sm:text-[11px] sm:tracking-[0.14em]" style={{ fontWeight: 500 }}>{label}</p>
+    <div className="rf-cell relative overflow-hidden rounded-2xl border border-white/10 p-5 shadow-[0_20px_48px_-22px_rgba(0,0,0,0.75)]">
+      <div aria-hidden className="pointer-events-none absolute -right-7 -top-7 h-24 w-24 rounded-full" style={{ background: `radial-gradient(circle, ${tint}38, transparent 70%)` }} />
+      <span aria-hidden className="absolute inset-x-0 top-0 h-[2px]" style={{ background: `linear-gradient(90deg, ${tint}, transparent)` }} />
+      <div className="relative flex items-center justify-between">
+        <span className="grid h-10 w-10 place-items-center rounded-xl bg-white/[.06] ring-1 ring-white/10" style={{ color: tint }}>{icon}</span>
+        <span className="h-2 w-2 rounded-full" style={{ background: tint, boxShadow: `0 0 10px 1px ${tint}` }} />
       </div>
+      <p className="rf-cond relative mt-3 text-[38px] leading-none text-white" style={{ fontWeight: 600 }}>{value}</p>
+      <p className="rf-cond relative mt-1 text-[11px] uppercase tracking-[0.16em] text-white/50" style={{ fontWeight: 500 }}>{label}</p>
     </div>
   )
 }
