@@ -210,152 +210,95 @@ function RestaurantDetail({
         )}
 
         {/* ── INFORMACIÓN ── */}
-        {tab === 'info' && (
-          <form onSubmit={saveInfo} className="rf-steel rf-edge max-w-2xl space-y-5 rounded-2xl border border-[#c4ccd2] p-6">
-            <h2 className="rf-cond text-xl font-600 uppercase tracking-wide text-[#1c1611]" style={{ fontWeight: 600 }}>Información de contacto</h2>
-
-            <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-              <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
-                Nombre del restaurante
-                <input
-                  required
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
-                Prefijo de código
-                <input
-                  value={form.code_prefix}
-                  onChange={(e) => setForm({ ...form, code_prefix: e.target.value.toUpperCase() })}
-                  className="rf-mono w-28 rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 uppercase focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20"
-                  placeholder="LT"
-                  maxLength={12}
-                />
-                <span className="text-xs font-normal text-[#9a9188]">Ej: recetas como {form.code_prefix || 'LT'}-001</span>
-              </label>
-            </div>
-
-            <label className="flex flex-col gap-1 text-sm text-[#3a352f] sm:max-w-xs">
-              CIF / NIF
-              <input
-                value={form.tax_id}
-                onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
-                className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20"
-                placeholder="B-12345678"
-              />
-            </label>
-
-            {/* Solicitud de cambio de plan pendiente (del dueño) */}
-            {pendingReq && (
-              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#d89b3a]/40 bg-[#fdf5e6] p-4">
-                <p className="text-sm text-[#7a5a12]">
-                  El dueño solicitó cambiar al plan <span className="font-semibold">{pendingReq.requested_plan_display}</span>.
-                </p>
-                <button type="button" onClick={() => setForm({ ...form, plan: pendingReq.requested_plan })}
-                  className="rf-cond rounded-lg bg-[#d89b3a] px-3 py-2 text-xs font-600 uppercase tracking-wide text-white hover:bg-[#c68a2e]" style={{ fontWeight: 600 }}>
-                  Aplicar {pendingReq.requested_plan_display}
-                </button>
+        {tab === 'info' && (() => {
+          const inp = 'rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/60 focus:ring-2 focus:ring-ember/15'
+          const logoPreview = logoFile ? URL.createObjectURL(logoFile) : restaurant.logo
+          return (
+          <form onSubmit={saveInfo} className="max-w-3xl space-y-5">
+            {/* Identidad + marca */}
+            <section className="rounded-2xl steel-plate p-5 sm:p-6">
+              <p className="pass-title mb-4 text-[15px] text-ink">Identidad y marca</p>
+              <div className="flex flex-col gap-5 sm:flex-row">
+                <div className="flex flex-col items-center gap-2">
+                  <div className="grid h-24 w-24 shrink-0 place-items-center overflow-hidden rounded-2xl border border-steel-300 bg-steel-50">
+                    {logoPreview ? <img src={logoPreview} alt="" className="h-full w-full object-contain p-1.5" /> : <span className="pass-title text-2xl text-steel-400">{initials(form.name)}</span>}
+                  </div>
+                  <label className="cursor-pointer text-[12px] font-medium text-ember-deep hover:text-ember">
+                    Cambiar logo
+                    <input type="file" accept="image/*" onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)} className="hidden" />
+                  </label>
+                </div>
+                <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                  <label className="flex flex-col gap-1 text-[12px] text-ink-2 sm:col-span-2">Nombre del restaurante *
+                    <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className={inp} /></label>
+                  <label className="flex flex-col gap-1 text-[12px] text-ink-2">Prefijo de código
+                    <input value={form.code_prefix} onChange={(e) => setForm({ ...form, code_prefix: e.target.value.toUpperCase() })} className={`${inp} data uppercase`} placeholder="LT" maxLength={12} />
+                    <span className="text-[11px] text-ink-3">Ej: {form.code_prefix || 'LT'}-001</span></label>
+                  <label className="flex flex-col gap-1 text-[12px] text-ink-2">CIF / NIF
+                    <input value={form.tax_id} onChange={(e) => setForm({ ...form, tax_id: e.target.value })} className={inp} placeholder="B-12345678" /></label>
+                </div>
               </div>
-            )}
+            </section>
 
-            {/* Plan de suscripción (lo fija el superadmin; techo de funciones del restaurante) */}
-            <div className="rounded-xl border border-[#e8531f]/25 bg-[#fff6ef] p-4">
-              <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
-                <span className="rf-cond flex items-center gap-2 text-xs font-600 uppercase tracking-[0.12em] text-[#8a3d15]" style={{ fontWeight: 600 }}>
-                  <Lock size={13} /> Plan de suscripción
-                </span>
-                <select
-                  value={form.plan}
-                  onChange={(e) => setForm({ ...form, plan: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20 sm:w-72"
-                >
-                  <option value="prueba">Prueba — 5 recetas, 5 PDF con marca de agua, 14 días</option>
-                  <option value="basico">Básico — crear/editar/borrar/PDF · 10 recetas/mes · 1 usuario</option>
-                  <option value="pro">Premium — + plantillas, alérgenos, multiusuario (8)</option>
-                  <option value="business">Business — + escandallo, inventario, proveedores (20 usuarios)</option>
+            {/* Contacto */}
+            <section className="rounded-2xl steel-plate p-5 sm:p-6">
+              <p className="pass-title mb-4 text-[15px] text-ink">Contacto</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="flex flex-col gap-1 text-[12px] text-ink-2">Email de contacto
+                  <input type="email" value={form.contact_email} onChange={(e) => setForm({ ...form, contact_email: e.target.value })} className={inp} placeholder="contacto@restaurante.com" /></label>
+                <label className="flex flex-col gap-1 text-[12px] text-ink-2">Teléfono
+                  <input value={form.contact_phone} onChange={(e) => setForm({ ...form, contact_phone: e.target.value })} className={inp} placeholder="+34 600 000 000" /></label>
+                <label className="flex flex-col gap-1 text-[12px] text-ink-2 sm:col-span-2">Dirección
+                  <input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} className={inp} placeholder="Av. Principal 123" /></label>
+              </div>
+            </section>
+
+            {/* Plan y fichas */}
+            <section className="rounded-2xl steel-plate p-5 sm:p-6">
+              <p className="pass-title mb-4 text-[15px] text-ink">Plan y fichas</p>
+
+              {pendingReq && (
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#d89b3a]/40 bg-[#fdf5e6] p-4">
+                  <p className="text-[13px] text-[#7a5a12]">El dueño solicitó el plan <span className="font-semibold">{pendingReq.requested_plan_display}</span>.</p>
+                  <button type="button" onClick={() => setForm({ ...form, plan: pendingReq.requested_plan })} className="rounded-lg bg-[#d89b3a] px-3 py-2 text-[12px] font-semibold text-white hover:bg-[#c68a2e]">Aplicar {pendingReq.requested_plan_display}</button>
+                </div>
+              )}
+
+              <label className="flex flex-col gap-1 text-[12px] text-ink-2">
+                <span className="flex items-center gap-1.5"><Lock size={13} /> Plan de suscripción</span>
+                <select value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} className={`${inp} sm:max-w-md`}>
+                  <option value="prueba">Prueba — 5 recetas · 14 días · marca de agua</option>
+                  <option value="basico">Básico — 10 recetas/mes · 1 usuario · PDF sin marca</option>
+                  <option value="pro">Premium — plantillas, alérgenos, 8 usuarios</option>
+                  <option value="business">Business — escandallo, inventario, proveedores, 20 usuarios</option>
                 </select>
-                <span className="mt-1 text-xs text-[#9a9188]">Define qué funciones tiene disponibles este restaurante.</span>
+                <span className="text-[11px] text-ink-3">Define qué funciones tiene disponibles este restaurante.</span>
               </label>
-            </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
-                Email de contacto
-                <input
-                  type="email"
-                  value={form.contact_email}
-                  onChange={(e) => setForm({ ...form, contact_email: e.target.value })}
-                  className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20"
-                  placeholder="contacto@restaurante.com"
-                />
-              </label>
-              <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
-                Teléfono
-                <input
-                  value={form.contact_phone}
-                  onChange={(e) => setForm({ ...form, contact_phone: e.target.value })}
-                  className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20"
-                  placeholder="+51 999 999 999"
-                />
-              </label>
-            </div>
-            <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
-              Dirección
-              <input
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20"
-                placeholder="Av. Principal 123"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-[#3a352f]">
-              Logo del restaurante
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-                className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 text-sm file:mr-3 file:rounded file:border-0 file:bg-[#17130f] file:px-3 file:py-1 file:text-xs file:font-medium file:text-white"
-              />
-            </label>
-
-            <div className="flex flex-col gap-1 text-sm text-[#3a352f]">
-              Plantilla por defecto de las fichas
-              <div className="mt-1 grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <p className="mt-4 mb-1.5 text-[12px] text-ink-2">Plantilla por defecto de las fichas</p>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {TEMPLATES.map((t) => {
                   const active = form.default_template === t.id
                   return (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setForm({ ...form, default_template: t.id })}
-                      title={t.desc}
-                      className={`rounded-xl border px-3 py-2 text-left text-xs transition ${
-                        active ? 'border-[#e8531f] bg-[#fff3ea] ring-2 ring-[#e8531f]/20' : 'border-[#c4ccd2] bg-white hover:border-[#9aa2a9]'
-                      }`}
-                    >
-                      <span className={`block font-semibold ${active ? 'text-[#b5420f]' : 'text-[#3a352f]'}`}>{t.label}</span>
-                      <span className="mt-0.5 block leading-tight text-[#9a9188]">{t.desc}</span>
+                    <button key={t.id} type="button" onClick={() => setForm({ ...form, default_template: t.id })} title={t.desc}
+                      className={`rounded-xl border px-3 py-2.5 text-left transition ${active ? 'border-ember bg-ember/8 ring-2 ring-ember/15' : 'border-steel-300 bg-white hover:border-steel-400'}`}>
+                      <span className={`block text-[13px] font-semibold ${active ? 'text-ember-deep' : 'text-ink'}`}>{t.label}</span>
+                      <span className="mt-0.5 block text-[11px] leading-tight text-ink-3">{t.desc}</span>
                     </button>
                   )
                 })}
               </div>
-            </div>
+            </section>
 
-            <div className="flex items-center gap-3">
-              <button
-                type="submit"
-                disabled={savingInfo}
-                className="rf-ember-btn rf-cond rounded-lg px-4 py-2 text-sm font-600 uppercase tracking-wide text-white disabled:opacity-60"
-                style={{ fontWeight: 600 }}
-              >
+            <div className="sticky bottom-3 flex items-center gap-3 rounded-2xl steel-plate px-4 py-3">
+              <button type="submit" disabled={savingInfo} className="inline-flex h-10 items-center rounded-lg bg-ember px-5 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">
                 {savingInfo ? 'Guardando…' : 'Guardar cambios'}
               </button>
-              {infoMsg && <span className="text-sm text-[#6a635c]">{infoMsg}</span>}
+              {infoMsg && <span className="text-[13px] text-ink-2">{infoMsg}</span>}
             </div>
           </form>
-        )}
+          )
+        })()}
       </main>
     </div>
   )
