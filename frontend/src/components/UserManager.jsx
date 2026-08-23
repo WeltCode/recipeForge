@@ -183,7 +183,9 @@ function UserManager({ restaurantId, admins = false }) {
             const fullName = [u.first_name, u.last_name].filter(Boolean).join(' ')
             return (
               <div key={u.id} className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-5 ${idx ? 'border-t border-steel-200' : ''}`}>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-[12px] font-semibold text-white">{initials(fullName || login)}</span>
+                <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-[12px] font-semibold text-white">
+                  {u.avatar ? <img src={u.avatar} alt="" className="h-full w-full object-cover" /> : initials(fullName || login)}
+                </span>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-medium text-ink">{fullName || login}</p>
                   <p className="truncate text-[12px] text-ink-3">{login}{u.title ? ` · ${u.title}` : ''}</p>

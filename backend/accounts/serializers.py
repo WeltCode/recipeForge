@@ -205,17 +205,26 @@ class UserAdminSerializer(serializers.ModelSerializer):
         queryset=Restaurant.objects.all(), required=False, allow_null=True
     )
     restaurant_name = serializers.SerializerMethodField()
+    avatar = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name', 'email', 'phone',
                   'password', 'role', 'role_name', 'title', 'restaurant',
-                  'restaurant_name', 'is_active']
+                  'restaurant_name', 'avatar', 'is_active']
         extra_kwargs = {'username': {'required': False}}
 
     def get_restaurant_name(self, obj):
         m = obj.memberships.select_related('restaurant').first()
         return m.restaurant.name if m else None
+
+    def get_avatar(self, obj):
+        p = getattr(obj, 'profile', None)
+        if p and getattr(p, 'avatar', None):
+            request = self.context.get('request')
+            path = f'/api/media/{p.avatar.name}'
+            return request.build_absolute_uri(path) if request else path
+        return None
 
     def get_role_name(self, obj):
         m = obj.memberships.select_related('role').first()
