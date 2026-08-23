@@ -202,9 +202,6 @@ export default function InventarioSection({ canEdit }) {
                         <span className="inline-flex items-center gap-0.5 text-[12px] font-medium text-ink-2 group-hover:text-ink">Abrir <ChevronRight size={14} /></span>
                       </div>
                     </button>
-                    {canEdit && c.id != null && (
-                      <button onClick={() => removePartida(c)} title="Eliminar partida" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-lg text-ink-3 opacity-60 transition hover:bg-danger/8 hover:text-danger hover:opacity-100"><X size={15} /></button>
-                    )}
                   </div>
                 )
               })}
