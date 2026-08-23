@@ -188,6 +188,11 @@ function AdminDashboard({
                       {r.code_prefix}
                     </span>
                   )}
+                  {r.pending_plan_request && (
+                    <span className="rf-cond absolute right-3 top-3 rounded-full bg-[#d89b3a] px-2 py-0.5 text-[10px] font-600 uppercase tracking-wide text-white shadow" style={{ fontWeight: 600 }} title={`Solicita: ${r.pending_plan_request.requested_plan_display}`}>
+                      Solicitud de plan
+                    </span>
+                  )}
                 </div>
                 <div className="flex flex-1 flex-col p-5">
                   <h3 className="text-xl font-bold leading-tight text-[#1c1611]">{r.name}</h3>

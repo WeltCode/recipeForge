@@ -26,12 +26,14 @@ function RestaurantDetail({
   const [form, setForm] = useState({
     name: restaurant.name || '',
     code_prefix: restaurant.code_prefix || '',
+    tax_id: restaurant.tax_id || '',
     plan: restaurant.plan || 'basico',
     default_template: restaurant.default_template || 'formal',
     contact_email: restaurant.contact_email || '',
     contact_phone: restaurant.contact_phone || '',
     address: restaurant.address || '',
   })
+  const pendingReq = restaurant.pending_plan_request || null
   const [logoFile, setLogoFile] = useState(null)
   const [savingInfo, setSavingInfo] = useState(false)
   const [infoMsg, setInfoMsg] = useState('')
@@ -61,6 +63,13 @@ function RestaurantDetail({
         })
       }
       if (!res.ok) throw new Error(`Error ${res.status}`)
+      // Si había una solicitud de plan pendiente y se aplicó ese plan, se marca resuelta.
+      if (pendingReq && form.plan === pendingReq.requested_plan) {
+        await authFetch(`${API_BASE}/plan-requests/${pendingReq.id}/`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'done' }),
+        }).catch(() => {})
+      }
       setInfoMsg('Información actualizada.')
       setLogoFile(null)
       onUpdated?.()
@@ -227,6 +236,29 @@ function RestaurantDetail({
                 <span className="text-xs font-normal text-[#9a9188]">Ej: recetas como {form.code_prefix || 'LT'}-001</span>
               </label>
             </div>
+
+            <label className="flex flex-col gap-1 text-sm text-[#3a352f] sm:max-w-xs">
+              CIF / NIF
+              <input
+                value={form.tax_id}
+                onChange={(e) => setForm({ ...form, tax_id: e.target.value })}
+                className="rounded-lg border border-[#b9c0c6] bg-white px-3 py-2 focus:border-[#e8531f] focus:outline-none focus:ring-2 focus:ring-[#e8531f]/20"
+                placeholder="B-12345678"
+              />
+            </label>
+
+            {/* Solicitud de cambio de plan pendiente (del dueño) */}
+            {pendingReq && (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#d89b3a]/40 bg-[#fdf5e6] p-4">
+                <p className="text-sm text-[#7a5a12]">
+                  El dueño solicitó cambiar al plan <span className="font-semibold">{pendingReq.requested_plan_display}</span>.
+                </p>
+                <button type="button" onClick={() => setForm({ ...form, plan: pendingReq.requested_plan })}
+                  className="rf-cond rounded-lg bg-[#d89b3a] px-3 py-2 text-xs font-600 uppercase tracking-wide text-white hover:bg-[#c68a2e]" style={{ fontWeight: 600 }}>
+                  Aplicar {pendingReq.requested_plan_display}
+                </button>
+              </div>
+            )}
 
             {/* Plan de suscripción (lo fija el superadmin; techo de funciones del restaurante) */}
             <div className="rounded-xl border border-[#e8531f]/25 bg-[#fff6ef] p-4">
