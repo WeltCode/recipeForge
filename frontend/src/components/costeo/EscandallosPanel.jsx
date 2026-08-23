@@ -399,7 +399,7 @@ export default function EscandallosPanel({ canEdit }) {
 function EscGroup({ kind, title, rows, canEdit, onView, onEdit, onRemove }) {
   const isProd = kind === 'prod'
   const cols = isProd ? ['Coste total', 'Coste/porción', 'Peso/porción']
-                      : ['Coste total', 'Coste/ración', 'Food cost', 'PVP sug.']
+                      : ['Coste total', 'Precio venta', 'Coste/ración', 'Food cost', 'PVP sug.']
   const lamp = isProd
     ? { background: 'var(--rf-gold)', boxShadow: '0 0 0 3px rgba(216,155,58,0.16)' }
     : { background: 'radial-gradient(circle at 38% 32%, #ffd7a1, var(--rf-lamp) 58%, var(--rf-ember) 100%)', boxShadow: '0 0 8px 1px rgba(255,154,61,0.7)' }
@@ -439,6 +439,7 @@ function EscGroup({ kind, title, rows, canEdit, onView, onEdit, onRemove }) {
                       <td className="p-3 text-right"><span className="data text-[13px] text-ink">{b?.cost_per_portion ? eur(b.cost_per_portion) : '—'}</span></td>
                       <td className="p-3 text-right"><span className="data text-[13px] text-ink-2">{b?.weight_per_portion ? `${numTrim(b.weight_per_portion)} ${b.yield_unit}` : '—'}</span></td>
                     </> : <>
+                      <td className="p-3 text-right"><span className="data text-[13px] font-medium text-ink">{b?.sale_price ? eur(b.sale_price) : '—'}</span></td>
                       <td className="p-3 text-right"><span className="data text-[13px] text-ink">{b ? eur(b.cost_per_serving) : '—'}</span></td>
                       <td className={`p-3 text-right ${b ? foodCostColor(b.food_cost_pct) : ''}`}><span className="data text-[13px] font-medium">{b?.food_cost_pct != null ? `${b.food_cost_pct}%` : '—'}</span></td>
                       <td className="p-3 text-right"><span className="data text-[13px] text-ink-2">{b ? eur(b.pvp_inc_iva) : '—'}</span></td>
@@ -495,6 +496,7 @@ function EscandalloPreview({ esc, onClose }) {
                 {b.cost_per_portion && <PvRow label="Coste por porción" value={eur(b.cost_per_portion)} />}
                 {b.weight_per_portion && <PvRow label="Peso por porción" value={`${numTrim(b.weight_per_portion)} ${b.yield_unit}`} />}
               </> : <>
+                {b.sale_price && <PvRow label="Precio de venta (con IVA)" value={eur(b.sale_price)} strong />}
                 <PvRow label="Coste por ración" value={eur(b.cost_per_serving)} />
                 <PvRow label="PVP sugerido (con IVA)" value={eur(b.pvp_inc_iva)} />
                 {b.food_cost_pct != null && <PvRow label="Food cost (con tu PVP)" value={`${b.food_cost_pct}%`} />}
