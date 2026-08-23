@@ -427,7 +427,8 @@ function App() {
       setMustChange(mustChangePassword())
       setActiveRestaurant((prev) => ({
         name: data.restaurant_name ?? prev.name,
-        logo: data.restaurant_logo ?? prev.logo,
+        // El logo es el del restaurante actual (null si no tiene); no heredar el anterior.
+        logo: data.restaurant_logo ?? null,
         defaultTemplate: data.restaurant_default_template || prev.defaultTemplate,
       }))
     })
@@ -713,7 +714,8 @@ function App() {
       setActiveRestaurant((prev) => ({
         ...prev,
         name: data.restaurant_name || prev.name,
-        logo: data.restaurant_logo || prev.logo,
+        // Marca del restaurante DE ESTA receta (null si no tiene logo); no heredar otra.
+        logo: data.restaurant_logo ?? null,
       }))
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {

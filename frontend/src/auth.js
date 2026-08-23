@@ -112,7 +112,9 @@ function storeSession({ access, refresh, role, permissions, features, usage, pla
   if (restaurant != null) localStorage.setItem(KEYS.restaurant, String(restaurant))
   if (restaurant_name) localStorage.setItem(KEYS.restaurantName, restaurant_name)
   if (restaurant_prefix) localStorage.setItem(KEYS.restaurantPrefix, restaurant_prefix)
-  if (restaurant_logo) localStorage.setItem(KEYS.restaurantLogo, restaurant_logo)
+  // El logo se GUARDA aunque venga null (login/refreshMe traen siempre el campo):
+  // así un restaurante sin logo NO hereda el del restaurante anterior en este navegador.
+  if (restaurant_logo !== undefined) localStorage.setItem(KEYS.restaurantLogo, restaurant_logo || '')
   if (restaurant_default_template) localStorage.setItem(KEYS.restaurantDefaultTemplate, restaurant_default_template)
 }
 
