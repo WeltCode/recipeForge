@@ -177,12 +177,15 @@ if R2_ACCESS_KEY_ID:
     STORAGES['default'] = {'BACKEND': 'storages.backends.s3.S3Storage'}
 
 # CORS: en local se permite todo; en producción solo los orígenes indicados.
+# El dominio propio va FIJO aquí (además de lo que traiga el env) para no
+# depender de cambiar variables en Render al conectar recipeforge.es.
+_PROD_ORIGINS = ['https://recipeforge.es', 'https://www.recipeforge.es']
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 else:
-    CORS_ALLOWED_ORIGINS = env_list('CORS_ALLOWED_ORIGINS')
+    CORS_ALLOWED_ORIGINS = list(dict.fromkeys(env_list('CORS_ALLOWED_ORIGINS') + _PROD_ORIGINS))
 
-CSRF_TRUSTED_ORIGINS = env_list('CSRF_TRUSTED_ORIGINS')
+CSRF_TRUSTED_ORIGINS = list(dict.fromkeys(env_list('CSRF_TRUSTED_ORIGINS') + _PROD_ORIGINS))
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
