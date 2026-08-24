@@ -20,6 +20,8 @@ const KEYS = {
   restaurantLogo: 'rf_restaurant_logo',
   restaurantDefaultTemplate: 'rf_restaurant_template',
   restaurantCurrency: 'rf_restaurant_currency',
+  publicSlug: 'rf_public_slug',
+  cartaPublished: 'rf_carta_published',
   lastActivity: 'rf_last_activity',
 }
 
@@ -103,11 +105,20 @@ export function getCurrency() {
 export function setCurrency(code) {
   if (code) localStorage.setItem(KEYS.restaurantCurrency, code)
 }
+export function getPublicSlug() {
+  return localStorage.getItem(KEYS.publicSlug) || ''
+}
+export function getCartaPublished() {
+  return localStorage.getItem(KEYS.cartaPublished) === '1'
+}
+export function setCartaPublished(v) {
+  localStorage.setItem(KEYS.cartaPublished, v ? '1' : '0')
+}
 export function isAuthenticated() {
   return Boolean(getAccess())
 }
 
-function storeSession({ access, refresh, role, permissions, features, usage, plan, title, username, first_name, avatar, must_change_password, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template, restaurant_currency }) {
+function storeSession({ access, refresh, role, permissions, features, usage, plan, title, username, first_name, avatar, must_change_password, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template, restaurant_currency, restaurant_public_slug, restaurant_carta_published }) {
   if (access) localStorage.setItem(KEYS.access, access)
   if (refresh) localStorage.setItem(KEYS.refresh, refresh)
   if (role) localStorage.setItem(KEYS.role, role)
@@ -123,6 +134,8 @@ function storeSession({ access, refresh, role, permissions, features, usage, pla
   if (restaurant != null) localStorage.setItem(KEYS.restaurant, String(restaurant))
   if (restaurant_name) localStorage.setItem(KEYS.restaurantName, restaurant_name)
   if (restaurant_currency) localStorage.setItem(KEYS.restaurantCurrency, restaurant_currency)
+  if (restaurant_public_slug != null) localStorage.setItem(KEYS.publicSlug, restaurant_public_slug || '')
+  if (restaurant_carta_published != null) localStorage.setItem(KEYS.cartaPublished, restaurant_carta_published ? '1' : '0')
   if (restaurant_prefix) localStorage.setItem(KEYS.restaurantPrefix, restaurant_prefix)
   // El logo se GUARDA aunque venga null (login/refreshMe traen siempre el campo):
   // así un restaurante sin logo NO hereda el del restaurante anterior en este navegador.
@@ -171,6 +184,8 @@ export async function login(username, password) {
     restaurant_logo: data.restaurant_logo,
     restaurant_default_template: data.restaurant_default_template,
     restaurant_currency: data.restaurant_currency,
+    restaurant_public_slug: data.restaurant_public_slug,
+    restaurant_carta_published: data.restaurant_carta_published,
   })
   return data
 }
@@ -242,6 +257,8 @@ export async function refreshMe() {
       restaurant_logo: data.restaurant_logo,
       restaurant_default_template: data.restaurant_default_template,
     restaurant_currency: data.restaurant_currency,
+    restaurant_public_slug: data.restaurant_public_slug,
+    restaurant_carta_published: data.restaurant_carta_published,
     })
     return data
   } catch {

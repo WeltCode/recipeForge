@@ -3,7 +3,7 @@ import RecipeSheetPreview from './components/RecipeSheetPreview'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
-import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck, Tag, Flame } from './components/icons'
+import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck, Tag, Flame, Cloche } from './components/icons'
 import AppShell from './components/AppShell'
 import { LockedSection, UpgradeModal } from './components/FeatureGate'
 import AlergenosSection from './components/AlergenosSection'
@@ -18,6 +18,8 @@ import { ForcedPasswordScreen } from './components/ChangePassword'
 import AjustesSection from './components/AjustesSection'
 import UserManager from './components/UserManager'
 import RolesManager from './components/RolesManager'
+import CartaSection from './components/CartaSection'
+import { CartaPublica, EspecialesPublica } from './components/PublicPages'
 import Logo from './components/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -454,6 +456,8 @@ function App() {
 
   const exportRecipeId = new URL(window.location.href).searchParams.get('export')
   const isExportMode = Boolean(exportRecipeId)
+  // Rutas PÚBLICAS sin login (carta/especiales por slug); Netlify sirve SPA.
+  const publicRoute = window.location.pathname.match(/^\/(carta|especiales)\/([^/]+)\/?$/)
   const [exportRecipe, setExportRecipe] = useState(null)
   const [exportLoading, setExportLoading] = useState(false)
   const [printScheduled, setPrintScheduled] = useState(false)
@@ -801,6 +805,12 @@ function App() {
     }
   }
 
+  // ── RUTAS PÚBLICAS (sin login): carta / especiales por slug ───────────────
+  if (publicRoute) {
+    const [, kind, slug] = publicRoute
+    return kind === 'carta' ? <CartaPublica slug={slug} /> : <EspecialesPublica slug={slug} />
+  }
+
   // ── SIN SESIÓN: pantalla de login ─────────────────────────────────────────
   if (!authed) {
     return (
@@ -908,6 +918,7 @@ function App() {
       { id: 'alergenos', label: 'Alérgenos', icon: Allergen, locked: !feat('allergens') },
       { id: 'inventario', label: 'Inventario', icon: Inventory, locked: !feat('inventory') },
       { id: 'proveedores', label: 'Proveedores', icon: Truck, locked: !feat('suppliers') },
+      ...(hasPerm('can_create_recipes') ? [{ id: 'carta', label: 'Carta y QR', icon: Cloche, locked: !feat('carta') }] : []),
       ...(canTeam ? [{ id: 'equipo', label: 'Usuarios y roles', icon: Users, group: 'Gestión', locked: !feat('multiuser') }] : []),
       { id: 'plan', label: 'Mi plan', icon: Tag, group: 'Gestión' },
       // Ajustes disponible para todos los planes EXCEPTO la prueba de 30 días.
@@ -940,6 +951,10 @@ function App() {
       sectionContent = feat('suppliers')
         ? <ProveedoresSection canEdit={canEdit} canCost={feat('escandallo') && hasPerm('can_view_escandallo')} />
         : <LockedSection icon={Truck} title="Proveedores" requiredPlan="Business" points={['Proveedores y contacto', 'Sus productos y precios', 'Alimenta el coste del escandallo']} />
+    } else if (section === 'carta') {
+      sectionContent = feat('carta')
+        ? <CartaSection />
+        : <LockedSection icon={Cloche} title="Carta y QR" requiredPlan="Premium" points={['Carta digital con código QR', 'Especiales fuera de carta con QR propio', 'Se actualiza al instante']} />
     } else if (section === 'equipo') {
       sectionContent = feat('multiuser')
         ? <UsuariosSection />
