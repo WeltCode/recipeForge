@@ -144,7 +144,7 @@ export default function InsumosPanel({ canEdit }) {
               <div className="flex items-center gap-4 px-4 py-3.5 sm:px-5">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-medium text-ink">{i.name}</p>
-                  <p className="text-[12px] text-ink-3">{priceLabel(i) || 'sin precio'}</p>
+                  <p className="data text-[12px] text-ink-3">{priceLabel(i) || 'sin precio'}</p>
                 </div>
                 <span className="hidden rounded-full bg-steel-200 px-2.5 py-1 text-[11px] font-medium text-ink-2 sm:inline-flex"><span className="data mr-1">{i.formats?.length || 0}</span> formatos</span>
                 <button onClick={() => setPreview(i)} title="Ver" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Eye size={16} /></button>

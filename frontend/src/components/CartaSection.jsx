@@ -87,7 +87,7 @@ function CartaTab({ slug }) {
           </button>
         </div>
       </div>
-      {published && slug && <QrCard title="QR de la Carta" url={publicUrl('carta', slug)} hint="Ponlo en las mesas: tus clientes escanean y ven la carta." />}
+      {slug && <QrCard title="QR de la Carta" url={publicUrl('carta', slug)} hint={published ? 'Ponlo en las mesas: tus clientes escanean y ven la carta.' : 'Este QR es fijo. Publica la carta para que muestre el contenido al escanearlo.'} />}
 
       {/* Platos */}
       <div className="overflow-hidden rounded-2xl steel-plate">

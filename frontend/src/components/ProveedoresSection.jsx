@@ -232,7 +232,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
                           <p className="truncate text-[14px] font-medium text-ink">{p.name}</p>
                           {p.description && <p className="truncate text-[12px] text-ink-3">{p.description}</p>}
                         </div>
-                        {canCost && <span className="data shrink-0 text-[14px] font-semibold text-ink">{priceLabel(p) || `— /${p.base_unit}`}</span>}
+                        {canCost && <span className="data shrink-0 text-[13px] font-medium text-ink">{priceLabel(p) || `— /${p.base_unit}`}</span>}
                         <div className="flex shrink-0 items-center gap-1">
                           <button onClick={() => openPreview(p.insumo_id)} title="Ver insumo" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Eye size={16} /></button>
                           {canEdit && canCost && <button onClick={() => setProdEdit(p.format_id)} title="Editar precio/presentación" className="grid h-9 w-9 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Pencil size={16} /></button>}

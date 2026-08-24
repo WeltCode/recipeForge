@@ -3,6 +3,7 @@ import {
   listInventory, createInventory, updateInventory, deleteInventory, adjustInventory,
   listPartidas, createPartida, deletePartida, UNIT_CHOICES,
 } from '../lib/catalog'
+import { numTrim } from '../lib/costeo'
 import { Inventory, Plus, Pencil, Trash, X, Flame, ChevronRight } from './icons'
 
 const EMPTY = { name: '', partida: '', quantity: '0', unit: 'ud', weight: '', weight_unit: 'kg', stock_min: '0', notes: '' }
@@ -16,6 +17,7 @@ export default function InventarioSection({ canEdit }) {
   const [error, setError] = useState('')
   const [onlyLow, setOnlyLow] = useState(false)
   const [open, setOpen] = useState(null)   // null = rejilla de tarjetas | id | NONE | ALL
+  const [allMode, setAllMode] = useState('flat') // en "todas": 'flat' (tabla única) | 'grouped' (por partida)
   const [newPartida, setNewPartida] = useState('')
   const [editing, setEditing] = useState(null) // null | new | id
   const [form, setForm] = useState(EMPTY)
@@ -49,7 +51,7 @@ export default function InventarioSection({ canEdit }) {
 
   const openNew = () => { setForm({ ...EMPTY, partida: open && open !== ALL && open !== NONE ? open : '' }); setEditing('new') }
   const openEdit = (i) => {
-    setForm({ name: i.name, partida: i.partida ?? '', quantity: String(i.quantity ?? '0'), unit: i.unit, weight: i.weight != null ? String(i.weight) : '', weight_unit: i.weight_unit || 'kg', stock_min: String(i.stock_min ?? '0'), notes: i.notes || '' })
+    setForm({ name: i.name, partida: i.partida ?? '', quantity: numTrim(i.quantity ?? '0'), unit: i.unit, weight: i.weight != null ? numTrim(i.weight) : '', weight_unit: i.weight_unit || 'kg', stock_min: numTrim(i.stock_min ?? '0'), notes: i.notes || '' })
     setEditing(i.id)
   }
   const close = () => { setEditing(null); setForm(EMPTY) }
@@ -245,17 +247,27 @@ export default function InventarioSection({ canEdit }) {
 
           {openItems.length ? (
             open === ALL ? (
-              /* Todas juntas: agrupadas por partida */
-              <div className="space-y-5">
-                {cards.map((c) => c.items.length ? (
-                  <div key={c.key}>
-                    <p className="pass-title mb-2 text-[13px] text-ink-2">{c.name} <span className="data text-ink-3">· {c.items.length}</span></p>
-                    <ItemList items={c.items} canEdit={canEdit} onAdjust={setAdjFor} onEdit={openEdit} onRemove={remove} />
+              <div className="space-y-4">
+                <div className="inline-flex rounded-lg steel-plate p-1">
+                  {[['flat', 'Todos'], ['grouped', 'Por partida']].map(([id, label]) => (
+                    <button key={id} onClick={() => setAllMode(id)} className={`h-8 rounded-md px-3 text-[12px] font-medium transition-colors ${allMode === id ? 'bg-soot text-cream' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
+                  ))}
+                </div>
+                {allMode === 'flat' ? (
+                  <ItemTable items={openItems} showPartida canEdit={canEdit} onAdjust={setAdjFor} onEdit={openEdit} onRemove={remove} />
+                ) : (
+                  <div className="space-y-5">
+                    {cards.map((c) => c.items.length ? (
+                      <div key={c.key}>
+                        <p className="pass-title mb-2 text-[13px] text-ink-2">{c.name} <span className="data text-ink-3">· {c.items.length}</span></p>
+                        <ItemTable items={c.items} showPartida={false} canEdit={canEdit} onAdjust={setAdjFor} onEdit={openEdit} onRemove={remove} />
+                      </div>
+                    ) : null)}
                   </div>
-                ) : null)}
+                )}
               </div>
             ) : (
-              <ItemList items={openItems} canEdit={canEdit} onAdjust={setAdjFor} onEdit={openEdit} onRemove={remove} />
+              <ItemTable items={openItems} showPartida={false} canEdit={canEdit} onAdjust={setAdjFor} onEdit={openEdit} onRemove={remove} />
             )
           ) : (
             <div className="steel-plate rounded-2xl px-5 py-10 text-center text-[13px] text-ink-3">
@@ -279,9 +291,9 @@ function ItemList({ items, canEdit, onAdjust, onEdit, onRemove }) {
             {i.notes && <p className="truncate text-[12px] text-ink-3">{i.notes}</p>}
           </div>
           <div className="shrink-0 text-right">
-            <p className="data text-[15px] font-semibold text-ink">{i.quantity} {i.unit}</p>
-            {i.weight != null && i.weight !== '' && <p className="data text-[12px] text-ink-2">{i.weight} {i.weight_unit}</p>}
-            {Number(i.stock_min) > 0 && <p className="text-[11px] text-ink-3">mín. {i.stock_min}</p>}
+            <p className="data text-[14px] font-medium text-ink">{numTrim(i.quantity)} {i.unit}</p>
+            {i.weight != null && i.weight !== '' && <p className="data text-[12px] text-ink-2">{numTrim(i.weight)} {i.weight_unit}</p>}
+            {Number(i.stock_min) > 0 && <p className="data text-[11px] text-ink-3">mín. {numTrim(i.stock_min)}</p>}
           </div>
           {i.low_stock && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ember/12 px-2 py-0.5 text-[10px] font-semibold uppercase text-ember-deep"><Flame size={10} /> bajo</span>}
           {canEdit && (
@@ -293,6 +305,51 @@ function ItemList({ items, canEdit, onAdjust, onEdit, onRemove }) {
           )}
         </div>
       ))}
+    </div>
+  )
+}
+
+// Tabla organizada de insumos (todos, con columna de partida, o de una partida).
+function ItemTable({ items, showPartida, canEdit, onAdjust, onEdit, onRemove }) {
+  return (
+    <div className="overflow-x-auto rounded-2xl steel-plate">
+      <table className="w-full min-w-[640px] border-collapse">
+        <thead>
+          <tr className="border-b border-steel-300 text-left text-[11px] uppercase tracking-wide text-ink-3">
+            <th className="px-4 py-2.5 font-medium">Insumo</th>
+            {showPartida && <th className="px-3 py-2.5 font-medium">Partida</th>}
+            <th className="px-3 py-2.5 text-right font-medium">Cantidad</th>
+            <th className="px-3 py-2.5 text-right font-medium">Peso total</th>
+            <th className="px-3 py-2.5 text-right font-medium">Mínimo</th>
+            <th className="px-3 py-2.5 font-medium">Estado</th>
+            {canEdit && <th className="px-3 py-2.5" />}
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((i) => (
+            <tr key={i.id} className={`border-b border-steel-200 last:border-0 ${i.low_stock ? 'bg-ember/[.04]' : ''}`}>
+              <td className="px-4 py-2.5">
+                <p className="text-[13px] font-medium text-ink">{i.name}</p>
+                {i.notes && <p className="truncate text-[11px] text-ink-3">{i.notes}</p>}
+              </td>
+              {showPartida && <td className="px-3 py-2.5 text-[12px] text-ink-2">{i.partida_name || '—'}</td>}
+              <td className="px-3 py-2.5 text-right"><span className="data text-[13px] text-ink">{numTrim(i.quantity)} {i.unit}</span></td>
+              <td className="px-3 py-2.5 text-right"><span className="data text-[12px] text-ink-2">{i.weight != null && i.weight !== '' ? `${numTrim(i.weight)} ${i.weight_unit}` : '—'}</span></td>
+              <td className="px-3 py-2.5 text-right"><span className="data text-[12px] text-ink-3">{Number(i.stock_min) > 0 ? numTrim(i.stock_min) : '—'}</span></td>
+              <td className="px-3 py-2.5">{i.low_stock ? <span className="inline-flex items-center gap-1 rounded-full bg-ember/12 px-2 py-0.5 text-[10px] font-medium uppercase text-ember-deep"><Flame size={10} /> bajo</span> : <span className="text-[11px] text-ok">al día</span>}</td>
+              {canEdit && (
+                <td className="px-3 py-2.5">
+                  <div className="flex items-center justify-end gap-1">
+                    <button onClick={() => onAdjust(i)} className="rounded-lg steel-plate px-2 py-1 text-[11px] font-medium text-ink hover:bg-white">Cantidad</button>
+                    <button onClick={() => onEdit(i)} title="Editar" className="grid h-8 w-8 place-items-center rounded-lg text-ink-3 hover:bg-steel-100 hover:text-ink"><Pencil size={15} /></button>
+                    <button onClick={() => onRemove(i)} title="Eliminar" className="grid h-8 w-8 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
+                  </div>
+                </td>
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
