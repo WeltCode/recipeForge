@@ -64,6 +64,23 @@ function State({ children }) {
   )
 }
 
+// Visor a pantalla completa de una foto (clic para cerrar).
+function Lightbox({ src, onClose }) {
+  useEffect(() => {
+    if (!src) return
+    const onKey = (e) => e.key === 'Escape' && onClose()
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [src, onClose])
+  if (!src) return null
+  return (
+    <div onClick={onClose} role="dialog" aria-label="Foto del plato"
+      className="fixed inset-0 z-[90] grid place-items-center p-4" style={{ background: 'rgba(20,14,9,.9)', cursor: 'zoom-out' }}>
+      <img src={src} alt="" className="max-h-[92vh] max-w-full rounded-xl object-contain" style={{ boxShadow: '0 30px 80px -20px rgba(0,0,0,.7)' }} />
+    </div>
+  )
+}
+
 function SectionTitle({ children }) {
   return (
     <div className="mb-5 flex items-center gap-3">
@@ -73,15 +90,16 @@ function SectionTitle({ children }) {
   )
 }
 
-function Price({ value, cur }) {
+function Price({ value, cur, big }) {
   if (value == null) return null
-  return <span style={{ fontFamily: serif, fontSize: 17, color: EMBER, fontWeight: 500, whiteSpace: 'nowrap' }}>{money(value, cur)}</span>
+  return <span style={{ fontFamily: serif, fontSize: big ? 20 : 17, color: EMBER, fontWeight: 500, whiteSpace: 'nowrap' }}>{money(value, cur)}</span>
 }
 
 // ── Carta pública ──
 export function CartaPublica({ slug }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  const [zoom, setZoom] = useState('')
   useEffect(() => { getPublicCarta(slug).then(setData).catch(() => setError('Esta carta no está disponible ahora mismo.')) }, [slug])
 
   if (error) return <State>{error}</State>
@@ -97,8 +115,9 @@ export function CartaPublica({ slug }) {
             {sec.items.map((it) => (
               <li key={it.id} className="flex gap-4">
                 {it.photo && (
-                  <img src={it.photo} alt="" className="h-20 w-20 flex-none rounded-xl object-cover"
-                    style={{ boxShadow: '0 10px 24px -14px rgba(36,28,21,.55)' }} />
+                  <button type="button" onClick={() => setZoom(it.photo)} className="h-20 w-20 flex-none overflow-hidden rounded-xl" style={{ cursor: 'zoom-in', boxShadow: '0 10px 24px -14px rgba(36,28,21,.55)' }} aria-label={`Ampliar foto de ${it.name}`}>
+                    <img src={it.photo} alt={it.name} className="h-full w-full object-cover" />
+                  </button>
                 )}
                 <div className="min-w-0 flex-1">
                   <div className="flex items-baseline gap-2">
@@ -118,6 +137,7 @@ export function CartaPublica({ slug }) {
           </ul>
         </section>
       ))}
+      <Lightbox src={zoom} onClose={() => setZoom('')} />
     </Shell>
   )
 }
@@ -126,6 +146,7 @@ export function CartaPublica({ slug }) {
 export function EspecialesPublica({ slug }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
+  const [zoom, setZoom] = useState('')
   useEffect(() => { getPublicEspeciales(slug).then(setData).catch(() => setError('No disponible ahora mismo.')) }, [slug])
 
   if (error) return <State>{error}</State>
@@ -139,42 +160,42 @@ export function EspecialesPublica({ slug }) {
     <Shell restaurant={data.restaurant} tagline="Especiales fuera de carta">
       {data.especiales.length === 0 && <p className="mt-10 text-center" style={{ color: INK_SOFT }}>Hoy no hay especiales.</p>}
       {groups.map(([label, items], gi) => (
-        <section key={label} className="rf-menu-sec mb-9" style={{ animationDelay: `${gi * 90}ms` }}>
+        <section key={label} className="rf-menu-sec mb-10" style={{ animationDelay: `${gi * 90}ms` }}>
           <SectionTitle>{label}</SectionTitle>
-          <ul className="space-y-4">
+          <ul className="space-y-7">
             {items.map((it) => (
-              <li key={it.id} className="overflow-hidden rounded-2xl"
-                style={{ background: '#fffdf8', boxShadow: '0 14px 34px -22px rgba(36,28,21,.5)', border: '1px solid #efe6d5' }}>
-                <div className="flex gap-4 p-4">
-                  {it.photo && (
-                    <img src={it.photo} alt="" className="h-24 w-24 flex-none rounded-xl object-cover"
-                      style={{ boxShadow: '0 10px 24px -14px rgba(36,28,21,.55)' }} />
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span style={{ fontFamily: serif, fontSize: 19, fontWeight: 600, color: INK }}>{it.name}</span>
-                      <Price value={it.price} cur={cur} />
-                    </div>
-                    {(it.categoria_display || it.formato_display || it.para_personas) && (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {[it.categoria_display, it.formato_display, it.para_personas ? `ideal para ${it.para_personas}` : null].filter(Boolean).map((tag) => (
-                          <span key={tag} style={{ background: '#f4ece0', color: '#7a5a3a', fontSize: 11, letterSpacing: '.04em' }} className="rounded-full px-2.5 py-0.5">{tag}</span>
-                        ))}
-                      </div>
-                    )}
-                    {it.description && <p className="mt-2" style={{ color: INK_SOFT, fontSize: 14.5, lineHeight: 1.5 }}>{it.description}</p>}
-                    {it.sales_pitch && (
-                      <p className="mt-2 border-t pt-2" style={{ borderColor: '#efe6d5', color: EMBER, fontFamily: serif, fontStyle: 'italic', fontSize: 14.5, lineHeight: 1.45 }}>
-                        “{it.sales_pitch}”
-                      </p>
-                    )}
+              <li key={it.id} className="overflow-hidden rounded-3xl"
+                style={{ background: '#fffdf8', boxShadow: '0 22px 50px -26px rgba(36,28,21,.55)', border: '1px solid #efe6d5' }}>
+                {it.photo && (
+                  <button type="button" onClick={() => setZoom(it.photo)} className="block w-full overflow-hidden" style={{ cursor: 'zoom-in' }} aria-label={`Ampliar foto de ${it.name}`}>
+                    <img src={it.photo} alt={it.name} className="h-64 w-full object-cover transition-transform duration-500 hover:scale-[1.03]" />
+                  </button>
+                )}
+                <div className="p-5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span style={{ fontFamily: serif, fontSize: 22, fontWeight: 600, color: INK, lineHeight: 1.15 }}>{it.name}</span>
+                    <Price value={it.price} cur={cur} big />
                   </div>
+                  {(it.categoria_display || it.formato_display || it.para_personas) && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {[it.categoria_display, it.formato_display, it.para_personas ? `ideal para ${it.para_personas}` : null].filter(Boolean).map((tag) => (
+                        <span key={tag} style={{ background: '#f4ece0', color: '#7a5a3a', fontSize: 11, letterSpacing: '.04em' }} className="rounded-full px-2.5 py-0.5">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                  {it.description && <p className="mt-2.5" style={{ color: INK_SOFT, fontSize: 15, lineHeight: 1.55 }}>{it.description}</p>}
+                  {it.sales_pitch && (
+                    <p className="mt-3 border-t pt-3" style={{ borderColor: '#efe6d5', color: EMBER, fontFamily: serif, fontStyle: 'italic', fontSize: 15, lineHeight: 1.5 }}>
+                      “{it.sales_pitch}”
+                    </p>
+                  )}
                 </div>
               </li>
             ))}
           </ul>
         </section>
       ))}
+      <Lightbox src={zoom} onClose={() => setZoom('')} />
     </Shell>
   )
 }
