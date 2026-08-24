@@ -11,21 +11,22 @@ import { Plus, Trash, Pencil, X } from './icons'
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 const inp = 'rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/60 focus:ring-2 focus:ring-ember/15'
 
-// Tarjeta con el QR de una URL pública + enlace para descargar/abrir.
-function QrCard({ title, url, hint }) {
+// Tarjeta con el QR de una URL pública + descargar (imprimir) y ver la página.
+function QrCard({ title, url, hint, openLabel = 'Ver la página' }) {
   const [img, setImg] = useState('')
-  useEffect(() => { let ok = true; qrDataUrl(url).then((d) => ok && setImg(d)); return () => { ok = false } }, [url])
+  useEffect(() => { let ok = true; qrDataUrl(url).then((d) => ok && setImg(d)).catch(() => {}); return () => { ok = false } }, [url])
   return (
     <div className="rounded-2xl steel-plate p-5">
       <p className="pass-title text-[13px] text-ink">{title}</p>
       <p className="mt-0.5 text-[12px] text-ink-3">{hint}</p>
       <div className="mt-3 flex flex-wrap items-center gap-4">
-        {img && <img src={img} alt="QR" className="h-32 w-32 rounded-lg border border-steel-200 bg-white p-1.5" />}
+        <img src={img || undefined} alt="QR" className="h-36 w-36 shrink-0 rounded-lg border border-steel-200 bg-white p-2" />
         <div className="min-w-0 flex-1 space-y-2">
+          <p className="text-[12px] text-ink-2">Este QR lleva a:</p>
           <a href={url} target="_blank" rel="noreferrer" className="data block truncate text-[13px] text-ember-deep underline">{url}</a>
           <div className="flex flex-wrap gap-2">
-            {img && <a href={img} download={`${title.replace(/\s+/g, '-').toLowerCase()}.png`} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ember px-3 text-sm font-medium text-cream hover:bg-ember-hi">Descargar QR</a>}
-            <a href={url} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg steel-plate px-3 text-sm text-ink hover:bg-white">Abrir</a>
+            {img && <a href={img} download={`${title.replace(/\s+/g, '-').toLowerCase()}.png`} className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-ember px-3.5 text-sm font-medium text-cream hover:bg-ember-hi">Descargar para imprimir</a>}
+            <a href={url} target="_blank" rel="noreferrer" className="inline-flex h-9 items-center gap-1.5 rounded-lg steel-plate px-3.5 text-sm text-ink hover:bg-white">{openLabel}</a>
           </div>
         </div>
       </div>
@@ -87,7 +88,7 @@ function CartaTab({ slug }) {
           </button>
         </div>
       </div>
-      {slug && <QrCard title="QR de la Carta" url={publicUrl('carta', slug)} hint={published ? 'Ponlo en las mesas: tus clientes escanean y ven la carta.' : 'Este QR es fijo. Publica la carta para que muestre el contenido al escanearlo.'} />}
+      {slug && <QrCard title="QR de la Carta" url={publicUrl('carta', slug)} openLabel="Ver la carta" hint={published ? 'Ponlo en las mesas: tus clientes escanean y ven la carta.' : 'Este QR es fijo. Publica la carta para que muestre el contenido al escanearlo.'} />}
 
       {/* Platos */}
       <div className="overflow-hidden rounded-2xl steel-plate">
@@ -155,7 +156,7 @@ function EspecialesTab({ slug }) {
 
   return (
     <div className="space-y-5">
-      {slug && <QrCard title="QR de los Especiales" url={publicUrl('especiales', slug)} hint="Un QR aparte, solo para los especiales fuera de carta." />}
+      {slug && <QrCard title="QR de los Especiales" url={publicUrl('especiales', slug)} openLabel="Ver los especiales" hint="Un QR aparte, solo para los especiales fuera de carta." />}
 
       {/* Formulario */}
       <form onSubmit={submit} className="rounded-2xl steel-plate p-5">

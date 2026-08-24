@@ -34,7 +34,8 @@ class ProfileAvatarView(APIView):
     parser_classes = [MultiPartParser, FormParser]
 
     def _url(self, request, prof):
-        return request.build_absolute_uri(f'/api/media/{prof.avatar.name}') if prof.avatar else None
+        from .serializers import _media
+        return _media(prof.avatar.name, {'request': request}) if prof.avatar else None
 
     def post(self, request):
         prof = getattr(request.user, 'profile', None)

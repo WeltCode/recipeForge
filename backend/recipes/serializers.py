@@ -5,9 +5,14 @@ from .constants import clean_allergens
 
 
 def media_url(request, name):
-    """URL del proxy de medias del backend (evita depender del público r2.dev)."""
+    """URL de una imagen: directa desde R2 (custom domain) si está configurado
+    `R2_PUBLIC_BASE`, o por el proxy /api/media del backend como respaldo."""
     if not name:
         return None
+    from django.conf import settings
+    base = getattr(settings, 'R2_PUBLIC_BASE', '')
+    if base:
+        return f'{base.rstrip("/")}/{name}'
     path = f'/api/media/{name}'
     return request.build_absolute_uri(path) if request else path
 

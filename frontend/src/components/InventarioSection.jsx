@@ -6,7 +6,7 @@ import {
 import { numTrim } from '../lib/costeo'
 import { Inventory, Plus, Pencil, Trash, X, Flame, ChevronRight } from './icons'
 
-const EMPTY = { name: '', partida: '', quantity: '0', unit: 'ud', weight: '', weight_unit: 'kg', stock_min: '0', notes: '' }
+const EMPTY = { name: '', partida: '', quantity: '0', unit: 'ud', units_per_pack: '', weight_per_pack: '', weight: '', weight_unit: 'kg', stock_min: '0', stock_min_unit: '', notes: '' }
 const ALL = '__all__'   // ver todas las partidas juntas
 const NONE = '__none__' // insumos sin partida
 
@@ -51,7 +51,7 @@ export default function InventarioSection({ canEdit }) {
 
   const openNew = () => { setForm({ ...EMPTY, partida: open && open !== ALL && open !== NONE ? open : '' }); setEditing('new') }
   const openEdit = (i) => {
-    setForm({ name: i.name, partida: i.partida ?? '', quantity: numTrim(i.quantity ?? '0'), unit: i.unit, weight: i.weight != null ? numTrim(i.weight) : '', weight_unit: i.weight_unit || 'kg', stock_min: numTrim(i.stock_min ?? '0'), notes: i.notes || '' })
+    setForm({ name: i.name, partida: i.partida ?? '', quantity: numTrim(i.quantity ?? '0'), unit: i.unit, units_per_pack: i.units_per_pack != null ? numTrim(i.units_per_pack) : '', weight_per_pack: i.weight_per_pack != null ? numTrim(i.weight_per_pack) : '', weight: i.weight != null ? numTrim(i.weight) : '', weight_unit: i.weight_unit || 'kg', stock_min: numTrim(i.stock_min ?? '0'), stock_min_unit: i.stock_min_unit || '', notes: i.notes || '' })
     setEditing(i.id)
   }
   const close = () => { setEditing(null); setForm(EMPTY) }
@@ -67,7 +67,7 @@ export default function InventarioSection({ canEdit }) {
 
   const save = async () => {
     if (!form.name.trim()) { setError('El nombre es obligatorio.'); return }
-    const body = { name: form.name, partida: form.partida || null, quantity: form.quantity || '0', unit: form.unit, weight: form.weight === '' ? null : form.weight, weight_unit: form.weight_unit, stock_min: form.stock_min || '0', notes: form.notes }
+    const body = { name: form.name, partida: form.partida || null, quantity: form.quantity || '0', unit: form.unit, units_per_pack: form.units_per_pack === '' ? null : form.units_per_pack, weight_per_pack: form.weight_per_pack === '' ? null : form.weight_per_pack, weight: form.weight === '' ? null : form.weight, weight_unit: form.weight_unit, stock_min: form.stock_min || '0', stock_min_unit: form.stock_min_unit || '', notes: form.notes }
     setSaving(true)
     try {
       if (editing === 'new') await createInventory(body)
@@ -136,7 +136,11 @@ export default function InventarioSection({ canEdit }) {
                 {UNIT_CHOICES.map(([v, l]) => <option key={v} value={v}>{l} ({v})</option>)}
               </select>
             </label>
-            {inp('quantity', `Cantidad (${form.unit})`)}
+            {inp('quantity', form.unit === 'pack' ? 'Cantidad (packs)' : `Cantidad (${form.unit})`)}
+            {form.unit === 'pack' && (<>
+              {inp('units_per_pack', 'Unidades dentro de cada pack')}
+              {inp('weight_per_pack', 'Peso por pack (opcional)')}
+            </>)}
             <label className="flex flex-col gap-1 text-[13px] text-ink-2">Peso total (aunque sean packs)
               <div className="flex gap-2">
                 <input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="p. ej. 15" className="w-full rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" />
@@ -144,7 +148,14 @@ export default function InventarioSection({ canEdit }) {
                   {UNIT_CHOICES.map(([v]) => <option key={v} value={v}>{v}</option>)}
                 </select>
               </div></label>
-            {inp('stock_min', `Mínimo (${form.unit})`)}
+            <label className="flex flex-col gap-1 text-[13px] text-ink-2">Stock mínimo
+              <div className="flex gap-2">
+                <input value={form.stock_min} onChange={(e) => setForm({ ...form, stock_min: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="0" className="w-full rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" />
+                <select value={form.stock_min_unit} onChange={(e) => setForm({ ...form, stock_min_unit: e.target.value })} className="rounded-lg border border-steel-300 bg-white px-2 py-2 text-[14px] text-ink outline-none focus:border-ember/50">
+                  <option value="">({form.unit})</option>
+                  {UNIT_CHOICES.map(([v]) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div></label>
             {inp('notes', 'Notas')}
           </div>
           <div className="mt-4 flex gap-2">
@@ -333,9 +344,9 @@ function ItemTable({ items, showPartida, canEdit, onAdjust, onEdit, onRemove }) 
                 {i.notes && <p className="truncate text-[11px] text-ink-3">{i.notes}</p>}
               </td>
               {showPartida && <td className="px-3 py-2.5 text-[12px] text-ink-2">{i.partida_name || '—'}</td>}
-              <td className="px-3 py-2.5 text-right"><span className="data text-[13px] text-ink">{numTrim(i.quantity)} {i.unit}</span></td>
+              <td className="px-3 py-2.5 text-right"><span className="data text-[13px] text-ink">{numTrim(i.quantity)} {i.unit}{i.units_per_pack ? <span className="text-ink-3"> ×{numTrim(i.units_per_pack)}</span> : ''}</span></td>
               <td className="px-3 py-2.5 text-right"><span className="data text-[12px] text-ink-2">{i.weight != null && i.weight !== '' ? `${numTrim(i.weight)} ${i.weight_unit}` : '—'}</span></td>
-              <td className="px-3 py-2.5 text-right"><span className="data text-[12px] text-ink-3">{Number(i.stock_min) > 0 ? numTrim(i.stock_min) : '—'}</span></td>
+              <td className="px-3 py-2.5 text-right"><span className="data text-[12px] text-ink-3">{Number(i.stock_min) > 0 ? `${numTrim(i.stock_min)} ${i.stock_min_unit || i.unit}` : '—'}</span></td>
               <td className="px-3 py-2.5">{i.low_stock ? <span className="inline-flex items-center gap-1 rounded-full bg-ember/12 px-2 py-0.5 text-[10px] font-medium uppercase text-ember-deep"><Flame size={10} /> bajo</span> : <span className="text-[11px] text-ok">al día</span>}</td>
               {canEdit && (
                 <td className="px-3 py-2.5">

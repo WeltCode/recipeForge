@@ -19,13 +19,23 @@ from .models import (
 )
 
 
+def _media(name, context):
+    """URL de una imagen: directa desde R2 (custom domain) si `R2_PUBLIC_BASE`
+    está configurado, o por el proxy /api/media como respaldo."""
+    if not name:
+        return None
+    from django.conf import settings
+    base = getattr(settings, 'R2_PUBLIC_BASE', '')
+    if base:
+        return f'{base.rstrip("/")}/{name}'
+    request = (context or {}).get('request')
+    path = f'/api/media/{name}'
+    return request.build_absolute_uri(path) if request else path
+
+
 def _abs_logo(restaurant, context):
-    """URL del logo servida por el proxy del backend (no por el público r2.dev)."""
-    if restaurant and restaurant.logo:
-        request = context.get('request')
-        path = f'/api/media/{restaurant.logo.name}'
-        return request.build_absolute_uri(path) if request else path
-    return None
+    """URL del logo del restaurante (R2 directo o proxy)."""
+    return _media(restaurant.logo.name, context) if (restaurant and restaurant.logo) else None
 
 
 class MeSerializer(serializers.ModelSerializer):
@@ -68,11 +78,7 @@ class MeSerializer(serializers.ModelSerializer):
 
     def get_avatar(self, obj):
         p = getattr(obj, 'profile', None)
-        if p and getattr(p, 'avatar', None):
-            request = self.context.get('request')
-            path = f'/api/media/{p.avatar.name}'
-            return request.build_absolute_uri(path) if request else path
-        return None
+        return _media(p.avatar.name, self.context) if (p and getattr(p, 'avatar', None)) else None
 
     def get_role(self, obj):
         return get_user_role(obj)
@@ -160,12 +166,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['must_change_password'] = bool(prof.must_change_password) if prof else False
         # Avatar: se incluye en el login para que el cliente no muestre la foto del
         # usuario anterior hasta recargar (el estado se refresca al iniciar sesión).
-        avatar_url = None
-        if prof and getattr(prof, 'avatar', None):
-            request = self.context.get('request')
-            avatar_path = f'/api/media/{prof.avatar.name}'
-            avatar_url = request.build_absolute_uri(avatar_path) if request else avatar_path
-        data['avatar'] = avatar_url
+        data['avatar'] = _media(prof.avatar.name, self.context) if (prof and getattr(prof, 'avatar', None)) else None
         m = get_membership(user)
         data['title'] = m.title if m else ''
         data['restaurant'] = r.id if r else None
@@ -237,11 +238,7 @@ class UserAdminSerializer(serializers.ModelSerializer):
 
     def get_avatar(self, obj):
         p = getattr(obj, 'profile', None)
-        if p and getattr(p, 'avatar', None):
-            request = self.context.get('request')
-            path = f'/api/media/{p.avatar.name}'
-            return request.build_absolute_uri(path) if request else path
-        return None
+        return _media(p.avatar.name, self.context) if (p and getattr(p, 'avatar', None)) else None
 
     def get_role_name(self, obj):
         m = obj.memberships.select_related('role').first()

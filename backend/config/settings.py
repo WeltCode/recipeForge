@@ -176,6 +176,11 @@ if R2_ACCESS_KEY_ID:
     AWS_S3_FILE_OVERWRITE = False  # no sobreescribir si coincide el nombre
     STORAGES['default'] = {'BACKEND': 'storages.backends.s3.S3Storage'}
 
+# Dominio público del bucket R2 (custom domain de Cloudflare) para servir las
+# imágenes DIRECTAMENTE (rápido, CDN) en vez del proxy /api/media del backend.
+# Si está vacío, se usa el proxy (comportamiento anterior). Solo aplica en R2.
+R2_PUBLIC_BASE = os.environ.get('R2_PUBLIC_BASE', 'https://img.recipeforge.es') if R2_ACCESS_KEY_ID else ''
+
 # CORS: en local se permite todo; en producción solo los orígenes indicados.
 # El dominio propio va FIJO aquí (además de lo que traiga el env) para no
 # depender de cambiar variables en Render al conectar recipeforge.es.
