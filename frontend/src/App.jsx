@@ -13,9 +13,11 @@ import CosteoSection from './components/CosteoSection'
 import { AllergenPicker } from './components/AllergenPicker'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
-import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getTitle, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, getAvatar, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
+import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getRestaurantId, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, getAvatar, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
 import { ForcedPasswordScreen } from './components/ChangePassword'
 import AjustesSection from './components/AjustesSection'
+import UserManager from './components/UserManager'
+import RolesManager from './components/RolesManager'
 import Logo from './components/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -151,14 +153,13 @@ function PlaceholderSection({ icon: Icon, title, note }) {
   )
 }
 
-const AJUSTES_PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
-
 // Sección "Mi plan" — diseño del prototipo: plan actual (zona caliente) + comparativa.
+// OJO: mantener sincronizado con PLAN_FEATURES del backend (accounts/models.py).
 const PLAN_DEFS = {
-  prueba: { name: 'Prueba', resumen: '14 días para probarlo todo.', maxRec: '5', maxU: 1, marca: true, plantillas: false, alerg: false, escand: false, inv: false },
-  basico: { name: 'Básico', resumen: 'Lo esencial para tu cocina.', maxRec: '10/mes', maxU: 1, marca: false, plantillas: false, alerg: false, escand: false, inv: false },
-  pro: { name: 'Premium', resumen: 'Multiusuario, plantillas y alérgenos.', maxRec: 'Ilimitadas', maxU: 8, marca: false, plantillas: true, alerg: true, escand: false, inv: false },
-  business: { name: 'Business', resumen: 'Gestión completa del restaurante.', maxRec: 'Ilimitadas', maxU: 20, marca: false, plantillas: true, alerg: true, escand: true, inv: true },
+  prueba: { name: 'Prueba', resumen: '30 días para probarlo todo.', maxRec: '5', maxU: 1, marca: true, plantillas: false, alerg: false, escand: false, inv: false, sup: false },
+  basico: { name: 'Básico (Cocinero)', resumen: 'Para el cocinero: tus recetas y costes.', maxRec: 'Ilimitadas', maxU: 1, marca: false, plantillas: false, alerg: true, escand: true, inv: false, sup: false },
+  pro: { name: 'Premium', resumen: 'Multiusuario, plantillas, escandallo e inventario.', maxRec: 'Ilimitadas', maxU: 8, marca: false, plantillas: true, alerg: true, escand: true, inv: true, sup: false },
+  business: { name: 'Business', resumen: 'Gestión completa del restaurante.', maxRec: 'Ilimitadas', maxU: 20, marca: false, plantillas: true, alerg: true, escand: true, inv: true, sup: true },
 }
 const PLAN_ORDER = ['prueba', 'basico', 'pro', 'business']
 const PLAN_ROWS = [
@@ -168,7 +169,8 @@ const PLAN_ROWS = [
   ['Plantillas de diseño', (p) => (p.plantillas ? '4 diseños' : 'Básica')],
   ['Alérgenos (14 UE)', (p) => (p.alerg ? '✓' : '—')],
   ['Escandallo', (p) => (p.escand ? '✓' : '—')],
-  ['Inventario y proveedores', (p) => (p.inv ? '✓' : '—')],
+  ['Inventario', (p) => (p.inv ? '✓' : '—')],
+  ['Proveedores', (p) => (p.sup ? '✓' : '—')],
 ]
 
 function PlanVal({ v }) {
@@ -179,13 +181,14 @@ function PlanVal({ v }) {
 
 // Líneas de características por plan (para las tarjetas).
 const PLAN_FEATURES_LIST = (p) => [
-  [`${p.maxRec} recetas`, true],
+  [p.maxRec === 'Ilimitadas' ? 'Recetas ilimitadas' : `${p.maxRec} recetas`, true],
   [`${p.maxU} ${p.maxU === 1 ? 'usuario' : 'usuarios'}`, true],
   ['PDF sin marca de agua', !p.marca],
   [p.plantillas ? 'Plantillas de diseño (4)' : 'Plantilla básica', true],
   ['Alérgenos UE', p.alerg],
   ['Escandallo (costes)', p.escand],
-  ['Inventario y proveedores', p.inv],
+  ['Inventario', p.inv],
+  ['Proveedores', p.sup],
 ]
 
 function PlanSection({ plan, role }) {
@@ -289,97 +292,27 @@ function PlanSection({ plan, role }) {
   )
 }
 
-// Sección "Usuarios y roles" — diseño del prototipo (pestañas Equipo / Roles).
-const ROLES_DEF = [
-  { id: 'owner', nombre: 'Owner', desc: 'Dueño del restaurante', flags: { view: 1, edit: 1, create: 1, delete: 1, escandallo: 1, users: 1 } },
-  { id: 'manager', nombre: 'Manager', desc: 'Jefe de cocina', flags: { view: 1, edit: 1, create: 1, delete: 1, escandallo: 1, users: 0 } },
-  { id: 'editor', nombre: 'Editor', desc: 'Edita fichas', flags: { view: 1, edit: 1, create: 0, delete: 0, escandallo: 0, users: 0 } },
-  { id: 'viewer', nombre: 'Viewer', desc: 'Solo consulta', flags: { view: 1, edit: 0, create: 0, delete: 0, escandallo: 0, users: 0 } },
-]
-const ROLE_FLAGS = [
-  ['view', 'Ver recetas'], ['edit', 'Editar'], ['create', 'Crear'],
-  ['delete', 'Borrar'], ['escandallo', 'Ver escandallo'], ['users', 'Gestionar usuarios'],
-]
-const PLAN_MAX_USERS = { prueba: 1, basico: 1, pro: 8, business: 20 }
-
-function RolFlag({ on }) {
-  return on
-    ? <span className="mx-auto grid h-6 w-6 place-items-center rounded-md bg-ember/12 text-ember">✓</span>
-    : <span className="mx-auto block h-6 w-6 rounded-md border border-steel-200 bg-steel-100" />
-}
-
-function UsuariosSection({ username, role, title, plan }) {
+// Gestión de equipo del OWNER (con can_manage_users): usuarios y roles de SU
+// restaurante. Reusa los mismos componentes que el panel del superadmin; el
+// backend limita todo al restaurante del owner (scoping en UserAdminViewSet/
+// RoleViewSet). El id del restaurante sale de la sesión.
+function UsuariosSection() {
   const [tab, setTab] = useState('equipo')
-  const inicial = (username || '?').replace(/[_-]/g, ' ').trim().slice(0, 2).toUpperCase()
-  const rolNombre = (ROLES_DEF.find((r) => r.id === role) || {}).nombre || role
-  const maxU = PLAN_MAX_USERS[plan] || 1
+  const restId = getRestaurantId()
 
   return (
     <div className="pb-6">
-      {/* Pestañas */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="inline-flex rounded-lg steel-plate p-1">
-          {[['equipo', 'Equipo'], ['roles', 'Roles y permisos']].map(([id, label]) => (
-            <button key={id} onClick={() => setTab(id)} className={`h-9 rounded-md px-4 text-[13px] font-medium transition-colors ${tab === id ? 'bg-soot text-cream' : 'text-ink-2 hover:text-ink'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
-        {tab === 'equipo' && (
-          <span className="inline-flex items-center gap-1.5 rounded-lg steel-plate px-3 py-2 text-[12px] text-ink-2">
-            <Users size={15} className="text-ink-3" /> <span className="data">1/{maxU}</span> en uso
-          </span>
-        )}
+      <div className="mb-6 inline-flex rounded-lg steel-plate p-1">
+        {[['equipo', 'Equipo'], ['roles', 'Roles y permisos']].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} className={`h-9 rounded-md px-4 text-[13px] font-medium transition-colors ${tab === id ? 'bg-soot text-cream' : 'text-ink-2 hover:text-ink'}`}>
+            {label}
+          </button>
+        ))}
       </div>
 
-      {tab === 'equipo' ? (
-        <>
-          <div className="overflow-hidden rounded-2xl steel-plate">
-            <div className="flex items-center gap-4 px-4 py-3.5 sm:px-5">
-              <div className="grid h-11 w-11 flex-none place-items-center rounded-full bg-soot text-[13px] font-semibold text-cream">{inicial}</div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-medium text-ink">{username} <span className="text-[12px] font-normal text-ink-3">· tú</span></p>
-                <p className="truncate text-[12px] text-ink-2">{title || rolNombre}</p>
-              </div>
-              <span className="hidden items-center rounded-full bg-ember/12 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-ember-deep sm:inline-flex">{rolNombre}</span>
-            </div>
-          </div>
-          <p className="mt-4 text-[12px] text-ink-3">
-            Invitar a más personas a tu cocina se activa muy pronto. Tu plan {AJUSTES_PLAN_LABELS[plan] || plan} permite hasta <span className="data">{maxU}</span> {maxU === 1 ? 'usuario' : 'usuarios'}.
-          </p>
-        </>
-      ) : (
-        <>
-          <div className="overflow-x-auto rounded-2xl steel-plate">
-            <table className="w-full min-w-[720px] border-collapse">
-              <thead>
-                <tr className="border-b border-steel-300">
-                  <th className="p-4 text-left text-[12px] font-medium text-ink-2">Permiso</th>
-                  {ROLES_DEF.map((r) => (
-                    <th key={r.id} className="p-4 text-center">
-                      <p className="pass-title text-[15px] text-ink">{r.nombre}</p>
-                      <p className="text-[11px] font-normal text-ink-3">{r.desc}</p>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {ROLE_FLAGS.map(([k, label]) => (
-                  <tr key={k} className="border-b border-steel-200 last:border-0">
-                    <td className="p-4 text-[13px] text-ink">{label}</td>
-                    {ROLES_DEF.map((r) => (
-                      <td key={r.id} className="p-4"><RolFlag on={r.flags[k]} /></td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-4 text-[12px] text-ink-3">
-            Los permisos de cada rol son editables por restaurante. El permiso efectivo también depende del plan contratado.
-          </p>
-        </>
-      )}
+      {tab === 'equipo'
+        ? <UserManager restaurantId={restId} />
+        : <RolesManager restaurantId={restId} />}
     </div>
   )
 }
@@ -975,7 +908,7 @@ function App() {
       { id: 'proveedores', label: 'Proveedores', icon: Truck, locked: !feat('suppliers') },
       ...(canTeam ? [{ id: 'equipo', label: 'Usuarios y roles', icon: Users, group: 'Gestión', locked: !feat('multiuser') }] : []),
       { id: 'plan', label: 'Mi plan', icon: Tag, group: 'Gestión' },
-      // Ajustes disponible para todos los planes EXCEPTO la prueba de 14 días.
+      // Ajustes disponible para todos los planes EXCEPTO la prueba de 30 días.
       ...(getPlan() !== 'prueba' ? [{ id: 'ajustes', label: 'Ajustes', icon: Gear, group: 'Gestión' }] : []),
     ]
 
@@ -992,22 +925,22 @@ function App() {
     } else if (section === 'escandallo') {
       sectionContent = feat('escandallo')
         ? <CosteoSection canEdit={canEdit} />
-        : <LockedSection icon={Coins} title="Escandallo" requiredPlan="Business" points={['Coste real de materia prima', 'Formatos de compra, merma e IVA', 'Food cost y PVP al instante']} />
+        : <LockedSection icon={Coins} title="Escandallo" requiredPlan="Básico (Cocinero)" points={['Coste real de materia prima', 'Formatos de compra, merma e IVA', 'Food cost y PVP al instante']} />
     } else if (section === 'alergenos') {
       sectionContent = feat('allergens')
         ? <AlergenosSection recipes={recipeList} />
-        : <LockedSection icon={Allergen} title="Alérgenos" requiredPlan="Premium" points={['Los 14 alérgenos obligatorios de la UE', 'Etiquetado por ingrediente', 'Sello automático en la ficha']} />
+        : <LockedSection icon={Allergen} title="Alérgenos" requiredPlan="Básico (Cocinero)" points={['Los 14 alérgenos obligatorios de la UE', 'Etiquetado por ingrediente', 'Sello automático en la ficha']} />
     } else if (section === 'inventario') {
       sectionContent = feat('inventory')
         ? <InventarioSection canEdit={canEdit} />
-        : <LockedSection icon={Inventory} title="Inventario" requiredPlan="Business" points={['Lo que tienes producido', 'Clasificado por partidas', 'Avisos de mínimos']} />
+        : <LockedSection icon={Inventory} title="Inventario" requiredPlan="Premium" points={['Lo que tienes producido', 'Clasificado por partidas', 'Avisos de mínimos']} />
     } else if (section === 'proveedores') {
       sectionContent = feat('suppliers')
         ? <ProveedoresSection canEdit={canEdit} canCost={feat('escandallo') && hasPerm('can_view_escandallo')} />
         : <LockedSection icon={Truck} title="Proveedores" requiredPlan="Business" points={['Proveedores y contacto', 'Sus productos y precios', 'Alimenta el coste del escandallo']} />
     } else if (section === 'equipo') {
       sectionContent = feat('multiuser')
-        ? <UsuariosSection username={username} role={role} title={getTitle()} plan={getPlan()} />
+        ? <UsuariosSection />
         : <LockedSection icon={Users} title="Usuarios y roles" requiredPlan="Premium" points={['Varios usuarios en tu cocina', 'Roles y permisos por persona', 'Modo consulta para cocineros']} />
     } else if (section === 'plan') {
       sectionContent = <PlanSection plan={getPlan()} role={role} />

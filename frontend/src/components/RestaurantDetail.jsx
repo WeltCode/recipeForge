@@ -267,10 +267,10 @@ function RestaurantDetail({
               <label className="flex flex-col gap-1 text-[12px] text-ink-2">
                 <span className="flex items-center gap-1.5"><Lock size={13} /> Plan de suscripción</span>
                 <select value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })} className={`${inp} sm:max-w-md`}>
-                  <option value="prueba">Prueba — 5 recetas · 14 días · marca de agua</option>
-                  <option value="basico">Básico — 10 recetas/mes · 1 usuario · PDF sin marca</option>
-                  <option value="pro">Premium — plantillas, alérgenos, 8 usuarios</option>
-                  <option value="business">Business — escandallo, inventario, proveedores, 20 usuarios</option>
+                  <option value="prueba">Prueba — 5 recetas · 30 días · marca de agua</option>
+                  <option value="basico">Básico (Cocinero) — recetas ilimitadas · escandallo · alérgenos · 1 usuario</option>
+                  <option value="pro">Premium — + plantillas, inventario, multiusuario (8)</option>
+                  <option value="business">Business — + proveedores, roles, 20 usuarios, multi-local</option>
                 </select>
                 <span className="text-[11px] text-ink-3">Define qué funciones tiene disponibles este restaurante.</span>
               </label>

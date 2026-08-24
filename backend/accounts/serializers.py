@@ -402,12 +402,12 @@ class RestaurantSerializer(serializers.ModelSerializer):
         return data
 
     def _ensure_trial_clock(self, restaurant):
-        """Arranca el reloj de 14 días al poner (o crear con) plan de prueba."""
+        """Arranca el reloj de 30 días al poner (o crear con) plan de prueba."""
         from datetime import timedelta
         from django.utils import timezone
         feats = plan_features(restaurant)
         if feats.get('trial') and restaurant.trial_ends_at is None:
-            days = feats.get('trial_days') or 14
+            days = feats.get('trial_days') or 30
             restaurant.trial_ends_at = timezone.now() + timedelta(days=days)
             restaurant.save(update_fields=['trial_ends_at'])
 

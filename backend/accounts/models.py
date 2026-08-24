@@ -34,7 +34,7 @@ PLAN_PRO = 'pro'         # se muestra como "Premium"
 PLAN_BUSINESS = 'business'
 PLAN_CHOICES = [
     (PLAN_PRUEBA, 'Prueba'),
-    (PLAN_BASICO, 'Básico'),
+    (PLAN_BASICO, 'Básico (Cocinero)'),
     (PLAN_PRO, 'Premium'),
     (PLAN_BUSINESS, 'Business'),
 ]
@@ -56,18 +56,20 @@ PLAN_FEATURES = {
         'allergens': False, 'escandallo': False, 'inventory': False, 'suppliers': False,
         'multiuser': False, 'max_users': 1,
         'max_recipes_total': 5, 'max_recipes_per_month': None, 'max_pdf_total': 5,
-        'trial': True, 'trial_days': 14,
+        'trial': True, 'trial_days': 30,
     },
+    # Básico (Cocinero): plan individual para 1 cocinero. Recetas ilimitadas +
+    # escandallo + alérgenos + moneda + logo. Sin multiusuario/plantillas/inventario.
     PLAN_BASICO: {
         'pdf': True, 'watermark': False, 'templates_custom': False,
-        'allergens': False, 'escandallo': False, 'inventory': False, 'suppliers': False,
+        'allergens': True, 'escandallo': True, 'inventory': False, 'suppliers': False,
         'multiuser': False, 'max_users': 1,
-        'max_recipes_total': None, 'max_recipes_per_month': 10, 'max_pdf_total': None,
+        'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
         'trial': False, 'trial_days': None,
     },
     PLAN_PRO: {
         'pdf': True, 'watermark': False, 'templates_custom': True,
-        'allergens': True, 'escandallo': False, 'inventory': False, 'suppliers': False,
+        'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': False,
         'multiuser': True, 'max_users': 8,
         'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
         'trial': False, 'trial_days': None,

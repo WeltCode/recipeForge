@@ -132,3 +132,71 @@ class UserCreationTests(APITestCase):
         owner = User.objects.get(email='dueno@nuevo.com')
         self.assertEqual(owner.username, 'dueno@nuevo.com')
         self.assertTrue(owner.profile.must_change_password)
+
+
+class OwnerSelfServiceTests(APITestCase):
+    """Fase 0: un owner con can_manage_users gestiona usuarios y roles SOLO de su
+    restaurante; nunca otro tenant, nunca superadmins, nunca a sí mismo (borrar)."""
+
+    def setUp(self):
+        self.rA = Restaurant.objects.create(name='A', code_prefix='A', plan='pro')
+        self.rB = Restaurant.objects.create(name='B', code_prefix='B', plan='pro')
+
+        def member(username, restaurant, key):
+            u = User.objects.create_user(username, password='pw12345!')
+            Membership.objects.create(user=u, restaurant=restaurant,
+                                      role=Role.objects.get(restaurant=restaurant, key=key))
+            return u
+
+        self.ownerA = member('ownerA', self.rA, 'owner')
+        self.viewerA = member('viewerA', self.rA, 'viewer')
+        self.ownerB = member('ownerB', self.rB, 'owner')
+
+    def test_owner_lists_only_own_users(self):
+        self.client.force_authenticate(self.ownerA)
+        resp = self.client.get('/api/users/')
+        self.assertEqual(resp.status_code, 200)
+        ids = {u['id'] for u in resp.data}
+        self.assertIn(self.ownerA.id, ids)
+        self.assertIn(self.viewerA.id, ids)
+        self.assertNotIn(self.ownerB.id, ids)          # usuario de otro restaurante
+
+    def test_owner_create_is_forced_to_own_restaurant(self):
+        self.client.force_authenticate(self.ownerA)
+        resp = self.client.post('/api/users/', {          # pide rB, se fuerza a rA
+            'email': 'nuevo@a.com', 'role': 'viewer', 'restaurant': self.rB.id,
+        }, format='json')
+        self.assertEqual(resp.status_code, 201, resp.data)
+        u = User.objects.get(email='nuevo@a.com')
+        self.assertEqual(u.memberships.first().restaurant_id, self.rA.id)
+
+    def test_owner_cannot_create_superadmin(self):
+        self.client.force_authenticate(self.ownerA)
+        resp = self.client.post('/api/users/', {
+            'username': 'hacker', 'role': 'superadmin', 'password': 'Xy12345678!',
+        }, format='json')
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(User.objects.filter(username='hacker').exists())
+
+    def test_owner_cannot_touch_other_restaurant_user(self):
+        self.client.force_authenticate(self.ownerA)
+        self.assertEqual(self.client.get(f'/api/users/{self.ownerB.id}/').status_code, 404)
+        self.assertEqual(self.client.delete(f'/api/users/{self.ownerB.id}/').status_code, 404)
+
+    def test_owner_cannot_delete_self(self):
+        self.client.force_authenticate(self.ownerA)
+        self.assertEqual(self.client.delete(f'/api/users/{self.ownerA.id}/').status_code, 403)
+
+    def test_viewer_without_flag_cannot_manage_users(self):
+        self.client.force_authenticate(self.viewerA)
+        self.assertEqual(self.client.get('/api/users/').status_code, 403)
+
+    def test_owner_roles_scoped_to_own_restaurant(self):
+        self.client.force_authenticate(self.ownerA)
+        resp = self.client.get(f'/api/roles/?restaurant={self.rB.id}')   # ignora el param
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(all(r['restaurant'] == self.rA.id for r in resp.data))
+        roleA = Role.objects.get(restaurant=self.rA, key='editor')
+        self.assertEqual(self.client.patch(f'/api/roles/{roleA.id}/', {'can_create_recipes': True}, format='json').status_code, 200)
+        roleB = Role.objects.get(restaurant=self.rB, key='editor')       # otro restaurante
+        self.assertEqual(self.client.patch(f'/api/roles/{roleB.id}/', {'can_create_recipes': True}, format='json').status_code, 404)

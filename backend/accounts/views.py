@@ -16,7 +16,7 @@ from .models import (
     PlanChangeRequest, Restaurant, Role,
     generate_temp_password, get_user_restaurant, get_user_role,
 )
-from .permissions import IsSuperAdmin
+from .permissions import CanManageUsers, IsSuperAdmin
 from .serializers import (
     CustomTokenObtainPairSerializer,
     MeSerializer,
@@ -140,15 +140,24 @@ class MeView(RetrieveAPIView):
 
 
 class UserAdminViewSet(viewsets.ModelViewSet):
-    """CRUD de usuarios, solo para el Super Admin."""
+    """CRUD de usuarios. El Super Admin gestiona cualquier restaurante; un owner
+    con `can_manage_users` gestiona SOLO el suyo (nunca superadmins ni otros
+    tenants). El scoping se aplica en get_queryset (lectura/objeto) y en los
+    overrides de create/update (escritura)."""
 
     serializer_class = UserAdminSerializer
-    permission_classes = [IsSuperAdmin]
+    permission_classes = [CanManageUsers]
 
     def get_queryset(self):
+        u = self.request.user
         qs = User.objects.prefetch_related(
             'memberships__restaurant', 'memberships__role',
         ).order_by('id')
+        # Owner (no superadmin): SOLO usuarios de su restaurante, nunca superadmins.
+        if not u.is_superuser:
+            return qs.filter(memberships__restaurant=get_user_restaurant(u),
+                             is_superuser=False).distinct()
+        # Super Admin: filtros opcionales por query params.
         restaurant_id = self.request.query_params.get('restaurant')
         if restaurant_id:
             qs = qs.filter(memberships__restaurant_id=restaurant_id)
@@ -158,6 +167,40 @@ class UserAdminViewSet(viewsets.ModelViewSet):
         elif role:
             qs = qs.filter(memberships__role__key=role)
         return qs.distinct()
+
+    def _scope_for_owner(self, request):
+        """Fuerza el restaurante del owner y bloquea la creación de superadmins,
+        para que un owner NUNCA toque otro tenant ni escale privilegios."""
+        rest = get_user_restaurant(request.user)
+        data = request.data.copy()
+        data['restaurant'] = rest.id if rest else None
+        if data.get('role') == 'superadmin':
+            raise PermissionDenied('No puedes crear administradores de plataforma.')
+        return data
+
+    def create(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            serializer = self.get_serializer(data=self._scope_for_owner(request))
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            return Response(serializer.data, status=201)
+        return super().create(request, *args, **kwargs)
+
+    def update(self, request, *args, **kwargs):
+        if not request.user.is_superuser:
+            instance = self.get_object()  # ya scoped a su restaurante por get_queryset
+            serializer = self.get_serializer(
+                instance, data=self._scope_for_owner(request), partial=kwargs.get('partial', False),
+            )
+            serializer.is_valid(raise_exception=True)
+            self.perform_update(serializer)
+            return Response(serializer.data)
+        return super().update(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        if self.get_object().id == request.user.id:
+            raise PermissionDenied('No puedes eliminar tu propia cuenta.')
+        return super().destroy(request, *args, **kwargs)
 
     @action(detail=True, methods=['post'])
     def reset_password(self, request, pk=None):
@@ -184,17 +227,22 @@ class RestaurantViewSet(viewsets.ModelViewSet):
 
 
 class RoleViewSet(viewsets.ModelViewSet):
-    """Listar y editar los flags de los roles de un restaurante (Super Admin).
+    """Listar y editar los flags de los roles de un restaurante. El Super Admin,
+    cualquier restaurante; un owner con `can_manage_users`, SOLO el suyo.
 
     Solo GET y PATCH: los 4 roles se crean con el restaurante; aquí se ajustan
-    sus permisos (?restaurant=<id> para filtrar).
+    sus permisos (?restaurant=<id> para filtrar, solo el Super Admin).
     """
 
     serializer_class = RoleSerializer
-    permission_classes = [IsSuperAdmin]
+    permission_classes = [CanManageUsers]
     http_method_names = ['get', 'patch', 'head', 'options']
 
     def get_queryset(self):
+        u = self.request.user
         qs = Role.objects.select_related('restaurant').order_by('restaurant_id', 'id')
+        # Owner: SOLO los roles de su restaurante (ignora el param restaurant).
+        if not u.is_superuser:
+            return qs.filter(restaurant=get_user_restaurant(u))
         restaurant_id = self.request.query_params.get('restaurant')
         return qs.filter(restaurant_id=restaurant_id) if restaurant_id else qs

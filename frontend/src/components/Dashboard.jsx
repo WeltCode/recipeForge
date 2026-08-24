@@ -4,7 +4,7 @@ import recipeIconWhite from '../assets/recipeforge-icon-white.svg'
 import { Search, Plus, Pencil, Doc, Trash, X, Flame, Fork, Clock, ChefHat, Sparkle } from './icons'
 import { greeting, capitalize, totalTimeLabel } from '../lib/ui'
 
-const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
+const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico (Cocinero)', pro: 'Premium', business: 'Business' }
 
 // Rol y plan mostrados en el saludo (encabezado sobre la superficie de acero).
 const ROLE_META = {
@@ -14,7 +14,7 @@ const ROLE_META = {
   owner: { label: 'Owner', desc: 'Control del restaurante y su equipo.' },
   superadmin: { label: 'Super Admin', desc: 'Control total y gestión de restaurantes.' },
 }
-const PLAN_META = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
+const PLAN_META = { prueba: 'Prueba', basico: 'Básico (Cocinero)', pro: 'Premium', business: 'Business' }
 
 // Saludo por hora + rol + plan + descripción (se conserva como estaba antes).
 function Saludo({ username, role, plan }) {

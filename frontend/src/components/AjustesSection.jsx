@@ -5,8 +5,8 @@ import { capitalize, initials } from '../lib/ui'
 import { User, Trash, Flame } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
-const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
-const PLAN_OPTS = [['basico', 'Básico'], ['pro', 'Premium'], ['business', 'Business']]
+const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico (Cocinero)', pro: 'Premium', business: 'Business' }
+const PLAN_OPTS = [['basico', 'Básico (Cocinero)'], ['pro', 'Premium'], ['business', 'Business']]
 
 // Redimensiona la foto a un cuadrado pequeño en el navegador ANTES de subir, para
 // que la subida a R2 sea casi instantánea (una foto de móvil de varios MB → ~30 KB).

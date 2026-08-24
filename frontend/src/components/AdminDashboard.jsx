@@ -14,7 +14,7 @@ const emptyNew = {
   owner_first_name: '', owner_last_name: '', owner_email: '', owner_phone: '', owner_role: 'owner',
 }
 const TEMPLATE_OPTS = [['formal', 'Formal'], ['moderna', 'Moderna'], ['tradicional', 'Tradicional'], ['llamativa', 'Llamativa']]
-const PLAN_OPTS = [['prueba', 'Prueba (14 días)'], ['basico', 'Básico'], ['pro', 'Premium'], ['business', 'Business']]
+const PLAN_OPTS = [['prueba', 'Prueba (30 días)'], ['basico', 'Básico (Cocinero)'], ['pro', 'Premium'], ['business', 'Business']]
 
 function AdminDashboard({
   username, recipes, canDelete, onLogout,

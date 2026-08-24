@@ -80,6 +80,10 @@ export function setAvatar(url) {
   if (url) localStorage.setItem(KEYS.avatar, url)
   else localStorage.removeItem(KEYS.avatar)
 }
+export function getRestaurantId() {
+  const v = localStorage.getItem(KEYS.restaurant)
+  return v ? Number(v) : null
+}
 export function getRestaurantName() {
   return localStorage.getItem(KEYS.restaurantName)
 }

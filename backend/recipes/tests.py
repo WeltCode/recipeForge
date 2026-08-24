@@ -106,14 +106,16 @@ class TenantRoleTests(APITestCase):
         self.assertEqual(resp.status_code, 400)
         self.assertIn('plan', resp.json())
 
-    def test_basico_monthly_cap(self):
+    def test_basico_recetas_ilimitadas(self):
+        # Básico (Cocinero) pasó a recetas ILIMITADAS (plan individual del cocinero):
+        # crear más de 10 en el mes ya NO bloquea.
         self.rA.plan = 'basico'
         self.rA.save()
-        for i in range(9):  # recA(1) + 9 = 10 este mes
+        for i in range(12):
             Recipe.objects.create(restaurant=self.rA, code=f'A-M{i}', name='x')
         self.client.force_authenticate(self.ownerA)
-        resp = self.client.post(RECIPES, full_recipe_payload(code='A-M9'), format='json')
-        self.assertEqual(resp.status_code, 400)
+        resp = self.client.post(RECIPES, full_recipe_payload(code='A-M99'), format='json')
+        self.assertEqual(resp.status_code, 201)
 
     def test_trial_expired_blocks_create(self):
         from datetime import timedelta

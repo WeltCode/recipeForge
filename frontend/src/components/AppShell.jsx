@@ -4,7 +4,7 @@ import { LogOut, Lock, X, Flame } from './icons'
 import { initials } from '../lib/ui'
 
 const ROLE_LABELS = { superadmin: 'Super Admin', owner: 'Owner', manager: 'Manager', editor: 'Editor', viewer: 'Viewer' }
-const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico', pro: 'Premium', business: 'Business' }
+const PLAN_LABELS = { prueba: 'Prueba', basico: 'Básico (Cocinero)', pro: 'Premium', business: 'Business' }
 
 // Avatar del usuario: foto de perfil subida si existe, si no las iniciales.
 function Avatar({ avatar, name, size = 36 }) {
