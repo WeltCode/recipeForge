@@ -19,6 +19,7 @@ const KEYS = {
   restaurantPrefix: 'rf_restaurant_prefix',
   restaurantLogo: 'rf_restaurant_logo',
   restaurantDefaultTemplate: 'rf_restaurant_template',
+  restaurantCurrency: 'rf_restaurant_currency',
   lastActivity: 'rf_last_activity',
 }
 
@@ -96,11 +97,17 @@ export function getRestaurantLogo() {
 export function getRestaurantDefaultTemplate() {
   return localStorage.getItem(KEYS.restaurantDefaultTemplate)
 }
+export function getCurrency() {
+  return localStorage.getItem(KEYS.restaurantCurrency) || 'EUR'
+}
+export function setCurrency(code) {
+  if (code) localStorage.setItem(KEYS.restaurantCurrency, code)
+}
 export function isAuthenticated() {
   return Boolean(getAccess())
 }
 
-function storeSession({ access, refresh, role, permissions, features, usage, plan, title, username, first_name, avatar, must_change_password, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template }) {
+function storeSession({ access, refresh, role, permissions, features, usage, plan, title, username, first_name, avatar, must_change_password, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template, restaurant_currency }) {
   if (access) localStorage.setItem(KEYS.access, access)
   if (refresh) localStorage.setItem(KEYS.refresh, refresh)
   if (role) localStorage.setItem(KEYS.role, role)
@@ -115,6 +122,7 @@ function storeSession({ access, refresh, role, permissions, features, usage, pla
   if (must_change_password != null) localStorage.setItem(KEYS.mustChange, must_change_password ? '1' : '0')
   if (restaurant != null) localStorage.setItem(KEYS.restaurant, String(restaurant))
   if (restaurant_name) localStorage.setItem(KEYS.restaurantName, restaurant_name)
+  if (restaurant_currency) localStorage.setItem(KEYS.restaurantCurrency, restaurant_currency)
   if (restaurant_prefix) localStorage.setItem(KEYS.restaurantPrefix, restaurant_prefix)
   // El logo se GUARDA aunque venga null (login/refreshMe traen siempre el campo):
   // así un restaurante sin logo NO hereda el del restaurante anterior en este navegador.
@@ -162,6 +170,7 @@ export async function login(username, password) {
     restaurant_prefix: data.restaurant_prefix,
     restaurant_logo: data.restaurant_logo,
     restaurant_default_template: data.restaurant_default_template,
+    restaurant_currency: data.restaurant_currency,
   })
   return data
 }
@@ -232,6 +241,7 @@ export async function refreshMe() {
       restaurant_prefix: data.restaurant_prefix,
       restaurant_logo: data.restaurant_logo,
       restaurant_default_template: data.restaurant_default_template,
+    restaurant_currency: data.restaurant_currency,
     })
     return data
   } catch {

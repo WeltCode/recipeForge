@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { PRICE_PER, PRESENTACION_UNITS, buildFormatContent, numTrim } from '../../lib/costeo'
+import { currencySymbol } from '../../lib/money'
 
 // Valores por defecto de un formato de compra.
 export const EMPTY_FMT = {
@@ -57,7 +58,7 @@ export default function FormatoForm({ suppliers = [], onAdd, lockedSupplier = nu
           <select value={fmt.price_por} onChange={(e) => set('price_por', e.target.value)} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
             {PRICE_PER.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select></label>
-        <label className="flex flex-col gap-1 text-[12px] text-ink-2">{isPres ? 'Precio por unidad (€)' : 'Precio (€)'}
+        <label className="flex flex-col gap-1 text-[12px] text-ink-2">{isPres ? `Precio por unidad (${currencySymbol()})` : `Precio (${currencySymbol()})`}
           <input value={fmt.price} onChange={(e) => set('price', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 36" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
         {lockedSupplier == null ? (
           <label className="flex flex-col gap-1 text-[12px] text-ink-2">Proveedor

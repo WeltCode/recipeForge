@@ -13,7 +13,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .models import (
-    PlanChangeRequest, Restaurant, Role,
+    CURRENCY_CHOICES, PlanChangeRequest, Restaurant, Role,
     generate_temp_password, get_user_restaurant, get_user_role,
 )
 from .permissions import CanManageUsers, IsSuperAdmin
@@ -137,6 +137,27 @@ class MeView(RetrieveAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class RestaurantSettingsView(APIView):
+    """Ajustes del restaurante que el DUEÑO puede cambiar desde el cliente
+    (de momento, la moneda). Solo el owner de su propio restaurante (o el
+    superadmin). El admin de plataforma cambia esto desde RestaurantViewSet."""
+
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        if get_user_role(request.user) not in ('owner', 'superadmin'):
+            raise PermissionDenied('Solo el dueño puede cambiar los ajustes del restaurante.')
+        r = get_user_restaurant(request.user)
+        if not r:
+            raise PermissionDenied('No tienes un restaurante asignado.')
+        currency = request.data.get('currency')
+        if currency not in {c[0] for c in CURRENCY_CHOICES}:
+            return Response({'currency': 'Moneda no válida.'}, status=400)
+        r.currency = currency
+        r.save(update_fields=['currency'])
+        return Response({'currency': r.currency})
 
 
 class UserAdminViewSet(viewsets.ModelViewSet):

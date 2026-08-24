@@ -45,6 +45,21 @@ PLAN_STATUS_CHOICES = [
     ('suspended', 'Suspendida'),
 ]
 
+# Moneda del restaurante: se muestra en toda la app (precios, costes, ventas).
+# El símbolo y su posición los resuelve el frontend (lib/money.js); aquí solo
+# guardamos el código ISO. Mercados objetivo: España (EUR) + LATAM.
+CURRENCY_CHOICES = [
+    ('EUR', 'Euro (€)'),
+    ('USD', 'Dólar (US$)'),
+    ('GBP', 'Libra (£)'),
+    ('PEN', 'Sol peruano (S/)'),
+    ('MXN', 'Peso mexicano ($)'),
+    ('COP', 'Peso colombiano ($)'),
+    ('ARS', 'Peso argentino ($)'),
+    ('CLP', 'Peso chileno ($)'),
+    ('BRL', 'Real brasileño (R$)'),
+]
+
 # Techo de funciones y LÍMITES por plan. El plan del RESTAURANTE limita qué se
 # puede hacer y cuánto; el rol reparte esas funciones entre las personas.
 # Permiso efectivo = el plan lo incluye Y el rol lo concede. Límites: None = sin
@@ -129,6 +144,7 @@ class Restaurant(models.Model):
         help_text='Prefijo para los códigos de receta, ej. LT o CV103.',
     )
     tax_id = models.CharField(max_length=40, blank=True)  # CIF/NIF del restaurante
+    currency = models.CharField(max_length=3, choices=CURRENCY_CHOICES, default='EUR')
     # Suscripción (el plan lo lee la app para permisos/límites; el cobro se
     # gestiona manual por ahora, Stripe más adelante).
     plan = models.CharField(max_length=20, choices=PLAN_CHOICES, default=PLAN_BASICO)

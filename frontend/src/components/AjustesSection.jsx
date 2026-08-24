@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
-import { authFetch, getAvatar, getFirstName, getUsername, uploadAvatar, deleteAvatar } from '../auth'
+import { authFetch, getAvatar, getFirstName, getUsername, getCurrency, setCurrency, uploadAvatar, deleteAvatar } from '../auth'
 import ChangePassword from './ChangePassword'
 import { capitalize, initials } from '../lib/ui'
+import { CURRENCY_OPTS } from '../lib/money'
 import { User, Trash, Flame } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -81,6 +82,23 @@ export default function AjustesSection({ restaurantName, plan, role, onAvatarCha
     } catch (err) { setReqMsg(err.message) } finally { setSending(false) }
   }
 
+  // Moneda del restaurante (solo la cambia el owner; el símbolo se usa en toda la app).
+  const [currency, setCur] = useState(getCurrency())
+  const [curMsg, setCurMsg] = useState('')
+  const [curBusy, setCurBusy] = useState(false)
+  const changeCurrency = async (code) => {
+    setCurBusy(true); setCurMsg('')
+    try {
+      const res = await authFetch(`${API_BASE}/auth/restaurant/`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currency: code }),
+      })
+      if (!res.ok) throw new Error(Object.values(await res.json()).flat().join(' '))
+      setCurrency(code); setCur(code)
+      setCurMsg('Moneda actualizada. Se aplica en precios, costes y ventas de toda la app.')
+    } catch (err) { setCurMsg(err.message) } finally { setCurBusy(false) }
+  }
+
   const card = 'rounded-2xl steel-plate p-5'
   return (
     <div className="max-w-2xl space-y-5 pb-6">
@@ -114,6 +132,20 @@ export default function AjustesSection({ restaurantName, plan, role, onAvatarCha
             <p className="text-[15px] font-semibold text-ember-deep">{PLAN_LABELS[plan] || plan || '—'}</p>
           </div>
         </div>
+
+        {isOwner && (
+          <div className="mt-4 border-t border-steel-200 pt-4">
+            <p className="pass-title text-[13px] text-ink">Moneda</p>
+            <p className="mt-0.5 text-[12px] text-ink-3">Se usa en precios, costes, ventas y ganancias de toda la app.</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <select value={currency} disabled={curBusy} onChange={(e) => changeCurrency(e.target.value)} className="rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50">
+                {CURRENCY_OPTS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+              </select>
+              {curBusy && <span className="text-[12px] text-ink-3">Guardando…</span>}
+            </div>
+            {curMsg && <p className="mt-2 text-[13px] text-ink-2">{curMsg}</p>}
+          </div>
+        )}
 
         {isOwner ? (
           <form onSubmit={submitPlan} className="mt-4 border-t border-steel-200 pt-4">

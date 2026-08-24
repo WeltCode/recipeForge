@@ -93,7 +93,7 @@ export default function ProveedoresSection({ canEdit, canCost }) {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="rf-cond text-3xl uppercase tracking-tight text-ink" style={{ fontWeight: 600 }}>Proveedores</h1>
-          <p className="mt-1 text-sm text-ink-2">Tus distribuidores y los insumos que les compras (con precio en €). Ese precio alimenta el escandallo y aparece en «Insumos y precios».</p>
+          <p className="mt-1 text-sm text-ink-2">Tus distribuidores y los insumos que les compras. Ese precio alimenta el escandallo y aparece en «Insumos y precios».</p>
         </div>
         {canEdit && (
           <button onClick={openNew} className="inline-flex h-11 items-center gap-2 rounded-lg bg-ember px-4 text-sm font-medium text-cream shadow-[0_8px_20px_-8px_rgba(238,90,28,.7)] transition hover:bg-ember-hi">

@@ -3,6 +3,7 @@ import {
   listEscandallos, getEscandallo, createEscandallo, updateEscandallo, deleteEscandallo,
   listInsumos, createInsumo, previewCosteo, MERMA_UNITS, eur, numTrim, foodCostColor,
 } from '../../lib/costeo'
+import { currencySymbol } from '../../lib/money'
 import { listRecipes, getRecipe } from '../../lib/catalog'
 import { Coins, Plus, Pencil, Trash, Eye, X } from '../icons'
 
@@ -338,7 +339,7 @@ export default function EscandallosPanel({ canEdit }) {
                 {preview.is_subrecipe ? <>
                   {preview.cost_per_portion && <Row label="Coste por porción" value={eur(preview.cost_per_portion)} big />}
                   {preview.weight_per_portion && <Row label="Peso por porción" value={`${numTrim(preview.weight_per_portion)} ${preview.yield_unit}`} />}
-                  {preview.unit_cost_base && <Row label={`Coste por ${preview.yield_unit}`} value={`${Number(preview.unit_cost_base).toFixed(4)} €`} />}
+                  {preview.unit_cost_base && <Row label={`Coste por ${preview.yield_unit}`} value={`${Number(preview.unit_cost_base).toFixed(4)} ${currencySymbol()}`} />}
                 </> : <>
                   <Row label="Coste por ración" value={eur(preview.cost_per_serving)} big />
                   <Row label="PVP sugerido (con IVA)" value={eur(preview.pvp_inc_iva)} />

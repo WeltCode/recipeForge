@@ -4,7 +4,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
     ChangePasswordView, LoginView, MeView, PlanChangeRequestViewSet,
-    ProfileAvatarView, RestaurantViewSet, RoleViewSet, UserAdminViewSet,
+    ProfileAvatarView, RestaurantSettingsView, RestaurantViewSet, RoleViewSet,
+    UserAdminViewSet,
 )
 
 router = DefaultRouter()
@@ -19,6 +20,7 @@ urlpatterns = [
     path('auth/me/', MeView.as_view(), name='me'),
     path('auth/change-password/', ChangePasswordView.as_view(), name='change-password'),
     path('auth/avatar/', ProfileAvatarView.as_view(), name='avatar'),
+    path('auth/restaurant/', RestaurantSettingsView.as_view(), name='restaurant-settings'),
 ]
 
 urlpatterns += router.urls

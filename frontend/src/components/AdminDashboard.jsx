@@ -4,13 +4,14 @@ import { authFetch, getFirstName } from '../auth'
 import RestaurantDetail from './RestaurantDetail'
 import UserManager from './UserManager'
 import { greeting, capitalize, initials, Embers, StatusLamp } from '../lib/ui'
+import { CURRENCY_OPTS } from '../lib/money'
 import { LogOut, Plus, Search, Book, User, Cloche, Sparkle, X, Flame } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
 const emptyNew = {
   name: '', code_prefix: '', tax_id: '', contact_email: '', contact_phone: '', address: '',
-  default_template: 'formal', plan: 'prueba',
+  currency: 'EUR', default_template: 'formal', plan: 'prueba',
   owner_first_name: '', owner_last_name: '', owner_email: '', owner_phone: '', owner_role: 'owner',
 }
 const TEMPLATE_OPTS = [['formal', 'Formal'], ['moderna', 'Moderna'], ['tradicional', 'Tradicional'], ['llamativa', 'Llamativa']]
@@ -312,6 +313,10 @@ function AdminDashboard({
                       <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Plan de suscripción
                         <select value={nuevo.plan} onChange={(e) => setNuevo({ ...nuevo, plan: e.target.value })} className={inp}>
                           {PLAN_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                        </select></label>
+                      <label className="flex flex-col gap-1 text-[12px] text-[#6a635c]">Moneda
+                        <select value={nuevo.currency} onChange={(e) => setNuevo({ ...nuevo, currency: e.target.value })} className={inp}>
+                          {CURRENCY_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                         </select></label>
                     </div>
                     <p className="mt-2 text-[11px] text-[#9a9188]">El logo se sube al abrir el restaurante.</p>

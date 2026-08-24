@@ -4,6 +4,7 @@ import UserManager from './UserManager'
 import RolesManager from './RolesManager'
 import { RecipeCard } from './Dashboard'
 import { Embers, initials } from '../lib/ui'
+import { CURRENCY_OPTS } from '../lib/money'
 import { TEMPLATES } from '../templates'
 import { ArrowLeft, Book, User, Plus, Search, Cloche, Pencil, Lock } from './icons'
 
@@ -27,6 +28,7 @@ function RestaurantDetail({
     name: restaurant.name || '',
     code_prefix: restaurant.code_prefix || '',
     tax_id: restaurant.tax_id || '',
+    currency: restaurant.currency || 'EUR',
     plan: restaurant.plan || 'basico',
     default_template: restaurant.default_template || 'formal',
     contact_email: restaurant.contact_email || '',
@@ -236,6 +238,11 @@ function RestaurantDetail({
                     <span className="text-[11px] text-ink-3">Ej: {form.code_prefix || 'LT'}-001</span></label>
                   <label className="flex flex-col gap-1 text-[12px] text-ink-2">CIF / NIF
                     <input value={form.tax_id} onChange={(e) => setForm({ ...form, tax_id: e.target.value })} className={inp} placeholder="B-12345678" /></label>
+                  <label className="flex flex-col gap-1 text-[12px] text-ink-2">Moneda
+                    <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className={inp}>
+                      {CURRENCY_OPTS.map(([code, label]) => <option key={code} value={code}>{label}</option>)}
+                    </select>
+                    <span className="text-[11px] text-ink-3">Se usa en precios, costes y ventas.</span></label>
                 </div>
               </div>
             </section>

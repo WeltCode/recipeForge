@@ -45,6 +45,7 @@ class MeSerializer(serializers.ModelSerializer):
     restaurant_logo = serializers.SerializerMethodField()
     restaurant_default_template = serializers.SerializerMethodField()
     restaurant_plan = serializers.SerializerMethodField()
+    restaurant_currency = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -52,7 +53,7 @@ class MeSerializer(serializers.ModelSerializer):
                   'role', 'permissions', 'features', 'usage', 'title', 'phone',
                   'must_change_password', 'avatar', 'restaurant', 'restaurant_name',
                   'restaurant_prefix', 'restaurant_logo', 'restaurant_default_template',
-                  'restaurant_plan']
+                  'restaurant_plan', 'restaurant_currency']
 
     def get_phone(self, obj):
         p = getattr(obj, 'profile', None)
@@ -120,6 +121,10 @@ class MeSerializer(serializers.ModelSerializer):
         r = get_user_restaurant(obj)
         return r.plan if r else None
 
+    def get_restaurant_currency(self, obj):
+        r = get_user_restaurant(obj)
+        return r.currency if r else 'EUR'
+
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Login que además incluye rol, permisos, username y restaurante."""
@@ -157,6 +162,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['restaurant_prefix'] = r.code_prefix if r else None
         data['restaurant_default_template'] = r.default_template if r else None
         data['restaurant_plan'] = r.plan if r else None
+        data['restaurant_currency'] = r.currency if r else 'EUR'
         data['restaurant_logo'] = _abs_logo(r, self.context)
         return data
 
@@ -363,7 +369,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Restaurant
-        fields = ['id', 'name', 'code_prefix', 'tax_id', 'default_template', 'plan', 'plan_status',
+        fields = ['id', 'name', 'code_prefix', 'tax_id', 'currency', 'default_template', 'plan', 'plan_status',
                   'trial_ends_at', 'pdf_exports_count',
                   'contact_email', 'contact_phone', 'address', 'logo',
                   'created_at', 'recipe_count', 'member_count', 'members', 'pending_plan_request',

@@ -200,3 +200,15 @@ class OwnerSelfServiceTests(APITestCase):
         self.assertEqual(self.client.patch(f'/api/roles/{roleA.id}/', {'can_create_recipes': True}, format='json').status_code, 200)
         roleB = Role.objects.get(restaurant=self.rB, key='editor')       # otro restaurante
         self.assertEqual(self.client.patch(f'/api/roles/{roleB.id}/', {'can_create_recipes': True}, format='json').status_code, 404)
+
+    def test_owner_changes_currency_others_cannot(self):
+        self.client.force_authenticate(self.ownerA)
+        r = self.client.patch('/api/auth/restaurant/', {'currency': 'PEN'}, format='json')
+        self.assertEqual(r.status_code, 200, r.data)
+        self.rA.refresh_from_db()
+        self.assertEqual(self.rA.currency, 'PEN')
+        # Moneda inválida → 400.
+        self.assertEqual(self.client.patch('/api/auth/restaurant/', {'currency': 'XXX'}, format='json').status_code, 400)
+        # Un viewer (no owner) NO puede cambiarla.
+        self.client.force_authenticate(self.viewerA)
+        self.assertEqual(self.client.patch('/api/auth/restaurant/', {'currency': 'USD'}, format='json').status_code, 403)

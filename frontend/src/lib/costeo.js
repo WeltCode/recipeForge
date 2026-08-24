@@ -1,5 +1,6 @@
 // Llamadas al motor de escandallo (app backend `costeo`).
 import { authFetch } from '../auth'
+import { money } from './money'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
@@ -79,7 +80,9 @@ export const numTrim = (v) => {
   return isNaN(n) ? String(v) : String(n)
 }
 // Dinero con 2 decimales.
-export const eur = (v) => (v == null ? '—' : `${Number(v).toFixed(2)} €`)
+// Importe con la moneda activa del restaurante (antes fijo en €). El nombre se
+// mantiene por compatibilidad; internamente delega en money() de lib/money.
+export const eur = (v) => money(v)
 // Etiqueta de precio de un insumo/formato: "11.40 €/kg" (directo) o
 // "6.40 €/ud · 440 g" (presentación, muestra el contenido del envase).
 export function priceLabel(o) {
