@@ -55,7 +55,8 @@ export const MERMA_UNITS = [['g', 'Gramo'], ['kg', 'Kilo'], ['ml', 'Mililitro'],
 // "presentacion" = se compra en unidades/envases que contienen una cantidad de
 // peso/volumen (p. ej. 1 unidad = 5 L a 36 € → 7,20 €/L).
 export const PRICE_PER = [
-  ['kg', 'Kilo'], ['g', 'Gramo'], ['l', 'Litro'], ['ml', 'Mililitro'], ['presentacion', 'Unidad / presentación'],
+  ['kg', 'Kilo'], ['g', 'Gramo'], ['l', 'Litro'], ['ml', 'Mililitro'],
+  ['pack', 'Pack / caja'], ['presentacion', 'Unidad / presentación'],
 ]
 // Unidad de peso/volumen de una presentación (contenido de una unidad/envase).
 export const PRESENTACION_UNITS = [
@@ -64,9 +65,13 @@ export const PRESENTACION_UNITS = [
 
 // Construye {pack_levels, unit_size, unit_size_unit} desde la elección "precio por".
 // - Directo (kg/g/l/ml): el precio es por 1 de esa unidad → contenido = 1 unidad.
-// - Presentación: 1 unidad/envase contiene `packSize` de `packUnit` por `precio` →
-//   contenido = packSize packUnit (el coste por unidad base sale solo).
-export function buildFormatContent({ pricePer, packSize, packUnit }) {
+// - Pack/caja: `packCount` unidades, cada una de `packSize` `packUnit`, por el
+//   precio del pack → pack_levels=[packCount], unit_size=packSize (ej. 6×1 kg).
+// - Presentación: 1 unidad/envase contiene `packSize` de `packUnit` por `precio`.
+export function buildFormatContent({ pricePer, packSize, packUnit, packCount }) {
+  if (pricePer === 'pack') {
+    return { pack_levels: [Number(numTrim(packCount)) || 1], unit_size: packSize || '1', unit_size_unit: packUnit || 'kg' }
+  }
   if (pricePer === 'presentacion') {
     return { pack_levels: [], unit_size: packSize || '1', unit_size_unit: packUnit || 'l' }
   }

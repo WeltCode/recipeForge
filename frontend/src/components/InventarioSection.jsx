@@ -5,7 +5,7 @@ import {
 } from '../lib/catalog'
 import { Inventory, Plus, Pencil, Trash, X, Flame, ChevronRight } from './icons'
 
-const EMPTY = { name: '', partida: '', quantity: '0', unit: 'ud', stock_min: '0', notes: '' }
+const EMPTY = { name: '', partida: '', quantity: '0', unit: 'ud', weight: '', weight_unit: 'kg', stock_min: '0', notes: '' }
 const ALL = '__all__'   // ver todas las partidas juntas
 const NONE = '__none__' // insumos sin partida
 
@@ -49,7 +49,7 @@ export default function InventarioSection({ canEdit }) {
 
   const openNew = () => { setForm({ ...EMPTY, partida: open && open !== ALL && open !== NONE ? open : '' }); setEditing('new') }
   const openEdit = (i) => {
-    setForm({ name: i.name, partida: i.partida ?? '', quantity: String(i.quantity ?? '0'), unit: i.unit, stock_min: String(i.stock_min ?? '0'), notes: i.notes || '' })
+    setForm({ name: i.name, partida: i.partida ?? '', quantity: String(i.quantity ?? '0'), unit: i.unit, weight: i.weight != null ? String(i.weight) : '', weight_unit: i.weight_unit || 'kg', stock_min: String(i.stock_min ?? '0'), notes: i.notes || '' })
     setEditing(i.id)
   }
   const close = () => { setEditing(null); setForm(EMPTY) }
@@ -65,7 +65,7 @@ export default function InventarioSection({ canEdit }) {
 
   const save = async () => {
     if (!form.name.trim()) { setError('El nombre es obligatorio.'); return }
-    const body = { name: form.name, partida: form.partida || null, quantity: form.quantity || '0', unit: form.unit, stock_min: form.stock_min || '0', notes: form.notes }
+    const body = { name: form.name, partida: form.partida || null, quantity: form.quantity || '0', unit: form.unit, weight: form.weight === '' ? null : form.weight, weight_unit: form.weight_unit, stock_min: form.stock_min || '0', notes: form.notes }
     setSaving(true)
     try {
       if (editing === 'new') await createInventory(body)
@@ -135,6 +135,13 @@ export default function InventarioSection({ canEdit }) {
               </select>
             </label>
             {inp('quantity', `Cantidad (${form.unit})`)}
+            <label className="flex flex-col gap-1 text-[13px] text-ink-2">Peso total (aunque sean packs)
+              <div className="flex gap-2">
+                <input value={form.weight} onChange={(e) => setForm({ ...form, weight: e.target.value.replace(/[^\d.,]/g, '') })} placeholder="p. ej. 15" className="w-full rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/50" />
+                <select value={form.weight_unit} onChange={(e) => setForm({ ...form, weight_unit: e.target.value })} className="rounded-lg border border-steel-300 bg-white px-2 py-2 text-[14px] text-ink outline-none focus:border-ember/50">
+                  {UNIT_CHOICES.map(([v]) => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div></label>
             {inp('stock_min', `Mínimo (${form.unit})`)}
             {inp('notes', 'Notas')}
           </div>
@@ -273,6 +280,7 @@ function ItemList({ items, canEdit, onAdjust, onEdit, onRemove }) {
           </div>
           <div className="shrink-0 text-right">
             <p className="data text-[15px] font-semibold text-ink">{i.quantity} {i.unit}</p>
+            {i.weight != null && i.weight !== '' && <p className="data text-[12px] text-ink-2">{i.weight} {i.weight_unit}</p>}
             {Number(i.stock_min) > 0 && <p className="text-[11px] text-ink-3">mín. {i.stock_min}</p>}
           </div>
           {i.low_stock && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-ember/12 px-2 py-0.5 text-[10px] font-semibold uppercase text-ember-deep"><Flame size={10} /> bajo</span>}

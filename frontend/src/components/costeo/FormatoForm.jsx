@@ -5,13 +5,14 @@ import { currencySymbol } from '../../lib/money'
 // Valores por defecto de un formato de compra.
 export const EMPTY_FMT = {
   description: '', supplier: '', price_por: 'kg',
-  pack_size: '1', pack_unit: 'l',            // solo para "Unidad / presentación"
+  pack_count: '6',                            // solo "Pack / caja": unidades por pack
+  pack_size: '1', pack_unit: 'kg',           // "Pack" y "Unidad / presentación"
   price: '', price_includes_iva: false, iva_rate: '0.10',
 }
 
 // Construye el objeto de formato listo para crear en el backend (o encolar).
 export function fmtToBody(f) {
-  const content = buildFormatContent({ pricePer: f.price_por, packSize: f.pack_size, packUnit: f.pack_unit })
+  const content = buildFormatContent({ pricePer: f.price_por, packSize: f.pack_size, packUnit: f.pack_unit, packCount: f.pack_count })
   return {
     supplier: f.supplier || null, description: f.description,
     price: f.price, price_includes_iva: f.price_includes_iva, iva_rate: f.iva_rate || '0.10',
@@ -23,7 +24,10 @@ export function fmtToBody(f) {
 // Reconstruye el estado del formulario desde un formato guardado (para editar).
 // Directo (kg/g/l/ml) = contenido de 1 unidad; presentación = envase de N unidades.
 export function fmtFromStored(s) {
-  const direct = (!s.pack_levels || s.pack_levels.length === 0) && Number(s.unit_size) === 1
+  const levels = s.pack_levels || []
+  const isPack = levels.length > 0
+  const direct = !isPack && Number(s.unit_size) === 1
+  const packCount = levels.reduce((a, b) => a * (Number(b) || 1), 1)
   return {
     ...EMPTY_FMT,
     description: s.description || '',
@@ -31,9 +35,10 @@ export function fmtFromStored(s) {
     price: numTrim(s.price),
     price_includes_iva: !!s.price_includes_iva,
     iva_rate: String(s.iva_rate ?? '0.10'),
-    price_por: direct ? s.unit_size_unit : 'presentacion',
+    price_por: isPack ? 'pack' : (direct ? s.unit_size_unit : 'presentacion'),
+    pack_count: isPack ? numTrim(packCount) : '6',
     pack_size: direct ? '1' : numTrim(s.unit_size),
-    pack_unit: s.unit_size_unit || 'l',
+    pack_unit: s.unit_size_unit || 'kg',
   }
 }
 
@@ -44,6 +49,8 @@ export default function FormatoForm({ suppliers = [], onAdd, lockedSupplier = nu
   const [fmt, setFmt] = useState(initial || EMPTY_FMT)
   const set = (k, v) => setFmt((f) => ({ ...f, [k]: v }))
   const isPres = fmt.price_por === 'presentacion'
+  const isPack = fmt.price_por === 'pack'
+  const priceLbl = isPack ? `Precio del pack (${currencySymbol()})` : isPres ? `Precio por unidad (${currencySymbol()})` : `Precio (${currencySymbol()})`
 
   const add = () => {
     if (!fmt.price) return
@@ -58,7 +65,7 @@ export default function FormatoForm({ suppliers = [], onAdd, lockedSupplier = nu
           <select value={fmt.price_por} onChange={(e) => set('price_por', e.target.value)} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
             {PRICE_PER.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
           </select></label>
-        <label className="flex flex-col gap-1 text-[12px] text-ink-2">{isPres ? `Precio por unidad (${currencySymbol()})` : `Precio (${currencySymbol()})`}
+        <label className="flex flex-col gap-1 text-[12px] text-ink-2">{priceLbl}
           <input value={fmt.price} onChange={(e) => set('price', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 36" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
         {lockedSupplier == null ? (
           <label className="flex flex-col gap-1 text-[12px] text-ink-2">Proveedor
@@ -69,6 +76,19 @@ export default function FormatoForm({ suppliers = [], onAdd, lockedSupplier = nu
         ) : <div className="hidden lg:block" />}
         <label className="flex items-center gap-1.5 self-end pb-1.5 text-[12px] text-ink-2"><input type="checkbox" checked={fmt.price_includes_iva} onChange={(e) => set('price_includes_iva', e.target.checked)} className="accent-[#e8531f]" /> Precio con IVA</label>
       </div>
+
+      {isPack && (
+        <div className="mt-2 grid items-end gap-2 sm:grid-cols-3">
+          <label className="flex flex-col gap-1 text-[12px] text-ink-2">Unidades por pack
+            <input value={fmt.pack_count} onChange={(e) => set('pack_count', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 6" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+          <label className="flex flex-col gap-1 text-[12px] text-ink-2">Peso por unidad
+            <input value={fmt.pack_size} onChange={(e) => set('pack_size', e.target.value.replace(/[^\d.,]/g, ''))} placeholder="p. ej. 1" className="rounded-lg border border-steel-300 px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50" /></label>
+          <label className="flex flex-col gap-1 text-[12px] text-ink-2">Unidad
+            <select value={fmt.pack_unit} onChange={(e) => set('pack_unit', e.target.value)} className="rounded-lg border border-steel-300 px-2 py-1.5 text-[13px] text-ink outline-none focus:border-ember/50">
+              {PRESENTACION_UNITS.map(([v, l]) => <option key={v} value={v}>{l} ({v})</option>)}
+            </select></label>
+        </div>
+      )}
 
       {isPres && (
         <div className="mt-2 grid items-end gap-2 sm:grid-cols-2">

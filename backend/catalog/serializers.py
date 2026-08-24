@@ -127,6 +127,7 @@ class InventoryItemSerializer(serializers.ModelSerializer):
         model = models.InventoryItem
         fields = [
             'id', 'name', 'partida', 'partida_name', 'quantity', 'unit',
+            'weight', 'weight_unit',
             'stock_min', 'low_stock', 'notes', 'created_at', 'updated_at',
         ]
         read_only_fields = ['created_at', 'updated_at']

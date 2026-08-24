@@ -146,6 +146,10 @@ class InventoryItem(models.Model):
     )
     quantity = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     unit = models.CharField(max_length=4, choices=UNIT_CHOICES, default='ud')
+    # Peso/volumen TOTAL del insumo (siempre disponible, aunque la unidad sea
+    # 'pack' o 'ud'). Ej.: 12 packs de corvina = 15 kg de peso total.
+    weight = models.DecimalField(max_digits=14, decimal_places=3, null=True, blank=True)
+    weight_unit = models.CharField(max_length=4, choices=UNIT_CHOICES, default='kg')
     stock_min = models.DecimalField(max_digits=14, decimal_places=3, default=0)
     notes = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
