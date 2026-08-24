@@ -175,6 +175,8 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['restaurant_default_template'] = r.default_template if r else None
         data['restaurant_plan'] = r.plan if r else None
         data['restaurant_currency'] = r.currency if r else 'EUR'
+        data['restaurant_public_slug'] = r.public_slug if r else None
+        data['restaurant_carta_published'] = bool(r.carta_published) if r else False
         data['restaurant_logo'] = _abs_logo(r, self.context)
         return data
 

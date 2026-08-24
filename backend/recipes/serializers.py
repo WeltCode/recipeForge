@@ -44,7 +44,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
             'servings', 'prep_time_value', 'prep_time_unit',
             'cook_time_value', 'cook_time_unit',
             'final_photo', 'allergen_summary', 'restaurant', 'created_at', 'updated_at',
-            'on_menu', 'menu_section', 'menu_price', 'menu_order',
+            'on_menu', 'menu_section', 'menu_price', 'menu_order', 'menu_photo',
         ]
 
     def get_allergen_summary(self, obj):
@@ -54,6 +54,8 @@ class RecipeListSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         if instance.final_photo:
             data['final_photo'] = media_url(self.context.get('request'), instance.final_photo.name)
+        if instance.menu_photo:
+            data['menu_photo'] = media_url(self.context.get('request'), instance.menu_photo.name)
         return data
 
 
@@ -61,6 +63,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
     ingredients = IngredientLineSerializer(many=True, required=False)
     steps = ProductionStepSerializer(many=True, required=False)
     final_photo = serializers.ImageField(required=False, allow_null=True)
+    menu_photo = serializers.ImageField(required=False, allow_null=True)
     revision = serializers.IntegerField(read_only=True)
     restaurant_name = serializers.SerializerMethodField()
     restaurant_logo = serializers.SerializerMethodField()
@@ -78,7 +81,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
             'observations', 'allergens',
             'final_photo', 'restaurant_name', 'restaurant_logo',
             'allergen_summary', 'ingredients', 'steps',
-            'on_menu', 'menu_section', 'menu_price', 'menu_order', 'menu_description',
+            'on_menu', 'menu_section', 'menu_price', 'menu_order', 'menu_description', 'menu_photo',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['revision', 'created_at', 'updated_at']
@@ -101,6 +104,8 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
         data = super().to_representation(instance)
         if instance.final_photo:
             data['final_photo'] = media_url(self.context.get('request'), instance.final_photo.name)
+        if instance.menu_photo:
+            data['menu_photo'] = media_url(self.context.get('request'), instance.menu_photo.name)
         return data
 
     def create(self, validated_data):
@@ -209,4 +214,6 @@ class PublicCartaItemSerializer(serializers.ModelSerializer):
         return recipe_allergen_summary(obj)
 
     def get_photo(self, obj):
-        return media_url(self.context.get('request'), obj.final_photo.name) if obj.final_photo else None
+        # Foto propia de la carta si existe; si no, la de la ficha técnica.
+        name = obj.menu_photo.name if obj.menu_photo else (obj.final_photo.name if obj.final_photo else None)
+        return media_url(self.context.get('request'), name) if name else None

@@ -51,6 +51,13 @@ export async function setRecipeMenu(id, fields) {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields),
   }))
 }
+// Sube una foto propia para el plato de la carta (distinta de la de la ficha).
+export async function uploadMenuPhoto(id, file) {
+  const fd = new FormData()
+  fd.append('menu_photo', file)
+  return jsonOrThrow(await authFetch(`${API_BASE}/recipes/${id}/`, { method: 'PATCH', body: fd }))
+}
+
 export async function setCartaPublishedApi(published) {
   return jsonOrThrow(await authFetch(`${API_BASE}/carta/settings/`, {
     method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ carta_published: published }),

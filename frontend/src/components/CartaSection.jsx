@@ -3,7 +3,7 @@ import { authFetch, getPublicSlug, getCartaPublished, setCartaPublished } from '
 import { money, currencySymbol } from '../lib/money'
 import {
   listEspeciales, createEspecial, updateEspecial, deleteEspecial,
-  setRecipeMenu, setCartaPublishedApi, publicUrl, qrDataUrl,
+  setRecipeMenu, uploadMenuPhoto, setCartaPublishedApi, publicUrl, qrDataUrl,
   TEMP_OPTS, CAT_OPTS, FORMATO_OPTS,
 } from '../lib/carta'
 import { Plus, Trash, Pencil, X } from './icons'
@@ -71,6 +71,11 @@ function CartaTab({ slug }) {
       setMsg(r.carta_published ? 'Carta publicada.' : 'Carta despublicada.')
     } catch (err) { setMsg(err.message) }
   }
+  const onPhoto = async (id, file) => {
+    if (!file) return
+    try { await uploadMenuPhoto(id, file); setMsg('Foto de la carta actualizada.'); load() }
+    catch (err) { setMsg(err.message) }
+  }
 
   const onMenuCount = Object.values(edits).filter((e) => e.on_menu).length
 
@@ -109,6 +114,11 @@ function CartaTab({ slug }) {
                 </label>
                 {e.on_menu && (
                   <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
+                    <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg steel-plate px-2.5 text-[12px] text-ink hover:bg-white" title="Foto propia para la carta (si no, usa la de la ficha)">
+                      {r.menu_photo ? <img src={r.menu_photo} alt="" className="h-6 w-6 rounded object-cover" /> : null}
+                      {r.menu_photo ? 'Cambiar foto' : 'Subir foto'}
+                      <input type="file" accept="image/*" className="hidden" onChange={(ev) => onPhoto(r.id, ev.target.files?.[0])} />
+                    </label>
                     <input value={e.menu_section} onChange={(ev) => upd(r.id, 'menu_section', ev.target.value)} placeholder="Sección (Entrantes…)" className={`${inp} w-40`} />
                     <input value={e.menu_price} onChange={(ev) => upd(r.id, 'menu_price', ev.target.value)} placeholder={`Precio ${currencySymbol()}`} inputMode="decimal" className={`${inp} w-28`} />
                   </div>

@@ -41,6 +41,7 @@ class Recipe(models.Model):
     menu_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # si vacío usa sale_price
     menu_order = models.PositiveIntegerField(default=0)
     menu_description = models.TextField(blank=True)  # texto público apetecible (distinto de la ficha)
+    menu_photo = models.ImageField(upload_to='menu_photos/', null=True, blank=True)  # foto propia para la carta (si no, la de la ficha)
     final_photo = models.ImageField(upload_to='recipe_photos/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
