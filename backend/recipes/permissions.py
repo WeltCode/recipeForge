@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
-from accounts.models import user_can
+from accounts.models import get_user_restaurant, plan_allows, user_can
 
 
 class RecipeRolePermission(BasePermission):
@@ -28,3 +28,20 @@ class RecipeRolePermission(BasePermission):
         if request.method == 'DELETE':
             return user_can(user, 'can_delete_recipes')
         return False
+
+
+class CanManageCarta(BasePermission):
+    """Gestión de la carta pública y los especiales: el plan del restaurante debe
+    incluir `carta` (Premium/Business) Y el rol debe poder crear recetas
+    (owner o chef/manager). El superadmin siempre."""
+
+    message = 'Necesitas plan Premium o Business y ser dueño o chef.'
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        restaurant = get_user_restaurant(user)
+        return bool(restaurant) and plan_allows(restaurant, 'carta') and user_can(user, 'can_create_recipes')

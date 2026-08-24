@@ -6,6 +6,7 @@ from pathlib import Path
 
 from django.db.models import F
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils import timezone
 from rest_framework.decorators import action
@@ -21,12 +22,20 @@ from accounts.models import (
     UserProfile,
     get_user_restaurant,
     get_user_role,
+    plan_allows,
     plan_features,
 )
 
-from .models import Recipe
-from .permissions import RecipeRolePermission
-from .serializers import RecipeDetailSerializer, RecipeListSerializer
+from .models import Especial, Recipe
+from .permissions import CanManageCarta, RecipeRolePermission
+from .serializers import (
+    EspecialSerializer,
+    PublicCartaItemSerializer,
+    PublicEspecialSerializer,
+    RecipeDetailSerializer,
+    RecipeListSerializer,
+    media_url,
+)
 
 
 def _month_start():
@@ -255,3 +264,91 @@ class RecipeViewSet(ModelViewSet):
         response = HttpResponse(html, content_type='text/html; charset=utf-8')
         response['Content-Disposition'] = f'inline; filename="{recipe.code}.html"'
         return response
+
+
+# ── Fase 2: carta pública + especiales ──────────────────────────────────────
+
+def _restaurant_header(request, r):
+    """Cabecera pública del restaurante (sin datos internos)."""
+    logo = r.logo.name if r.logo else None
+    return {'name': r.name, 'logo': media_url(request, logo), 'currency': r.currency}
+
+
+class EspecialViewSet(ModelViewSet):
+    """CRUD de especiales fuera de carta. Owner/chef con plan carta; superadmin
+    todo. Aislado al restaurante del usuario (nunca otro tenant)."""
+
+    serializer_class = EspecialSerializer
+    permission_classes = [CanManageCarta]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def get_queryset(self):
+        u = self.request.user
+        qs = Especial.objects.select_related('restaurant').order_by('order', '-created_at')
+        if u.is_superuser:
+            rid = self.request.query_params.get('restaurant')
+            return qs.filter(restaurant_id=rid) if rid else qs
+        return qs.filter(restaurant=get_user_restaurant(u))
+
+    def perform_create(self, serializer):
+        u = self.request.user
+        r = get_user_restaurant(u)
+        if u.is_superuser and not r:
+            rid = self.request.data.get('restaurant') or self.request.query_params.get('restaurant')
+            r = get_object_or_404(Restaurant, pk=rid) if rid else None
+        serializer.save(restaurant=r)
+
+
+class CartaSettingsView(APIView):
+    """Publicar/despublicar la carta pública (owner/chef con plan carta)."""
+
+    permission_classes = [CanManageCarta]
+
+    def patch(self, request):
+        r = get_user_restaurant(request.user)
+        if not r:
+            return Response({'detail': 'No tienes un restaurante asignado.'}, status=400)
+        if 'carta_published' in request.data:
+            r.carta_published = bool(request.data.get('carta_published'))
+            r.save(update_fields=['carta_published'])
+        return Response({'public_slug': r.public_slug, 'carta_published': r.carta_published})
+
+
+class PublicCartaView(APIView):
+    """Carta pública (sin login) por slug. Solo si el plan incluye carta y está
+    publicada. Devuelve platos agrupados por sección, sin costes."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, slug):
+        r = get_object_or_404(Restaurant, public_slug=slug)
+        if not (r.carta_published and plan_allows(r, 'carta')):
+            return Response({'detail': 'Carta no disponible.'}, status=404)
+        items = Recipe.objects.filter(restaurant=r, on_menu=True).order_by(
+            'menu_section', 'menu_order', 'name',
+        )
+        rows = PublicCartaItemSerializer(items, many=True, context={'request': request}).data
+        sections = []
+        for it in rows:
+            sec = it.get('menu_section') or ''
+            if not sections or sections[-1]['name'] != sec:
+                sections.append({'name': sec, 'items': []})
+            sections[-1]['items'].append(it)
+        return Response({'restaurant': _restaurant_header(request, r), 'sections': sections})
+
+
+class PublicEspecialesView(APIView):
+    """Especiales fuera de carta públicos (sin login) por slug. Solo si el plan
+    incluye carta. Devuelve los disponibles, sin datos internos."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request, slug):
+        r = get_object_or_404(Restaurant, public_slug=slug)
+        if not plan_allows(r, 'carta'):
+            return Response({'detail': 'No disponible.'}, status=404)
+        qs = Especial.objects.filter(restaurant=r, available=True).order_by('order', '-created_at')
+        rows = PublicEspecialSerializer(qs, many=True, context={'request': request}).data
+        return Response({'restaurant': _restaurant_header(request, r), 'especiales': rows})

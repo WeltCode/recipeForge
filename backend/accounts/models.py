@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils.text import slugify
 
 
 def generate_temp_password(length=10):
@@ -68,7 +69,7 @@ CURRENCY_CHOICES = [
 PLAN_FEATURES = {
     PLAN_PRUEBA: {
         'pdf': True, 'watermark': True, 'templates_custom': False,
-        'allergens': False, 'escandallo': False, 'inventory': False, 'suppliers': False,
+        'allergens': False, 'escandallo': False, 'inventory': False, 'suppliers': False, 'carta': False,
         'multiuser': False, 'max_users': 1,
         'max_recipes_total': 5, 'max_recipes_per_month': None, 'max_pdf_total': 5,
         'trial': True, 'trial_days': 30,
@@ -77,21 +78,21 @@ PLAN_FEATURES = {
     # escandallo + alérgenos + moneda + logo. Sin multiusuario/plantillas/inventario.
     PLAN_BASICO: {
         'pdf': True, 'watermark': False, 'templates_custom': False,
-        'allergens': True, 'escandallo': True, 'inventory': False, 'suppliers': False,
+        'allergens': True, 'escandallo': True, 'inventory': False, 'suppliers': False, 'carta': False,
         'multiuser': False, 'max_users': 1,
         'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
         'trial': False, 'trial_days': None,
     },
     PLAN_PRO: {
         'pdf': True, 'watermark': False, 'templates_custom': True,
-        'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': False,
+        'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': False, 'carta': True,
         'multiuser': True, 'max_users': 8,
         'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
         'trial': False, 'trial_days': None,
     },
     PLAN_BUSINESS: {
         'pdf': True, 'watermark': False, 'templates_custom': True,
-        'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': True,
+        'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': True, 'carta': True,
         'multiuser': True, 'max_users': 20,
         'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
         'trial': False, 'trial_days': None,
@@ -159,10 +160,24 @@ class Restaurant(models.Model):
     contact_phone = models.CharField(max_length=40, blank=True)
     address = models.CharField(max_length=255, blank=True)
     logo = models.ImageField(upload_to='restaurant_logos/', null=True, blank=True)
+    # Carta pública (Fase 2): slug para las URLs públicas /carta/<slug> y
+    # /especiales/<slug>; carta_published controla si la carta es visible.
+    public_slug = models.SlugField(max_length=80, unique=True, null=True, blank=True)
+    carta_published = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['name']
+
+    def save(self, *args, **kwargs):
+        if not self.public_slug:
+            base = slugify(self.name)[:70] or 'restaurante'
+            slug, i = base, 2
+            while Restaurant.objects.exclude(pk=self.pk).filter(public_slug=slug).exists():
+                slug = f'{base}-{i}'
+                i += 1
+            self.public_slug = slug
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -380,7 +395,7 @@ def get_user_features(user):
     if user and user.is_authenticated and user.is_superuser:
         return {
             'pdf': True, 'watermark': False, 'templates_custom': True,
-            'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': True,
+            'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': True, 'carta': True,
             'multiuser': True, 'max_users': 9999,
             'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
             'trial': False, 'trial_days': None,

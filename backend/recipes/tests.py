@@ -139,3 +139,85 @@ class TenantRoleTests(APITestCase):
         r6 = self.client.post(url)
         self.assertEqual(r6.status_code, 403)
         self.assertFalse(r6.json()['allowed'])
+
+
+from recipes.models import Especial
+
+
+class CartaEspecialesTests(APITestCase):
+    """Fase 2: carta pública + especiales. Plan (Premium/Business) + rol
+    (owner/chef), aislamiento por restaurante, y públicas sin costes."""
+
+    def setUp(self):
+        self.rA = Restaurant.objects.create(name='Rest A', code_prefix='A', plan='business', carta_published=True)
+        self.rB = Restaurant.objects.create(name='Rest B', code_prefix='B', plan='pro', carta_published=False)
+        self.rBasic = Restaurant.objects.create(name='Rest C', code_prefix='C', plan='basico')
+
+        def member(username, restaurant, key):
+            u = User.objects.create_user(username, password='pw12345!')
+            Membership.objects.create(user=u, restaurant=restaurant, role=role(restaurant, key))
+            return u
+
+        self.ownerA = member('cartaOwnerA', self.rA, 'owner')
+        self.editorA = member('cartaEditorA', self.rA, 'editor')       # sin can_create_recipes
+        self.ownerB = member('cartaOwnerB', self.rB, 'owner')
+        self.ownerBasic = member('cartaOwnerBasic', self.rBasic, 'owner')
+
+        self.recA = Recipe.objects.create(
+            restaurant=self.rA, code='A-001', name='Ceviche', on_menu=True,
+            menu_section='Entrantes', menu_price='12.50', sale_price='10',
+        )
+        self.espA = Especial.objects.create(
+            restaurant=self.rA, name='Seco de ternera', price='16',
+            available=True, temperatura='caliente_tierra', sales_pitch='Nuestro clásico peruano.',
+        )
+        self.espB = Especial.objects.create(restaurant=self.rB, name='Otro', price='9')
+
+    # ── Gestión (privada) ──
+    def test_owner_creates_and_lists_own_especiales(self):
+        self.client.force_authenticate(self.ownerA)
+        r = self.client.post('/api/especiales/', {'name': 'Cau cau', 'price': '14'}, format='json')
+        self.assertEqual(r.status_code, 201, r.data)
+        ids = [e['id'] for e in self.client.get('/api/especiales/').json()]
+        self.assertIn(self.espA.id, ids)
+        self.assertNotIn(self.espB.id, ids)          # otro restaurante
+
+    def test_editor_without_create_flag_forbidden(self):
+        self.client.force_authenticate(self.editorA)
+        self.assertEqual(self.client.get('/api/especiales/').status_code, 403)
+
+    def test_basico_plan_has_no_carta(self):
+        self.client.force_authenticate(self.ownerBasic)
+        self.assertEqual(self.client.get('/api/especiales/').status_code, 403)
+
+    def test_especiales_cross_tenant_404(self):
+        self.client.force_authenticate(self.ownerA)
+        self.assertEqual(self.client.get(f'/api/especiales/{self.espB.id}/').status_code, 404)
+
+    def test_carta_settings_toggle(self):
+        self.client.force_authenticate(self.ownerA)
+        r = self.client.patch('/api/carta/settings/', {'carta_published': False}, format='json')
+        self.assertEqual(r.status_code, 200)
+        self.rA.refresh_from_db()
+        self.assertFalse(self.rA.carta_published)
+
+    # ── Públicas (sin login) ──
+    def test_public_carta_ok_and_hides_costs(self):
+        resp = self.client.get(f'/api/public/carta/{self.rA.public_slug}/')   # sin autenticar
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        item = data['sections'][0]['items'][0]
+        self.assertEqual(item['name'], 'Ceviche')
+        self.assertEqual(float(item['price']), 12.50)                 # menu_price, no sale_price
+        # No debe filtrar costes ni campos internos:
+        for leaked in ('sale_price', 'cost', 'unit_cost', 'escandallo'):
+            self.assertNotIn(leaked, item)
+
+    def test_public_carta_404_if_not_published(self):
+        self.assertEqual(self.client.get(f'/api/public/carta/{self.rB.public_slug}/').status_code, 404)
+
+    def test_public_especiales_ok(self):
+        resp = self.client.get(f'/api/public/especiales/{self.rA.public_slug}/')
+        self.assertEqual(resp.status_code, 200)
+        names = [e['name'] for e in resp.json()['especiales']]
+        self.assertIn('Seco de ternera', names)

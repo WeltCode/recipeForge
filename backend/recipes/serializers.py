@@ -39,6 +39,7 @@ class RecipeListSerializer(serializers.ModelSerializer):
             'servings', 'prep_time_value', 'prep_time_unit',
             'cook_time_value', 'cook_time_unit',
             'final_photo', 'allergen_summary', 'restaurant', 'created_at', 'updated_at',
+            'on_menu', 'menu_section', 'menu_price', 'menu_order',
         ]
 
     def get_allergen_summary(self, obj):
@@ -72,6 +73,7 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
             'observations', 'allergens',
             'final_photo', 'restaurant_name', 'restaurant_logo',
             'allergen_summary', 'ingredients', 'steps',
+            'on_menu', 'menu_section', 'menu_price', 'menu_order', 'menu_description',
             'created_at', 'updated_at',
         ]
         read_only_fields = ['revision', 'created_at', 'updated_at']
@@ -138,3 +140,68 @@ class RecipeDetailSerializer(serializers.ModelSerializer):
                 )
 
         return instance
+
+
+# ── Fase 2: carta pública + especiales ──────────────────────────────────────
+
+class EspecialSerializer(serializers.ModelSerializer):
+    """CRUD de especiales para el owner/chef (privado)."""
+
+    photo = serializers.ImageField(required=False, allow_null=True)
+
+    class Meta:
+        model = models.Especial
+        fields = [
+            'id', 'name', 'recipe', 'price', 'description', 'sales_pitch',
+            'temperatura', 'categoria', 'formato', 'para_personas',
+            'available', 'order', 'photo', 'created_at',
+        ]
+        read_only_fields = ['created_at']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.photo:
+            data['photo'] = media_url(self.context.get('request'), instance.photo.name)
+        return data
+
+
+class PublicEspecialSerializer(serializers.ModelSerializer):
+    """Especial servido en la página pública (sin datos internos)."""
+
+    temperatura_display = serializers.CharField(source='get_temperatura_display', read_only=True)
+    categoria_display = serializers.CharField(source='get_categoria_display', read_only=True)
+    formato_display = serializers.CharField(source='get_formato_display', read_only=True)
+
+    class Meta:
+        model = models.Especial
+        fields = [
+            'id', 'name', 'price', 'description', 'sales_pitch',
+            'temperatura', 'temperatura_display', 'categoria', 'categoria_display',
+            'formato', 'formato_display', 'para_personas', 'photo',
+        ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data['photo'] = media_url(self.context.get('request'), instance.photo.name) if instance.photo else None
+        return data
+
+
+class PublicCartaItemSerializer(serializers.ModelSerializer):
+    """Plato de la carta pública (sin costes ni datos internos)."""
+
+    price = serializers.SerializerMethodField()
+    allergens = serializers.SerializerMethodField()
+    photo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = models.Recipe
+        fields = ['id', 'name', 'menu_section', 'menu_description', 'price', 'allergens', 'photo']
+
+    def get_price(self, obj):
+        return obj.menu_price if obj.menu_price is not None else obj.sale_price
+
+    def get_allergens(self, obj):
+        return recipe_allergen_summary(obj)
+
+    def get_photo(self, obj):
+        return media_url(self.context.get('request'), obj.final_photo.name) if obj.final_photo else None

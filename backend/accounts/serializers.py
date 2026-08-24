@@ -46,6 +46,8 @@ class MeSerializer(serializers.ModelSerializer):
     restaurant_default_template = serializers.SerializerMethodField()
     restaurant_plan = serializers.SerializerMethodField()
     restaurant_currency = serializers.SerializerMethodField()
+    restaurant_public_slug = serializers.SerializerMethodField()
+    restaurant_carta_published = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -53,7 +55,8 @@ class MeSerializer(serializers.ModelSerializer):
                   'role', 'permissions', 'features', 'usage', 'title', 'phone',
                   'must_change_password', 'avatar', 'restaurant', 'restaurant_name',
                   'restaurant_prefix', 'restaurant_logo', 'restaurant_default_template',
-                  'restaurant_plan', 'restaurant_currency']
+                  'restaurant_plan', 'restaurant_currency',
+                  'restaurant_public_slug', 'restaurant_carta_published']
 
     def get_phone(self, obj):
         p = getattr(obj, 'profile', None)
@@ -124,6 +127,14 @@ class MeSerializer(serializers.ModelSerializer):
     def get_restaurant_currency(self, obj):
         r = get_user_restaurant(obj)
         return r.currency if r else 'EUR'
+
+    def get_restaurant_public_slug(self, obj):
+        r = get_user_restaurant(obj)
+        return r.public_slug if r else None
+
+    def get_restaurant_carta_published(self, obj):
+        r = get_user_restaurant(obj)
+        return bool(r.carta_published) if r else False
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):

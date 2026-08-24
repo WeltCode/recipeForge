@@ -35,6 +35,12 @@ class Recipe(models.Model):
     # Precio de venta (PVP) para el escandallo: food cost % y margen. Solo lo
     # ve/edita quien tiene permiso de escandallo (se filtra en el serializer).
     sale_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # Carta pública (Fase 2): el plato se muestra en la carta con QR.
+    on_menu = models.BooleanField(default=False)
+    menu_section = models.CharField(max_length=80, blank=True)  # sección libre (Entrantes, Postres…)
+    menu_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # si vacío usa sale_price
+    menu_order = models.PositiveIntegerField(default=0)
+    menu_description = models.TextField(blank=True)  # texto público apetecible (distinto de la ficha)
     final_photo = models.ImageField(upload_to='recipe_photos/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -87,3 +93,43 @@ class ProductionStep(models.Model):
 
     def __str__(self):
         return f'Paso {self.step_number}: {self.title}'
+
+
+class Especial(models.Model):
+    """Especial "fuera de carta" (Fase 2). Lo gestiona el owner/chef y se publica
+    en un QR aparte. Clasificación TODA opcional (flexible): el chef decide cómo
+    organizarlos; el público se agrupa por lo que esté relleno."""
+
+    TEMP_CHOICES = [
+        ('frio', 'Frío'),
+        ('caliente_tierra', 'Caliente (tierra)'),
+        ('caliente_mar', 'Caliente (mar)'),
+    ]
+    CAT_CHOICES = [('entrante', 'Entrante'), ('plato_fuerte', 'Plato fuerte')]
+    FORMATO_CHOICES = [('individual', 'Individual'), ('compartir', 'Para compartir')]
+
+    restaurant = models.ForeignKey(
+        'accounts.Restaurant', on_delete=models.CASCADE, related_name='especiales',
+    )
+    name = models.CharField(max_length=180)
+    # Enlace opcional a una ficha existente (un especial puede ser ad-hoc).
+    recipe = models.ForeignKey(
+        Recipe, null=True, blank=True, on_delete=models.SET_NULL, related_name='+',
+    )
+    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    description = models.TextField(blank=True)          # descripción del plato
+    sales_pitch = models.TextField(blank=True)          # speech de venta para el camarero
+    temperatura = models.CharField(max_length=16, choices=TEMP_CHOICES, blank=True)
+    categoria = models.CharField(max_length=16, choices=CAT_CHOICES, blank=True)
+    formato = models.CharField(max_length=16, choices=FORMATO_CHOICES, blank=True)
+    para_personas = models.PositiveIntegerField(null=True, blank=True)  # ideal para N personas
+    available = models.BooleanField(default=True)       # encender/apagar sin borrar
+    order = models.PositiveIntegerField(default=0)
+    photo = models.ImageField(upload_to='especial_photos/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', '-created_at']
+
+    def __str__(self):
+        return self.name
