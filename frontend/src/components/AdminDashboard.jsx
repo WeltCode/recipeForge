@@ -50,6 +50,9 @@ function AdminDashboard({
     users: restaurants.reduce((s, r) => s + (r.member_count || 0), 0),
   }), [restaurants])
 
+  // Solicitudes de cambio de plan pendientes (aviso destacado arriba del todo).
+  const pendingReqs = useMemo(() => restaurants.filter((r) => r.pending_plan_request), [restaurants])
+
   const filtered = restaurants.filter((r) =>
     !query.trim() || r.name.toLowerCase().includes(query.trim().toLowerCase()),
   )
@@ -135,6 +138,34 @@ function AdminDashboard({
           <Gauge icon={<Book size={18} />} value={totals.recipes} label="Recetas totales" tint="#ff9a3d" />
           <Gauge icon={<User size={18} />} value={totals.users} label="Usuarios" tint="#d89b3a" />
         </div>
+
+        {/* Solicitudes de cambio de plan pendientes — aviso destacado */}
+        {pendingReqs.length > 0 && (
+          <div className="mt-8 overflow-hidden rounded-2xl border border-[#e8531f]/40 bg-[#fff3ea] shadow-[0_18px_44px_-24px_rgba(232,83,31,0.55)]">
+            <div className="flex items-center gap-2.5 border-b border-[#e8531f]/20 bg-[#e8531f]/10 px-5 py-3">
+              <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#e8531f] text-white"><Flame size={15} /></span>
+              <p className="rf-cond text-[15px] uppercase tracking-wide text-[#8a3d15]" style={{ fontWeight: 600 }}>
+                {pendingReqs.length} solicitud{pendingReqs.length > 1 ? 'es' : ''} de cambio de plan
+              </p>
+            </div>
+            <ul className="divide-y divide-[#e8531f]/12">
+              {pendingReqs.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[14px] font-semibold text-[#1c1611]">{r.name}</p>
+                    <p className="text-[12px] text-[#6a635c]">
+                      Pide pasar a <strong className="text-[#e8531f]">{r.pending_plan_request.requested_plan_display}</strong>
+                      {r.pending_plan_request.note ? ` · “${r.pending_plan_request.note}”` : ''}
+                    </p>
+                  </div>
+                  <button onClick={() => onSelectRestaurant(r)} className="rf-ember-btn rf-cond shrink-0 rounded-lg px-3.5 py-2 text-[12px] font-600 uppercase tracking-wide text-white" style={{ fontWeight: 600 }}>
+                    Revisar y aplicar
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {/* toolbar */}
         <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">

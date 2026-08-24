@@ -376,6 +376,7 @@ function App() {
     setAuthed(false)
     setRole(null)
     setView('dashboard')
+    setSection('recetas')
     setSelectedRestaurantId(null)
     setSessionExpired(false)
   }
@@ -811,6 +812,7 @@ function App() {
           setMustChange(mustChangePassword())
           setRole(data.role)
           setView('dashboard')
+          setSection('recetas')
           setSessionExpired(false)
           // El shell ya está montado, así que el useEffect de arranque no vuelve a
           // correr: hay que refrescar aquí el estado que no se lee en cada render
