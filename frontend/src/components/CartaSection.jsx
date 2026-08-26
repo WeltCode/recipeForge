@@ -96,38 +96,48 @@ function CartaTab({ slug }) {
       {slug && <QrCard title="QR de la Carta" url={publicUrl('carta', slug)} openLabel="Ver la carta" hint={published ? 'Ponlo en las mesas: tus clientes escanean y ven la carta.' : 'Este QR es fijo. Publica la carta para que muestre el contenido al escanearlo.'} />}
 
       {/* Platos */}
-      <div className="overflow-hidden rounded-2xl steel-plate">
-        <div className="border-b border-steel-200 px-4 py-3 sm:px-5">
-          <p className="pass-title text-[13px] text-ink">Platos en la carta</p>
-          <p className="mt-0.5 text-[12px] text-ink-3">Marca los platos, ponles sección y precio ({currencySymbol()}).</p>
+      <div>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <p className="pass-title text-[14px] text-ink">Platos en la carta</p>
+            <p className="mt-0.5 text-[12px] text-ink-3">Activa el plato, ponle foto, sección y precio. Guarda cada uno.</p>
+          </div>
+          <span className="shrink-0 rounded-full steel-plate px-3 py-1 text-[12px] text-ink-2"><span className="data font-medium text-ember-deep">{onMenuCount}</span> en carta</span>
         </div>
         {recipes.length === 0 ? (
-          <p className="px-5 py-8 text-center text-[13px] text-ink-3">Aún no tienes recetas.</p>
-        ) : recipes.map((r, idx) => {
-          const e = edits[r.id] || {}
-          return (
-            <div key={r.id} className={`px-4 py-3 sm:px-5 ${idx ? 'border-t border-steel-200' : ''}`}>
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-[14px] text-ink">
-                  <input type="checkbox" checked={!!e.on_menu} onChange={(ev) => upd(r.id, 'on_menu', ev.target.checked)} className="h-4 w-4 accent-[#e0611f]" />
-                  <span className="font-medium">{r.name}</span>
-                </label>
-                {e.on_menu && (
-                  <div className="flex flex-1 flex-wrap items-center justify-end gap-2">
-                    <label className="inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-lg steel-plate px-2.5 text-[12px] text-ink hover:bg-white" title="Foto propia para la carta (si no, usa la de la ficha)">
-                      {r.menu_photo ? <img src={r.menu_photo} alt="" className="h-6 w-6 rounded object-cover" /> : null}
-                      {r.menu_photo ? 'Cambiar foto' : 'Subir foto'}
+          <p className="rounded-2xl steel-plate px-5 py-8 text-center text-[13px] text-ink-3">Aún no tienes recetas.</p>
+        ) : (
+          <div className="grid gap-3">
+            {recipes.map((r) => {
+              const e = edits[r.id] || {}
+              const on = !!e.on_menu
+              return (
+                <div key={r.id} className={`rounded-2xl steel-plate p-3 transition ${on ? 'ring-1 ring-ember/40' : ''}`}>
+                  <div className="flex items-center gap-3">
+                    <label className="group relative grid h-16 w-16 flex-none cursor-pointer place-items-center overflow-hidden rounded-xl border border-dashed border-steel-300 bg-white text-center" title="Foto propia para la carta (si no, usa la de la ficha)">
+                      {r.menu_photo ? <img src={r.menu_photo} alt="" className="h-full w-full object-cover" /> : <span className="text-[10px] text-ink-3">foto</span>}
+                      <span className="absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-[9px] font-medium text-white opacity-0 transition group-hover:opacity-100">{r.menu_photo ? 'cambiar' : 'subir'}</span>
                       <input type="file" accept="image/*" className="hidden" onChange={(ev) => onPhoto(r.id, ev.target.files?.[0])} />
                     </label>
-                    <input value={e.menu_section} onChange={(ev) => upd(r.id, 'menu_section', ev.target.value)} placeholder="Sección (Entrantes…)" className={`${inp} w-40`} />
-                    <input value={e.menu_price} onChange={(ev) => upd(r.id, 'menu_price', ev.target.value)} placeholder={`Precio ${currencySymbol()}`} inputMode="decimal" className={`${inp} w-28`} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-medium text-ink">{r.name}</p>
+                      <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-2">
+                        <input type="checkbox" checked={on} onChange={(ev) => upd(r.id, 'on_menu', ev.target.checked)} className="h-4 w-4 accent-[#e0611f]" /> En la carta
+                      </label>
+                    </div>
+                    <button onClick={() => saveRow(r.id)} className="inline-flex h-9 shrink-0 items-center rounded-lg bg-ember px-3.5 text-sm font-medium text-cream hover:bg-ember-hi">Guardar</button>
                   </div>
-                )}
-                <button onClick={() => saveRow(r.id)} className="inline-flex h-9 items-center rounded-lg bg-ember px-3 text-sm font-medium text-cream hover:bg-ember-hi">Guardar</button>
-              </div>
-            </div>
-          )
-        })}
+                  {on && (
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <input value={e.menu_section} onChange={(ev) => upd(r.id, 'menu_section', ev.target.value)} placeholder="Sección (Entrantes, Postres…)" className={inp} />
+                      <input value={e.menu_price} onChange={(ev) => upd(r.id, 'menu_price', ev.target.value)} placeholder={`Precio (${currencySymbol()})`} inputMode="decimal" className={inp} />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
       </div>
       {msg && <p className="rounded-lg border border-steel-300 bg-white/60 px-3 py-2 text-[13px] text-ink-2">{msg}</p>}
     </div>
