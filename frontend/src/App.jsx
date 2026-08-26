@@ -20,6 +20,7 @@ import UserManager from './components/UserManager'
 import RolesManager from './components/RolesManager'
 import CartaSection from './components/CartaSection'
 import { CartaPublica, EspecialesPublica } from './components/PublicPages'
+import { Landing } from './components/Landing'
 import Logo from './components/Logo'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
@@ -458,6 +459,11 @@ function App() {
   const isExportMode = Boolean(exportRecipeId)
   // Rutas PÚBLICAS sin login (carta/especiales por slug); Netlify sirve SPA.
   const publicRoute = window.location.pathname.match(/^\/(carta|especiales)\/([^/]+)\/?$/)
+  // La RAÍZ (recipeforge.es) es la web de ventas; la app vive en app.recipeforge.es.
+  // Solo el dominio de marketing exacto muestra la landing; el resto (app.*,
+  // netlify.app, localhost) es la app. La carta pública funciona en cualquier host.
+  const _host = window.location.hostname
+  const isMarketingRoot = _host === 'recipeforge.es' || _host === 'www.recipeforge.es'
   const [exportRecipe, setExportRecipe] = useState(null)
   const [exportLoading, setExportLoading] = useState(false)
   const [printScheduled, setPrintScheduled] = useState(false)
@@ -809,6 +815,12 @@ function App() {
   if (publicRoute) {
     const [, kind, slug] = publicRoute
     return kind === 'carta' ? <CartaPublica slug={slug} /> : <EspecialesPublica slug={slug} />
+  }
+
+  // ── RAÍZ de marketing (recipeforge.es): web de ventas / landing ───────────
+  // (la app y el login viven en app.recipeforge.es). No aplica al modo export.
+  if (isMarketingRoot && !isExportMode) {
+    return <Landing />
   }
 
   // ── SIN SESIÓN: pantalla de login ─────────────────────────────────────────

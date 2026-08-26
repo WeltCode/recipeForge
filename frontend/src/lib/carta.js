@@ -72,9 +72,15 @@ export async function getPublicEspeciales(slug) {
   return jsonOrThrow(await fetch(`${API_BASE}/public/especiales/${slug}/`))
 }
 
-// URL pública desde el dominio ACTIVO (Netlify hoy, recipeforge.es cuando esté).
+// Base pública CANÓNICA de las cartas. La gestión (y el QR) puede ejecutarse en
+// app.recipeforge.es, pero la carta del comensal vive SIEMPRE en la raíz
+// (recipeforge.es) → así los QR impresos no se rompen al mudar la app al
+// subdominio. En dev cae al origin actual (localhost).
+const PUBLIC_BASE = (import.meta.env.VITE_PUBLIC_BASE || window.location.origin).replace(/\/$/, '')
+
+// URL pública de una carta/especiales por slug, desde la base canónica.
 export function publicUrl(kind, slug) {
-  return `${window.location.origin}/${kind}/${slug}`
+  return `${PUBLIC_BASE}/${kind}/${slug}`
 }
 
 // Genera un QR (data URL PNG) de una URL, para mostrar/descargar.

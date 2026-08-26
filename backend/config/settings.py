@@ -184,7 +184,7 @@ R2_PUBLIC_BASE = os.environ.get('R2_PUBLIC_BASE', 'https://img.recipeforge.es') 
 # CORS: en local se permite todo; en producción solo los orígenes indicados.
 # El dominio propio va FIJO aquí (además de lo que traiga el env) para no
 # depender de cambiar variables en Render al conectar recipeforge.es.
-_PROD_ORIGINS = ['https://recipeforge.es', 'https://www.recipeforge.es']
+_PROD_ORIGINS = ['https://recipeforge.es', 'https://www.recipeforge.es', 'https://app.recipeforge.es']
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 else:
