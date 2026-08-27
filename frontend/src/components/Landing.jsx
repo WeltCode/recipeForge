@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from 'react'
 import Logo from './Logo'
 import PoweredByWeltBrave from './branding/PoweredByWeltBrave'
 import wokVideo from '../assets/wokvideo.mp4'
+import dishPhoto from '../assets/dish-suquet.jpg'
 
 const CONTACT = { whatsapp: '34600750758', email: 'weltcode@gmail.com' }
 const APP_URL = 'https://app.recipeforge.es'
@@ -109,7 +110,7 @@ const T = {
     waMsgTrial: "Hi, I'd like to start my 30-day RecipeForge trial for my restaurant.", waMsgDemo: 'Hi, I’m interested in RecipeForge. Can we see a demo?',
   },
 }
-const LANGS = [['es', 'ES'], ['ca', 'CA'], ['en', 'EN']]
+const LANGS = [['es', 'ES', 'Español'], ['ca', 'CA', 'Català'], ['en', 'EN', 'English']]
 
 /* ─────────────── Iconos propios (trazo de carbón) ─────────────── */
 const SK = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.7, strokeLinecap: 'round', strokeLinejoin: 'round', filter: 'url(#rf-charcoal)' }
@@ -125,11 +126,13 @@ const IcQr = ({ s = 26 }) => (<svg width={s} height={s} viewBox="0 0 32 32" {...
 const IcCloche = ({ s = 26 }) => (<svg width={s} height={s} viewBox="0 0 32 32" {...SK}><path d="M4 24h24 M6 24a10 10 0 0 1 20 0" /><path d="M16 14V9 M13 9h6" /></svg>)
 const IcFlame = ({ s = 18 }) => (<svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2c1 3-1 5-2.5 6.5C8 10 7 11.5 7 14a5 5 0 0 0 10 0c0-2-1-3.5-2-5 .5 1 .5 2 0 3 .3-2-1-4-3-5.5C10.5 8 13 5 12 2Z" /></svg>)
 const IcChevron = ({ s = 16 }) => (<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6" /></svg>)
+const IcGlobe = ({ s = 16 }) => (<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="12" cy="12" r="9" /><path d="M3 12h18 M12 3c3 3 3 15 0 18 M12 3c-3 3-3 15 0 18" /></svg>)
 const IcCheck = ({ s = 16 }) => (<svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>)
 const IcWhatsApp = ({ s = 30 }) => (<svg width={s} height={s} viewBox="0 0 32 32" fill="currentColor" aria-hidden="true"><path d="M16 3.2C8.9 3.2 3.2 8.9 3.2 16c0 2.3.6 4.4 1.7 6.3L3 29l6.9-1.8c1.8 1 3.9 1.5 6.1 1.5 7.1 0 12.8-5.7 12.8-12.8S23.1 3.2 16 3.2Zm0 23.3c-2 0-3.8-.5-5.4-1.5l-.4-.2-4 1 1.1-3.9-.3-.4a10.4 10.4 0 0 1-1.6-5.6c0-5.8 4.7-10.5 10.6-10.5 5.8 0 10.5 4.7 10.5 10.5S21.8 26.5 16 26.5Zm5.8-7.8c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-2-1.8-2.3-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.3.4-.6.1-.2 0-.4 0-.6l-1-2.3c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.3 1.4 3.5c.2.2 2.4 3.7 5.9 5.1.8.4 1.5.6 2 .7.8.3 1.6.2 2.2.1.7-.1 2-.8 2.2-1.6.3-.8.3-1.4.2-1.6-.1-.1-.3-.2-.6-.3Z" /></svg>)
 const MOD_ICONS = [IcBox, IcUsers, IcLeaf]
 
 const QRGrid = ({ s = 54 }) => (<div className="grid gap-[2px]" style={{ width: s, height: s, gridTemplateColumns: 'repeat(6,1fr)' }} aria-hidden>{Array.from({ length: 36 }).map((_, i) => <span key={i} className="rounded-[1px]" style={{ background: [0, 1, 2, 6, 8, 12, 14, 3, 4, 5, 11, 17, 18, 24, 30, 20, 22, 27, 29, 33, 34, 35, 25].includes(i) ? C.ink : 'transparent' }} />)}</div>)
+
 
 const IVA = 1.21
 const eur = (n) => n === 0 ? '0' : String(Math.round(n * 100) / 100).replace('.', ',')
@@ -162,7 +165,7 @@ function FichaFormal({ t }) {
         <div className="text-right"><p className="text-[8px] uppercase tracking-[0.14em] text-[#999]" style={{ fontFamily: MONO }}>{t.mockSheet}</p><p className="text-[11px] font-medium text-[#1a1a18]" style={{ fontFamily: MONO }}>CM-024 / Rev. 2</p></div>
       </div>
       <div className="grid" style={{ gridTemplateColumns: '96px 1fr' }}>
-        <div className="grid place-items-center border-r-2 border-b-2 border-[#1a1a18] bg-[#f5f2ed]" style={{ height: 92 }}><IcCloche s={30} /></div>
+        <div className="overflow-hidden border-r-2 border-b-2 border-[#1a1a18]" style={{ height: 92 }}><img src={dishPhoto} alt="Suquet de marisc" loading="lazy" className="h-full w-full object-cover" /></div>
         <div className="border-b-2 border-[#1a1a18] px-3 py-2">
           <p className="text-[8px] uppercase tracking-[0.14em] text-[#999]" style={{ fontFamily: MONO }}>Plato principal</p>
           <h3 className="text-[19px] font-extrabold leading-tight text-[#1a1a18]" style={{ fontFamily: DISP }}>Suquet de temporada</h3>
@@ -230,7 +233,12 @@ export function Landing() {
   const [openFaq, setOpenFaq] = useState(0)
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [langOpen, setLangOpen] = useState(false)
   const heroCta = useMagnet()
+  const winRef = useRef(null), fichaRef = useRef(null)
+  const onHero3D = (e) => { if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return; const r = e.currentTarget.getBoundingClientRect(); const px = (e.clientX - r.left) / r.width - 0.5, py = (e.clientY - r.top) / r.height - 0.5; if (winRef.current) winRef.current.style.transform = `perspective(1100px) rotateY(${px * 13}deg) rotateX(${-py * 13}deg) scale(1.01)`; if (fichaRef.current) fichaRef.current.style.transform = `translate3d(${px * 30}px, ${py * 24}px, 70px)` }
+  const offHero3D = () => { if (winRef.current) winRef.current.style.transform = 'perspective(1100px)'; if (fichaRef.current) fichaRef.current.style.transform = '' }
+  useEffect(() => { if (!langOpen) return; const h = () => setLangOpen(false); document.addEventListener('click', h); return () => document.removeEventListener('click', h) }, [langOpen])
   const WA_TRIAL = waMsg(t.waMsgTrial), WA_DEMO = waMsg(t.waMsgDemo)
   const MAIL = `mailto:${CONTACT.email}?subject=${encodeURIComponent('RecipeForge')}`
   const setLng = (l) => { setLang(l); try { localStorage.setItem('rf_lang', l) } catch { /* ignore */ } }
@@ -240,13 +248,16 @@ export function Landing() {
 
   return (
     <div style={{ minHeight: '100vh', background: '#fdfaf5', color: C.ink, fontFamily: "'Inter', system-ui, sans-serif", overflowX: 'hidden' }}>
-      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden><filter id="rf-charcoal"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="7" result="n" /><feDisplacementMap in="SourceGraphic" in2="n" scale="1.4" /></filter></svg>
+      <svg width="0" height="0" style={{ position: 'absolute' }} aria-hidden><filter id="rf-charcoal" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency="0.026 0.032" numOctaves="4" seed="4" result="n" /><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6" xChannelSelector="R" yChannelSelector="G" /></filter></svg>
       <style>{`
         @keyframes lp-blob{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(26px,-20px) scale(1.1)}}
         @keyframes lp-fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
         @keyframes lp-in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
         @keyframes lp-steam{0%{opacity:0;transform:translateY(0) scale(1)}25%{opacity:.5}100%{opacity:0;transform:translateY(-70px) scale(1.8)}}
         @keyframes lp-wa{0%{box-shadow:0 0 0 0 rgba(232,83,31,.5)}70%{box-shadow:0 0 0 18px rgba(232,83,31,0)}100%{box-shadow:0 0 0 0 rgba(232,83,31,0)}}
+        @keyframes lp-marq{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+        .lp-marq{animation:lp-marq 28s linear infinite}
+        @media (prefers-reduced-motion:reduce){.lp-marq{animation:none}}
         .gl{background:rgba(255,255,255,.62);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);border:1px solid rgba(255,255,255,.75);box-shadow:0 24px 54px -26px rgba(90,60,30,.30),inset 0 1px 0 rgba(255,255,255,.9)}
         .lp-reveal{opacity:0;transform:translateY(26px);transition:opacity .75s cubic-bezier(.2,.7,.2,1),transform .75s cubic-bezier(.2,.7,.2,1)}.lp-reveal.in{opacity:1;transform:none}
         .lp-in{animation:lp-in .9s cubic-bezier(.2,.8,.2,1) both}
@@ -269,10 +280,13 @@ export function Landing() {
         {/* NAV */}
         <header className="fixed inset-x-0 top-0 z-40 transition-all" style={scrolled || menuOpen ? { background: 'rgba(253,250,245,.72)', backdropFilter: 'blur(16px)', borderBottom: `1px solid ${C.line}` } : {}}>
           <nav className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5 md:px-8">
-            <a href="#top" aria-label="RecipeForge" onClick={() => setMenuOpen(false)}><Logo variant="light" className="text-[22px] md:text-2xl" /></a>
+            <a href="#top" aria-label="RecipeForge" onClick={() => setMenuOpen(false)}><Logo variant="light" className="text-[26px] md:text-[32px]" /></a>
             <div className="hidden items-center gap-7 md:flex">{NAV.map(([h, l]) => <a key={h} href={h} className="lp-link text-sm font-medium">{l}</a>)}</div>
             <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-0.5 rounded-full p-0.5 gl sm:flex" role="group" aria-label="Idioma">{LANGS.map(([code, lbl]) => <button key={code} onClick={() => setLng(code)} className="rounded-full px-2.5 py-1 text-[12px] font-bold transition" style={lang === code ? { background: C.ember, color: '#fff' } : { color: C.inkSoft }}>{lbl}</button>)}</div>
+              <div className="relative hidden sm:block">
+                <button onClick={(e) => { e.stopPropagation(); setLangOpen((v) => !v) }} className="gl flex items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-bold" style={{ color: C.ink }} aria-haspopup="listbox" aria-expanded={langOpen} aria-label="Idioma"><IcGlobe s={15} /> {(LANGS.find((l) => l[0] === lang) || LANGS[0])[1]} <span className={`transition-transform ${langOpen ? 'rotate-90' : ''}`} style={{ color: C.inkSoft }}><IcChevron s={12} /></span></button>
+                {langOpen && <div onClick={(e) => e.stopPropagation()} className="absolute right-0 z-50 mt-2 w-36 overflow-hidden rounded-2xl gl" role="listbox">{LANGS.map(([code, lbl, full]) => <button key={code} onClick={() => { setLng(code); setLangOpen(false) }} role="option" aria-selected={lang === code} className="flex w-full items-center justify-between px-3.5 py-2.5 text-left text-[13px] font-semibold transition hover:bg-white/70" style={lang === code ? { color: C.ember } : { color: C.ink }}><span>{full}</span><span className="text-[11px]" style={{ fontFamily: MONO, color: lang === code ? C.ember : C.inkSoft }}>{lbl}</span></button>)}</div>}
+              </div>
               <a href={APP_URL} className="hidden rounded-full border px-4 py-2 text-sm font-semibold md:inline-block" style={{ borderColor: C.ember, color: C.ember }}>{t.access}</a>
               <a href={WA_TRIAL} target="_blank" rel="noreferrer" className="lp-ember rounded-full px-4 py-2 text-[15px] font-semibold text-white">{t.trial}</a>
               <button onClick={() => setMenuOpen((v) => !v)} className="grid h-10 w-10 place-items-center rounded-lg md:hidden" style={{ color: C.ink }} aria-label="Menú" aria-expanded={menuOpen}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">{menuOpen ? <><path d="M6 6l12 12" /><path d="M18 6L6 18" /></> : <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>}</svg></button>
@@ -293,30 +307,40 @@ export function Landing() {
               </div>
               <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] font-medium uppercase tracking-[0.08em]" style={{ color: C.inkSoft, fontFamily: MONO }}>{[IcReceipt, IcCoins, IcQr, IcPot].map((Ic, i) => <span key={i} className="flex items-center gap-1.5" style={{ color: C.ember }}><Ic s={15} /> <span style={{ color: C.inkSoft }}>{t.trust[i]}</span></span>)}</div>
             </div>
-            {/* Ventana de cocina viva: vídeo wok + vapor + ficha formal */}
-            <div className="relative mx-auto w-full max-w-md">
-              <div className="relative overflow-hidden rounded-[28px] border-2 border-white shadow-[0_30px_70px_-30px_rgba(60,35,15,.6)]" style={{ aspectRatio: '4/5' }}>
+            {/* Ventana de cocina viva: vídeo wok + vapor + ficha formal, en 3D */}
+            <div className="relative mx-auto w-full max-w-md" style={{ transformStyle: 'preserve-3d' }} onMouseMove={onHero3D} onMouseLeave={offHero3D}>
+              <div ref={winRef} className="relative overflow-hidden rounded-[28px] border-2 border-white shadow-[0_30px_70px_-30px_rgba(60,35,15,.6)] transition-transform duration-200 ease-out" style={{ aspectRatio: '4/5', transform: 'perspective(1100px)' }}>
                 <video className="h-full w-full object-cover" autoPlay muted loop playsInline poster="" style={{ filter: 'saturate(1.05) contrast(1.03)' }}><source src={wokVideo} type="video/mp4" /></video>
                 <div className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(180deg,rgba(255,240,225,.12),rgba(40,20,8,.28))' }} />
                 <div className="steam pointer-events-none absolute inset-x-0 bottom-24" aria-hidden>{[20, 44, 68].map((l, i) => <span key={i} style={{ left: `${l}%`, animation: `lp-steam ${5 + i}s ease-in ${i * 1.2}s infinite` }} />)}</div>
               </div>
-              <div className="absolute -bottom-6 -left-4 w-[62%] min-w-[220px]" style={{ animation: 'lp-fl 8s ease-in-out infinite' }}><FichaFormal t={t} /></div>
-              <div className="gl absolute -right-2 top-6 flex items-center gap-2 rounded-2xl px-3 py-2"><span className="rounded-full px-2 py-0.5 text-[12px] font-bold text-white" style={{ background: '#2f9e5f', fontFamily: MONO }}>19%</span><span className="text-[12px] font-medium" style={{ color: C.ink }}>{t.mockFC}</span></div>
+              <div ref={fichaRef} className="absolute -bottom-6 -left-4 w-[62%] min-w-[220px] transition-transform duration-200 ease-out" style={{ willChange: 'transform' }}><div style={{ animation: 'lp-fl 8s ease-in-out infinite' }}><FichaFormal t={t} /></div></div>
+              <div className="gl absolute -right-2 top-6 flex items-center gap-2 rounded-2xl px-3 py-2" style={{ transform: 'translateZ(40px)' }}><span className="rounded-full px-2 py-0.5 text-[12px] font-bold text-white" style={{ background: '#2f9e5f', fontFamily: MONO }}>19%</span><span className="text-[12px] font-medium" style={{ color: C.ink }}>{t.mockFC}</span></div>
             </div>
           </div>
         </section>
 
-        {/* SHOWCASES */}
+        {/* SHOWCASES — cada uno con su propia esencia */}
         {[0, 1, 2].map((i) => {
-          const Mock = SHOW_MOCKS[i], reverse = i === 1
+          const Mock = SHOW_MOCKS[i], reverse = i === 1, dark = i === 2
+          const bg = i === 0
+            ? { background: '#fffdf8', backgroundImage: 'repeating-linear-gradient(0deg, rgba(200,135,10,.07) 0 1px, transparent 1px 30px)' }
+            : i === 1
+              ? { background: '#fbf6ee', backgroundImage: 'repeating-linear-gradient(0deg, rgba(60,40,20,.055) 0 1px, transparent 1px 26px), repeating-linear-gradient(90deg, rgba(60,40,20,.055) 0 1px, transparent 1px 26px)' }
+              : { background: 'linear-gradient(155deg,#26190f 0%,#3a2416 100%)' }
+          const kickC = dark ? '#e6b45c' : C.ember, titleC = dark ? '#f6efe3' : C.ink, bodyC = dark ? '#d8cbb4' : C.inkSoft, ctaC = dark ? C.emberHi : C.ember
+          const Deco = [IcWhisk, IcCoins, IcCloche][i]
           return (
-            <section key={i} className="relative px-5 py-14 md:px-8 md:py-20">
-              <div className={`mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2 ${reverse ? 'md:[direction:rtl]' : ''}`}>
+            <section key={i} className="relative overflow-hidden px-5 py-16 md:px-8 md:py-24" style={bg}>
+              {dark && <><video className="pointer-events-none absolute inset-0 h-full w-full object-cover" autoPlay muted loop playsInline aria-hidden style={{ opacity: 0.28 }}><source src={wokVideo} type="video/mp4" /></video><div className="pointer-events-none absolute inset-0" aria-hidden style={{ background: 'linear-gradient(155deg,rgba(30,20,12,.86),rgba(46,29,17,.9))' }} /></>}
+              <div className="pointer-events-none absolute -right-8 -top-10 hidden md:block" style={{ color: dark ? '#fff' : C.ink, opacity: dark ? 0.08 : 0.05 }} aria-hidden><Deco s={240} /></div>
+              {dark && <div className="pointer-events-none absolute inset-0" aria-hidden style={{ background: 'radial-gradient(60% 60% at 80% 20%, rgba(232,83,31,.22), transparent 60%)' }} />}
+              <div className={`relative mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2 ${reverse ? 'md:[direction:rtl]' : ''}`}>
                 <div className="lp-reveal" style={{ direction: 'ltr' }}>
-                  <p className="text-[13px] font-bold uppercase tracking-[0.2em]" style={{ color: C.ember }}>{t.showKick[i]}</p>
-                  <h2 className="disp mt-3" style={{ fontSize: 'clamp(24px,4vw,38px)', lineHeight: 1.08, color: C.ink }}>{t.showTitle[i]}</h2>
-                  <p className="mt-4 max-w-md text-[16px] leading-relaxed" style={{ color: C.inkSoft }}>{t.showBody[i]}</p>
-                  <a href={WA_TRIAL} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-1.5 text-[15px] font-semibold" style={{ color: C.ember }}>{t.showCta} <IcChevron s={16} /></a>
+                  <span className="inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.16em]" style={{ background: dark ? 'rgba(255,255,255,.08)' : '#fff', border: `1px solid ${dark ? 'rgba(230,180,92,.4)' : C.line}`, color: kickC }}><Deco s={15} /> {t.showKick[i]}</span>
+                  <h2 className="disp mt-4" style={{ fontSize: 'clamp(26px,4.4vw,42px)', lineHeight: 1.06, color: titleC }}>{t.showTitle[i]}</h2>
+                  <p className="mt-4 max-w-md text-[16px] leading-relaxed" style={{ color: bodyC }}>{t.showBody[i]}</p>
+                  <a href={WA_TRIAL} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-1.5 text-[15px] font-bold" style={{ color: ctaC }}>{t.showCta} <IcChevron s={16} /></a>
                 </div>
                 <div className="lp-reveal grid place-items-center" style={{ direction: 'ltr' }}><Mock t={t} /></div>
               </div>
@@ -325,17 +349,17 @@ export function Landing() {
         })}
 
         {/* MÓDULOS */}
-        <section id="modulos" className="relative px-5 py-14 md:px-8 md:py-20"><div className="mx-auto max-w-6xl">
+        <section id="modulos" className="relative overflow-hidden px-5 py-16 md:px-8 md:py-24" style={{ background: '#fbf6ee' }}><div className="pointer-events-none absolute -left-10 -bottom-8 hidden md:block" style={{ color: C.ink, opacity: 0.05 }} aria-hidden><IcKnife s={210} /></div><div className="relative mx-auto max-w-6xl">
           <div className="max-w-2xl lp-reveal"><p className="text-[13px] font-bold uppercase tracking-[0.2em]" style={{ color: C.ember }}>{t.modKick}</p><h2 className="disp mt-3" style={{ fontSize: 'clamp(24px,4vw,40px)', color: C.ink }}>{t.modTitle}</h2></div>
           <div className="mt-10 grid gap-4 md:grid-cols-3">{t.mods.map(([ti, bo], i) => { const Ic = MOD_ICONS[i]; return (
             <article key={i} className="gl lp-pop lp-reveal rounded-3xl p-6" style={{ transitionDelay: `${i * 70}ms` }}>
-              <div className="mb-4 grid h-12 w-12 place-items-center rounded-2xl" style={{ background: 'linear-gradient(180deg,#fff1e3,#ffe0c6)', border: `1px solid ${C.line}`, color: C.emberDeep }}><Ic s={26} /></div>
+              <div className="mb-4 grid h-14 w-14 place-items-center rounded-2xl" style={{ background: '#fbf6ec', border: `1px solid ${C.line}`, color: '#463f36' }}><Ic s={30} /></div>
               <h3 className="disp text-lg" style={{ color: C.ink }}>{ti}</h3><p className="mt-2 text-[15px] leading-relaxed" style={{ color: C.inkSoft }}>{bo}</p>
             </article>) })}</div>
         </div></section>
 
         {/* CÓMO */}
-        <section id="como" className="relative px-5 py-14 md:px-8 md:py-20"><div className="mx-auto max-w-6xl">
+        <section id="como" className="relative overflow-hidden px-5 py-16 md:px-8 md:py-24"><div className="pointer-events-none absolute right-0 top-10 hidden md:block" style={{ color: C.ink, opacity: 0.05 }} aria-hidden><IcPot s={200} /></div><div className="relative mx-auto max-w-6xl">
           <div className="max-w-2xl lp-reveal"><p className="text-[13px] font-bold uppercase tracking-[0.2em]" style={{ color: C.ember }}>{t.stepKick}</p><h2 className="disp mt-3" style={{ fontSize: 'clamp(24px,4vw,40px)', color: C.ink }}>{t.stepTitle}</h2></div>
           <div className="mt-10 grid gap-5 md:grid-cols-3">{t.steps.map(([ti, bo], i) => (
             <div key={i} className="gl lp-reveal rounded-3xl p-6" style={{ transitionDelay: `${i * 80}ms` }}><span className="disp text-5xl" style={{ color: C.emberHi }}>{String(i + 1).padStart(2, '0')}</span><h3 className="disp mt-2 text-lg" style={{ color: C.ink }}>{ti}</h3><p className="mt-2 text-[15px] leading-relaxed" style={{ color: C.inkSoft }}>{bo}</p></div>
@@ -343,7 +367,7 @@ export function Landing() {
         </div></section>
 
         {/* POR QUÉ */}
-        <section className="relative px-5 py-14 md:px-8 md:py-20"><div className="mx-auto max-w-6xl">
+        <section className="relative overflow-hidden px-5 py-16 md:px-8 md:py-24" style={{ background: '#fbf6ee' }}><div className="relative mx-auto max-w-6xl">
           <div className="max-w-2xl lp-reveal"><p className="text-[13px] font-bold uppercase tracking-[0.2em]" style={{ color: C.ember }}>{t.whyKick}</p><h2 className="disp mt-3" style={{ fontSize: 'clamp(24px,4vw,40px)', color: C.ink }}>{t.whyTitle}</h2></div>
           <div className="mt-10 grid gap-4 sm:grid-cols-2">{t.whys.map(([ti, bo], i) => (
             <div key={i} className="gl lp-reveal flex items-start gap-4 rounded-3xl p-6" style={{ transitionDelay: `${(i % 2) * 70}ms` }}><span className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full text-white" style={{ background: C.ember }}><IcCheck s={16} /></span><div><h3 className="disp text-lg" style={{ color: C.ink }}>{ti}</h3><p className="mt-1 text-[15px] leading-relaxed" style={{ color: C.inkSoft }}>{bo}</p></div></div>
