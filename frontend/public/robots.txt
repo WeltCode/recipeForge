@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /$
+Allow: /carta/
+Allow: /especiales/
+# La app autenticada no necesita indexarse
+Disallow: /?export=
+
+Sitemap: https://recipeforge.es/sitemap.xml

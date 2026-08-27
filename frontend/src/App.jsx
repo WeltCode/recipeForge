@@ -464,6 +464,8 @@ function App() {
   // netlify.app, localhost) es la app. La carta pública funciona en cualquier host.
   const _host = window.location.hostname
   const isMarketingRoot = _host === 'recipeforge.es' || _host === 'www.recipeforge.es'
+    // Previsualización en desarrollo: localhost/?landing=1 (inerte en producción).
+    || (import.meta.env.DEV && new URL(window.location.href).searchParams.get('landing') === '1')
   const [exportRecipe, setExportRecipe] = useState(null)
   const [exportLoading, setExportLoading] = useState(false)
   const [printScheduled, setPrintScheduled] = useState(false)
