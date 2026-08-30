@@ -268,16 +268,38 @@ class RecipeViewSet(ModelViewSet):
 
 # ── Fase 2: carta pública + especiales ──────────────────────────────────────
 
-def _restaurant_header(request, r):
-    """Cabecera pública del restaurante (sin datos internos) + tema de la carta."""
+def _clampi(v, lo, hi, default):
+    try:
+        n = int(round(float(v)))
+    except (TypeError, ValueError):
+        return default
+    return max(lo, min(hi, n))
+
+
+def _design_for(request, r, surface):
+    """Diseño resuelto para 'carta' o 'especiales'. Los especiales HEREDAN de la
+    carta cuando su campo está vacío, así por defecto se ven igual pero el
+    restaurante puede darle un diseño propio a cada una."""
+    esp = surface == 'especiales'
+    theme = (r.especiales_theme if esp else '') or r.carta_theme or 'marea'
+    font = (r.especiales_font if esp else '') or r.carta_font or ''
+    text = (r.especiales_text_color if esp else '') or r.carta_text_color or ''
+    accent = (r.especiales_accent_color if esp else '') or r.carta_accent_color or ''
+    img = (r.especiales_bg_image if esp else None) or r.carta_bg_image
+    fx = (r.especiales_bg_fx if esp else None) or r.carta_bg_fx or {}
+    return {
+        'theme': theme, 'font': font, 'text_color': text, 'accent_color': accent,
+        'bg_image': media_url(request, img.name) if img else None, 'bg_fx': fx or {},
+    }
+
+
+def _restaurant_header(request, r, surface='carta'):
+    """Cabecera pública del restaurante (sin datos internos) + diseño de la carta
+    solicitada (carta o especiales)."""
     logo = r.logo.name if r.logo else None
     return {
         'name': r.name, 'logo': media_url(request, logo), 'currency': r.currency,
-        'carta_theme': r.carta_theme or 'marea',
-        'carta_font': r.carta_font or '',
-        'carta_text_color': r.carta_text_color or '',
-        'carta_accent_color': r.carta_accent_color or '',
-        'carta_bg_image': media_url(request, r.carta_bg_image.name) if r.carta_bg_image else None,
+        'design': _design_for(request, r, surface),
     }
 
 
@@ -313,12 +335,21 @@ class CartaSettingsView(APIView):
     permission_classes = [CanManageCarta]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
+    def _surface(self, request, r, prefix):
+        img = getattr(r, f'{prefix}bg_image')
+        return {
+            'theme': getattr(r, f'{prefix}theme') or ('marea' if prefix == 'carta_' else ''),
+            'font': getattr(r, f'{prefix}font') or '', 'text_color': getattr(r, f'{prefix}text_color') or '',
+            'accent_color': getattr(r, f'{prefix}accent_color') or '',
+            'bg_image': media_url(request, img.name) if img else None,
+            'bg_fx': getattr(r, f'{prefix}bg_fx') or {},
+        }
+
     def _payload(self, request, r):
         return {
             'public_slug': r.public_slug, 'carta_published': r.carta_published,
-            'carta_theme': r.carta_theme or 'marea', 'carta_font': r.carta_font or '',
-            'carta_text_color': r.carta_text_color or '', 'carta_accent_color': r.carta_accent_color or '',
-            'carta_bg_image': media_url(request, r.carta_bg_image.name) if r.carta_bg_image else None,
+            'carta': self._surface(request, r, 'carta_'),
+            'especiales': self._surface(request, r, 'especiales_'),
         }
 
     def get(self, request):
@@ -328,6 +359,7 @@ class CartaSettingsView(APIView):
         return Response(self._payload(request, r))
 
     def patch(self, request):
+        import json
         r = get_user_restaurant(request.user)
         if not r:
             return Response({'detail': 'No tienes un restaurante asignado.'}, status=400)
@@ -336,19 +368,32 @@ class CartaSettingsView(APIView):
         if 'carta_published' in data:
             r.carta_published = str(data.get('carta_published')).lower() in ('1', 'true', 'on', 'yes')
             fields.append('carta_published')
-        if 'carta_theme' in data and data.get('carta_theme') in ('marea', 'lienzo', 'carbon'):
-            r.carta_theme = data.get('carta_theme')
-            fields.append('carta_theme')
-        for key in ('carta_font', 'carta_text_color', 'carta_accent_color'):
+        p = 'especiales_' if data.get('surface') == 'especiales' else 'carta_'
+        if 'theme' in data:
+            val = data.get('theme') or ''
+            allowed = ('marea', 'lienzo', 'carbon') + (('',) if p == 'especiales_' else ())
+            if val in allowed:
+                setattr(r, f'{p}theme', val); fields.append(f'{p}theme')
+        for key in ('font', 'text_color', 'accent_color'):
             if key in data:
-                setattr(r, key, (data.get(key) or '')[:16 if key == 'carta_font' else 9])
-                fields.append(key)
-        if data.get('carta_bg_image_clear') in ('1', 'true', True):
-            r.carta_bg_image = None
-            fields.append('carta_bg_image')
-        elif 'carta_bg_image' in request.FILES:
-            r.carta_bg_image = request.FILES['carta_bg_image']
-            fields.append('carta_bg_image')
+                setattr(r, f'{p}{key}', (data.get(key) or '')[:16 if key == 'font' else 9]); fields.append(f'{p}{key}')
+        if 'bg_fx' in data:
+            raw = data.get('bg_fx')
+            try:
+                fx = raw if isinstance(raw, dict) else json.loads(raw or '{}')
+            except (ValueError, TypeError):
+                fx = {}
+            clean = {
+                'opacity': _clampi(fx.get('opacity'), 0, 100, 100),
+                'blur': _clampi(fx.get('blur'), 0, 20, 0),
+                'filter': fx.get('filter') if fx.get('filter') in ('none', 'gris', 'sepia', 'calido') else 'none',
+                'overlay': _clampi(fx.get('overlay'), 0, 100, 70),
+            }
+            setattr(r, f'{p}bg_fx', clean); fields.append(f'{p}bg_fx')
+        if str(data.get('bg_image_clear')).lower() in ('1', 'true'):
+            setattr(r, f'{p}bg_image', None); fields.append(f'{p}bg_image')
+        elif 'bg_image' in request.FILES:
+            setattr(r, f'{p}bg_image', request.FILES['bg_image']); fields.append(f'{p}bg_image')
         if fields:
             r.save(update_fields=list(set(fields)))
         return Response(self._payload(request, r))
@@ -375,7 +420,7 @@ class PublicCartaView(APIView):
             if not sections or sections[-1]['name'] != sec:
                 sections.append({'name': sec, 'items': []})
             sections[-1]['items'].append(it)
-        return Response({'restaurant': _restaurant_header(request, r), 'sections': sections})
+        return Response({'restaurant': _restaurant_header(request, r, 'carta'), 'sections': sections})
 
 
 class PublicEspecialesView(APIView):
@@ -391,4 +436,4 @@ class PublicEspecialesView(APIView):
             return Response({'detail': 'No disponible.'}, status=404)
         qs = Especial.objects.filter(restaurant=r, available=True).order_by('order', '-created_at')
         rows = PublicEspecialSerializer(qs, many=True, context={'request': request}).data
-        return Response({'restaurant': _restaurant_header(request, r), 'especiales': rows})
+        return Response({'restaurant': _restaurant_header(request, r, 'especiales'), 'especiales': rows})

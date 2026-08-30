@@ -70,9 +70,12 @@ export async function getCartaSettings() {
 }
 export async function setCartaTheme(fields) {
   // Multipart si viene una imagen de fondo (File); si no, JSON.
-  if (fields.carta_bg_image instanceof File) {
+  if (fields.bg_image instanceof File) {
     const fd = new FormData()
-    Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v) })
+    Object.entries(fields).forEach(([k, v]) => {
+      if (v === undefined || v === null) return
+      fd.append(k, (typeof v === 'object' && !(v instanceof File)) ? JSON.stringify(v) : v)
+    })
     return jsonOrThrow(await authFetch(`${API_BASE}/carta/settings/`, { method: 'PATCH', body: fd }))
   }
   return jsonOrThrow(await authFetch(`${API_BASE}/carta/settings/`, {

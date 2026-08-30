@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { authFetch, getPublicSlug, getCartaPublished, setCartaPublished } from '../auth'
+import { authFetch, getPublicSlug, getCartaPublished, setCartaPublished, getRestaurantName, getRestaurantLogo } from '../auth'
+import { CartaPreview } from './PublicPages'
 import { money, currencySymbol } from '../lib/money'
 import {
   listEspeciales, createEspecial, updateEspecial, deleteEspecial,
@@ -261,40 +262,69 @@ function EspecialesTab({ slug }) {
   )
 }
 
-// ── Diseño de la carta: tema + fuente + colores + imagen de fondo ──
+// ── Diseño de la carta: tema + fuente + colores + fondo con filtros, POR carta,
+//    con VISTA PREVIA en vivo. La carta y los especiales se diseñan por separado.
+const THEME_SW = { marea: ['#0c0e0d', '#c9a24b', '#f2ede2'], lienzo: ['#f6efe0', '#c1502e', '#3a2c1c'], carbon: ['#f3f3f1', '#e8531f', '#141414'] }
+const FX_FILTERS = [['none', 'Ninguno'], ['gris', 'Grises'], ['sepia', 'Sepia'], ['calido', 'Cálido']]
+
 function DisenoTab({ slug }) {
-  const [s, setS] = useState(null)
+  const [all, setAll] = useState(null)   // { carta, especiales, carta_published, public_slug }
+  const [surface, setSurface] = useState('carta')
   const [bgFile, setBgFile] = useState(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
-  useEffect(() => { getCartaSettings().then(setS).catch(() => setMsg('No se pudo cargar el diseño.')) }, [])
+  useEffect(() => { getCartaSettings().then(setAll).catch(() => setMsg('No se pudo cargar el diseño.')) }, [])
 
-  const upd = (k, v) => setS((p) => ({ ...p, [k]: v }))
+  if (!all) return <p className="px-1 py-8 text-[13px] text-ink-3">{msg || 'Cargando diseño…'}</p>
+  const cur = all[surface] || {}
+  const fb = surface === 'especiales' ? (all.carta || {}) : {}   // herencia para la vista previa
+  const setCur = (patch) => setAll((p) => ({ ...p, [surface]: { ...p[surface], ...patch } }))
+  const upd = (k, v) => setCur({ [k]: v })
+  const updFx = (k, v) => setCur({ bg_fx: { ...(cur.bg_fx || {}), [k]: v } })
+  const fx = cur.bg_fx || {}
+  const hasBg = Boolean(bgFile || cur.bg_image)
+  const switchSurface = (sf) => { setSurface(sf); setBgFile(null); setMsg('') }
+
+  // Diseño efectivo para la vista previa (especiales hereda de la carta).
+  const bgPreview = bgFile ? URL.createObjectURL(bgFile) : (cur.bg_image || (surface === 'especiales' ? fb.bg_image : null))
+  const design = {
+    theme: cur.theme || fb.theme || 'marea', font: cur.font || fb.font || '',
+    text_color: cur.text_color || fb.text_color || '', accent_color: cur.accent_color || fb.accent_color || '',
+    bg_image: bgPreview, bg_fx: (fx && Object.keys(fx).length) ? fx : (surface === 'especiales' ? fb.bg_fx : fx) || {},
+  }
+
   const save = async () => {
     setBusy(true); setMsg('')
     try {
-      const fields = { carta_theme: s.carta_theme, carta_font: s.carta_font || '', carta_text_color: s.carta_text_color || '', carta_accent_color: s.carta_accent_color || '' }
-      if (bgFile) fields.carta_bg_image = bgFile
-      const res = await setCartaTheme(fields); setS(res); setBgFile(null); setMsg('Diseño guardado ✓')
+      const fields = { surface, theme: cur.theme || '', font: cur.font || '', text_color: cur.text_color || '', accent_color: cur.accent_color || '', bg_fx: cur.bg_fx || {} }
+      if (bgFile) fields.bg_image = bgFile
+      setAll(await setCartaTheme(fields)); setBgFile(null); setMsg('Diseño guardado ✓')
     } catch (err) { setMsg(err.message) } finally { setBusy(false) }
   }
-  const clearBg = async () => { setBusy(true); try { const res = await setCartaTheme({ carta_bg_image_clear: '1' }); setS(res); setBgFile(null) } catch (err) { setMsg(err.message) } finally { setBusy(false) } }
+  const clearBg = async () => { setBusy(true); try { setAll(await setCartaTheme({ surface, bg_image_clear: '1' })); setBgFile(null) } catch (err) { setMsg(err.message) } finally { setBusy(false) } }
 
-  if (!s) return <p className="px-1 py-8 text-[13px] text-ink-3">{msg || 'Cargando diseño…'}</p>
+  const themeCards = surface === 'especiales' ? [{ id: '', name: 'Igual que la carta', desc: 'Hereda el diseño de la carta' }, ...CARTA_THEMES] : CARTA_THEMES
 
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl steel-plate p-5">
+    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+      <div className="min-w-0 rounded-2xl steel-plate p-5">
         <p className="pass-title text-[14px] text-ink">Diseño de las cartas</p>
-        <p className="mt-0.5 text-[12px] text-ink-3">Se aplica a la carta y a los especiales. Elige un estilo y personalízalo.</p>
+        <p className="mt-0.5 text-[12px] text-ink-3">La carta y los especiales pueden tener diseños distintos. Todo se ve en la vista previa.</p>
+
+        {/* Superficie */}
+        <div className="mt-4 inline-flex rounded-lg border border-steel-300 p-0.5">
+          {[['carta', 'Carta'], ['especiales', 'Especiales']].map(([id, l]) => (
+            <button key={id} onClick={() => switchSurface(id)} className={`h-8 rounded-md px-4 text-[13px] font-medium transition ${surface === id ? 'bg-ember text-cream' : 'text-ink-2 hover:text-ink'}`}>{l}</button>
+          ))}
+        </div>
 
         {/* Temas */}
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          {CARTA_THEMES.map((th) => {
-            const on = s.carta_theme === th.id
-            const sw = { marea: ['#0c0e0d', '#c9a24b', '#f2ede2'], lienzo: ['#f6efe0', '#c1502e', '#3a2c1c'], carbon: ['#f3f3f1', '#e8531f', '#141414'] }[th.id]
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {themeCards.map((th) => {
+            const on = (cur.theme || '') === th.id
+            const sw = THEME_SW[th.id] || ['#efe7d6', '#c9a24b', '#3a2c1c']
             return (
-              <button key={th.id} onClick={() => upd('carta_theme', th.id)} className={`rounded-xl border p-3 text-left transition ${on ? 'border-ember ring-2 ring-ember/25' : 'border-steel-300 hover:border-steel-400'}`} style={{ background: '#fff' }}>
+              <button key={th.id || 'inherit'} onClick={() => upd('theme', th.id)} className={`rounded-xl border p-3 text-left transition ${on ? 'border-ember ring-2 ring-ember/25' : 'border-steel-300 hover:border-steel-400'}`} style={{ background: '#fff' }}>
                 <div className="flex gap-1.5">{sw.map((c, i) => <span key={i} className="h-6 w-6 rounded-md" style={{ background: c, border: '1px solid rgba(0,0,0,.1)' }} />)}</div>
                 <p className="mt-2 text-[14px] font-semibold text-ink">{th.name}{on && <span className="ml-1 text-ember">✓</span>}</p>
                 <p className="text-[11.5px] text-ink-3">{th.desc}</p>
@@ -303,38 +333,62 @@ function DisenoTab({ slug }) {
           })}
         </div>
 
-        {/* Fuente + colores */}
-        <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div className="flex flex-col gap-1 text-[12px] text-ink-2 sm:col-span-3">Letras (fuente) — cada opción se muestra en su tipografía
-            <div className="flex flex-wrap gap-2">{CARTA_FONTS.map((f) => {
-              const on = (s.carta_font || '') === f.id
-              return <button key={f.id} type="button" onClick={() => upd('carta_font', f.id)} className={`rounded-lg border px-3.5 py-2 text-[16px] transition ${on ? 'border-ember bg-[#fff3ea] text-ink ring-1 ring-ember/30' : 'border-steel-300 bg-white text-ink-2 hover:border-steel-400'}`} style={{ fontFamily: f.stack }}>{f.name}{on && ' ✓'}</button>
-            })}</div>
-          </div>
+        {/* Fuente */}
+        <div className="mt-4 text-[12px] text-ink-2">Letras (cada opción se muestra en su tipografía)
+          <div className="mt-1 flex flex-wrap gap-2">{CARTA_FONTS.map((f) => {
+            const on = (cur.font || '') === f.id
+            return <button key={f.id} type="button" onClick={() => upd('font', f.id)} className={`rounded-lg border px-3.5 py-2 text-[16px] transition ${on ? 'border-ember bg-[#fff3ea] text-ink ring-1 ring-ember/30' : 'border-steel-300 bg-white text-ink-2 hover:border-steel-400'}`} style={{ fontFamily: f.stack }}>{f.name}{on && ' ✓'}</button>
+          })}</div>
+        </div>
+
+        {/* Colores */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1 text-[12px] text-ink-2">Color del texto
-            <span className="flex items-center gap-2"><input type="color" value={s.carta_text_color || '#333333'} onChange={(e) => upd('carta_text_color', e.target.value)} className="h-9 w-12 rounded border border-steel-300" />{s.carta_text_color && <button onClick={() => upd('carta_text_color', '')} className="text-[11px] text-ink-3 underline">auto</button>}</span>
+            <span className="flex items-center gap-2"><input type="color" value={cur.text_color || '#333333'} onChange={(e) => upd('text_color', e.target.value)} className="h-9 w-12 rounded border border-steel-300" />{cur.text_color && <button onClick={() => upd('text_color', '')} className="text-[11px] text-ink-3 underline">auto</button>}</span>
           </label>
           <label className="flex flex-col gap-1 text-[12px] text-ink-2">Color de acento
-            <span className="flex items-center gap-2"><input type="color" value={s.carta_accent_color || '#c9a24b'} onChange={(e) => upd('carta_accent_color', e.target.value)} className="h-9 w-12 rounded border border-steel-300" />{s.carta_accent_color && <button onClick={() => upd('carta_accent_color', '')} className="text-[11px] text-ink-3 underline">auto</button>}</span>
+            <span className="flex items-center gap-2"><input type="color" value={cur.accent_color || '#c9a24b'} onChange={(e) => upd('accent_color', e.target.value)} className="h-9 w-12 rounded border border-steel-300" />{cur.accent_color && <button onClick={() => upd('accent_color', '')} className="text-[11px] text-ink-3 underline">auto</button>}</span>
           </label>
         </div>
 
-        {/* Imagen de fondo */}
+        {/* Imagen de fondo + filtros */}
         <div className="mt-4">
-          <p className="text-[12px] text-ink-2">Imagen de fondo (opcional)</p>
+          <p className="text-[12px] text-ink-2">Imagen de fondo (vertical para móvil)</p>
           <div className="mt-1.5 flex flex-wrap items-center gap-3">
-            {(bgFile || s.carta_bg_image) && <img src={bgFile ? URL.createObjectURL(bgFile) : s.carta_bg_image} alt="" className="h-14 w-24 rounded-lg object-cover" />}
-            <label className="inline-flex h-9 cursor-pointer items-center rounded-lg steel-plate px-3 text-[13px] text-ink hover:bg-white">{s.carta_bg_image || bgFile ? 'Cambiar' : 'Subir fondo'}<input type="file" accept="image/*" className="hidden" onChange={(e) => setBgFile(e.target.files?.[0] || null)} /></label>
-            {s.carta_bg_image && <button onClick={clearBg} disabled={busy} className="text-[12px] text-danger underline">Quitar fondo</button>}
+            {bgPreview && <img src={bgPreview} alt="" className="h-16 w-11 rounded-lg object-cover" />}
+            <label className="inline-flex h-9 cursor-pointer items-center rounded-lg steel-plate px-3 text-[13px] text-ink hover:bg-white">{hasBg ? 'Cambiar' : 'Subir fondo'}<input type="file" accept="image/*" className="hidden" onChange={(e) => setBgFile(e.target.files?.[0] || null)} /></label>
+            {cur.bg_image && <button onClick={clearBg} disabled={busy} className="text-[12px] text-danger underline">Quitar</button>}
           </div>
-          <p className="mt-1 text-[11px] text-ink-3">Se muestra atenuada detrás de la carta para no restar legibilidad.</p>
+          {hasBg && (
+            <div className="mt-3 grid gap-3 rounded-xl border border-steel-200 bg-white/60 p-3 sm:grid-cols-2">
+              <label className="text-[12px] text-ink-2">Transparencia (opacidad {fx.opacity ?? 100}%)
+                <input type="range" min="10" max="100" value={fx.opacity ?? 100} onChange={(e) => updFx('opacity', Number(e.target.value))} className="mt-1 w-full accent-[#e0611f]" /></label>
+              <label className="text-[12px] text-ink-2">Desenfoque ({fx.blur ?? 0}px)
+                <input type="range" min="0" max="16" value={fx.blur ?? 0} onChange={(e) => updFx('blur', Number(e.target.value))} className="mt-1 w-full accent-[#e0611f]" /></label>
+              <label className="text-[12px] text-ink-2">Intensidad del velo ({fx.overlay ?? 70}%)
+                <input type="range" min="0" max="95" value={fx.overlay ?? 70} onChange={(e) => updFx('overlay', Number(e.target.value))} className="mt-1 w-full accent-[#e0611f]" /></label>
+              <div className="text-[12px] text-ink-2">Filtro de color
+                <div className="mt-1 flex flex-wrap gap-1.5">{FX_FILTERS.map(([id, l]) => {
+                  const on = (fx.filter || 'none') === id
+                  return <button key={id} onClick={() => updFx('filter', id)} className={`rounded-md border px-2.5 py-1 text-[12px] ${on ? 'border-ember bg-[#fff3ea] text-ink' : 'border-steel-300 text-ink-2'}`}>{l}</button>
+                })}</div>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          <button onClick={save} disabled={busy} className="inline-flex h-9 items-center rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">{busy ? 'Guardando…' : 'Guardar diseño'}</button>
-          {slug && <a href={publicUrl('carta', slug)} target="_blank" rel="noreferrer" className="text-[13px] font-medium text-ember-deep underline">Ver la carta →</a>}
+          <button onClick={save} disabled={busy} className="inline-flex h-9 items-center rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">{busy ? 'Guardando…' : `Guardar ${surface === 'carta' ? 'carta' : 'especiales'}`}</button>
+          {slug && <a href={publicUrl(surface === 'carta' ? 'carta' : 'especiales', slug)} target="_blank" rel="noreferrer" className="text-[13px] font-medium text-ember-deep underline">Ver {surface === 'carta' ? 'la carta' : 'los especiales'} →</a>}
           {msg && <span className="text-[12px] text-ink-2">{msg}</span>}
         </div>
+      </div>
+
+      {/* VISTA PREVIA en vivo */}
+      <div className="lg:sticky lg:top-4 lg:self-start">
+        <p className="mb-2 text-center text-[12px] font-medium uppercase tracking-wide text-ink-3">Vista previa · {surface === 'carta' ? 'Carta' : 'Especiales'}</p>
+        <CartaPreview design={design} restaurantName={getRestaurantName()} logo={getRestaurantLogo()} surface={surface} />
+        <p className="mt-2 text-center text-[11px] text-ink-3">Platos de ejemplo</p>
       </div>
     </div>
   )

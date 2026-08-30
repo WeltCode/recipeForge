@@ -186,6 +186,14 @@ class Restaurant(models.Model):
     carta_text_color = models.CharField(max_length=9, blank=True, default='')
     carta_accent_color = models.CharField(max_length=9, blank=True, default='')
     carta_bg_image = models.ImageField(upload_to='carta_bg/', null=True, blank=True)
+    carta_bg_fx = models.JSONField(default=dict, blank=True)  # {opacity, blur, filter, overlay}
+    # Diseño INDEPENDIENTE de la carta de especiales (vacío = hereda de la carta).
+    especiales_theme = models.CharField(max_length=16, blank=True, default='')
+    especiales_font = models.CharField(max_length=16, blank=True, default='')
+    especiales_text_color = models.CharField(max_length=9, blank=True, default='')
+    especiales_accent_color = models.CharField(max_length=9, blank=True, default='')
+    especiales_bg_image = models.ImageField(upload_to='carta_bg/', null=True, blank=True)
+    especiales_bg_fx = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -27,14 +27,17 @@ const THEMES = {
   carbon: { variant: 'carbon', dark: false, bg: '#f3f3f1', ink: '#141414', inkSoft: '#6b6b68', accent: '#e8531f', accentHi: '#c8371a', line: '#161616', display: "'Oswald', system-ui, sans-serif", body: "'DM Mono', ui-monospace, monospace", kicker: 'Carta' },
 }
 
-function resolveTheme(r) {
-  const t = { ...(THEMES[r?.carta_theme] || THEMES.marea) }
-  if (r?.carta_accent_color) { t.accent = r.carta_accent_color; t.accentHi = r.carta_accent_color }
-  if (r?.carta_text_color) t.ink = r.carta_text_color
-  if (r?.carta_font && FONT_STACKS[r.carta_font]) t.display = FONT_STACKS[r.carta_font]
-  t.bgImage = r?.carta_bg_image || null
+// `design` = { theme, font, text_color, accent_color, bg_image, bg_fx }
+export function resolveTheme(design) {
+  const t = { ...(THEMES[design?.theme] || THEMES.marea) }
+  if (design?.accent_color) { t.accent = design.accent_color; t.accentHi = design.accent_color }
+  if (design?.text_color) t.ink = design.text_color
+  if (design?.font && FONT_STACKS[design.font]) t.display = FONT_STACKS[design.font]
+  t.bgImage = design?.bg_image || null
+  t.bgFx = design?.bg_fx || {}
   return t
 }
+export { THEMES, FONT_STACKS }
 
 function rootStyle(t) {
   // Fondo sólido del tema; si hay imagen, el root es transparente y la imagen
@@ -45,13 +48,19 @@ function rootStyle(t) {
 // Imagen de fondo del restaurante: capa FIJA a pantalla (ideal para fotos
 // verticales de móvil), con velo para mantener la carta legible. Evita el bug
 // de background-attachment:fixed en iOS.
-function BgLayer({ t }) {
+const FILTER_CSS = { none: '', gris: 'grayscale(1)', sepia: 'sepia(.65)', calido: 'saturate(1.35) sepia(.18)' }
+function BgLayer({ t, contained = false }) {
   if (!t.bgImage) return null
-  const veil = t.dark ? 'rgba(8,10,9,.74)' : 'rgba(250,247,240,.66)'
+  const fx = t.bgFx || {}
+  const op = (fx.opacity ?? 100) / 100
+  const blur = fx.blur ?? 0
+  const filt = `blur(${blur}px) ${FILTER_CSS[fx.filter] || ''}`.trim()
+  const veilAlpha = (fx.overlay ?? (t.dark ? 74 : 66)) / 100
+  const veil = t.dark ? `rgba(8,10,9,${veilAlpha})` : `rgba(250,247,240,${veilAlpha})`
   return (
-    <div aria-hidden className="pointer-events-none fixed inset-0" style={{ zIndex: -1 }}>
-      <div className="absolute inset-0" style={{ background: `url("${t.bgImage}") center center / cover no-repeat` }} />
-      <div className="absolute inset-0" style={{ background: `linear-gradient(${veil}, ${veil})` }} />
+    <div aria-hidden className={`pointer-events-none ${contained ? 'absolute' : 'fixed'} inset-0`} style={{ zIndex: contained ? 0 : -1, overflow: 'hidden' }}>
+      <div className="absolute inset-0" style={{ background: `url("${t.bgImage}") center center / cover no-repeat`, filter: filt, opacity: op }} />
+      <div className="absolute inset-0" style={{ background: veil }} />
     </div>
   )
 }
@@ -168,9 +177,8 @@ function SectionHead({ t, name }) {
   if (!name) return null
   if (t.variant === 'carbon') {
     return (
-      <div className="mb-6 flex items-end gap-3">
-        <h2 style={{ fontFamily: t.display, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.06em', fontSize: 'clamp(20px,4vw,28px)', color: t.ink, lineHeight: 1 }}>{name}</h2>
-        <span className="mb-1 flex-1" style={{ borderBottom: `2px solid ${t.line}` }} />
+      <div className="mb-5" style={{ borderBottom: `3px solid ${t.line}`, paddingBottom: 8 }}>
+        <h2 style={{ fontFamily: t.display, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em', fontSize: 'clamp(24px,6vw,34px)', color: t.ink, lineHeight: 1 }}>{name}</h2>
       </div>
     )
   }
@@ -189,49 +197,53 @@ function SectionHead({ t, name }) {
   )
 }
 
-function DishItem({ t, it, cur, onZoom }) {
+function DishItem({ t, it, cur, onZoom, idx = 0 }) {
   const price = it.price != null ? money(it.price, cur) : null
-  // CARBÓN — fila tipográfica, sin foto grande, alto contraste.
+  // ── CARBÓN — editorial brutalista: sin fotos, número de índice, nombre en
+  //    mayúsculas ENORMES, filete grueso, precio en mono. Máximo contraste. ──
   if (t.variant === 'carbon') {
     return (
-      <li className="rf-rise" style={{ borderBottom: `1px solid ${t.line}22`, paddingBottom: 14, marginBottom: 14 }}>
-        <div className="flex items-baseline gap-3">
-          <h3 className="min-w-0" style={{ fontFamily: t.display, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '.03em', fontSize: 17, color: t.ink }}>{it.name}</h3>
-          <span aria-hidden style={{ flex: 1, borderBottom: `1px dotted ${t.inkSoft}`, opacity: .6, transform: 'translateY(-4px)' }} />
-          {price && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 15, color: t.accent, fontWeight: 500, whiteSpace: 'nowrap' }}>{price}</span>}
+      <li className="rf-rise" style={{ borderTop: `2px solid ${t.line}`, padding: '16px 0' }}>
+        <div className="flex items-start gap-3">
+          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 12, letterSpacing: '.12em', color: t.inkSoft, paddingTop: 6 }}>{String(idx + 1).padStart(2, '0')}</span>
+          <h3 className="min-w-0 flex-1" style={{ fontFamily: t.display, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.005em', fontSize: 'clamp(21px,6.4vw,30px)', lineHeight: 1.02, color: t.ink }}>{it.name}</h3>
+          {price && <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 16, color: t.accent, fontWeight: 500, whiteSpace: 'nowrap', paddingTop: 4 }}>{price}</span>}
         </div>
-        {it.menu_description && <p className="mt-1.5" style={{ fontFamily: t.body, color: t.inkSoft, fontSize: 13, lineHeight: 1.5 }}>{it.menu_description}</p>}
-        <Allergens ids={it.allergens} t={t} />
+        {it.menu_description && <p className="mt-2" style={{ fontFamily: "'DM Mono', monospace", color: t.inkSoft, fontSize: 12.5, lineHeight: 1.6, paddingLeft: 28 }}>{it.menu_description}</p>}
+        <div style={{ paddingLeft: 28 }}><Allergens ids={it.allergens} t={t} /></div>
       </li>
     )
   }
-  // LIENZO — fila cálida con miniatura redonda.
+  // ── LIENZO — bistró/mercado: TARJETA cálida con foto redondeada, nombre en
+  //    Bricolage grueso y precio en PASTILLA de acento. Cozy y colorido. ──
   if (t.variant === 'lienzo') {
     return (
-      <li className="rf-rise flex items-start gap-4" style={{ padding: '12px 0', borderBottom: `1px dashed ${t.line}` }}>
-        <div className="h-[76px] w-[76px] flex-none overflow-hidden rounded-full">
-          <DishPhoto item={it} ratio="1 / 1" radius={999} t={t} onZoom={onZoom} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2">
-            <h3 className="min-w-0" style={{ fontFamily: t.display, fontWeight: 700, fontSize: 17.5, color: t.ink }}>{it.name}</h3>
-            <span aria-hidden style={{ flex: 1, borderBottom: `2px dotted ${t.accent}`, opacity: .5, transform: 'translateY(-4px)' }} />
-            {price && <span style={{ fontFamily: t.display, fontSize: 17, color: t.accent, fontWeight: 800, whiteSpace: 'nowrap' }}>{price}</span>}
+      <li className="rf-rise">
+        <div className="flex items-center gap-4 rounded-3xl p-3" style={{ background: 'rgba(255,255,255,.72)', border: `1.5px solid ${t.line}`, boxShadow: '0 12px 30px -20px rgba(90,60,30,.45)' }}>
+          <div className="h-[86px] w-[86px] flex-none overflow-hidden rounded-2xl">
+            <DishPhoto item={it} ratio="1 / 1" radius={16} t={t} onZoom={onZoom} />
           </div>
-          {it.menu_description && <p className="mt-1" style={{ fontFamily: t.body, color: t.inkSoft, fontSize: 14.5, lineHeight: 1.55 }}>{it.menu_description}</p>}
-          <Allergens ids={it.allergens} t={t} />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="min-w-0" style={{ fontFamily: t.display, fontWeight: 800, fontSize: 18, lineHeight: 1.12, color: t.ink }}>{it.name}</h3>
+              {price && <span className="flex-none rounded-full px-3 py-1 text-[14.5px]" style={{ background: t.accent, color: '#fff', fontFamily: t.display, fontWeight: 800, whiteSpace: 'nowrap' }}>{price}</span>}
+            </div>
+            {it.menu_description && <p className="mt-1" style={{ fontFamily: t.body, color: t.inkSoft, fontSize: 14, lineHeight: 1.5 }}>{it.menu_description}</p>}
+            <Allergens ids={it.allergens} t={t} />
+          </div>
         </div>
       </li>
     )
   }
-  // MAREA — tarjeta de foto (rejilla).
+  // ── MAREA — fine dining cinematográfico: FOTO grande (protagonista), nombre
+  //    Didone y precio en oro con hilo de puntos. Oscuro, elegante. ──
   return (
     <li className="rf-rise">
-      <DishPhoto item={it} ratio="3 / 2" radius={4} t={t} onZoom={onZoom} />
+      <DishPhoto item={it} ratio="4 / 3" radius={6} t={t} onZoom={onZoom} />
       <div className="mt-4 flex items-baseline gap-3">
-        <h3 className="min-w-0" style={{ fontFamily: t.display, fontWeight: 500, fontSize: 18, letterSpacing: '.01em', color: t.ink }}>{it.name}</h3>
+        <h3 className="min-w-0" style={{ fontFamily: t.display, fontWeight: 500, fontSize: 20, letterSpacing: '.01em', color: t.ink }}>{it.name}</h3>
         <span aria-hidden style={{ flex: 1, borderBottom: `1px dotted ${t.accent}`, opacity: .5, transform: 'translateY(-4px)' }} />
-        {price && <span style={{ fontFamily: t.display, fontSize: 17, color: t.accentHi, fontWeight: 500, whiteSpace: 'nowrap' }}>{price}</span>}
+        {price && <span style={{ fontFamily: t.display, fontSize: 18, color: t.accentHi, fontWeight: 500, whiteSpace: 'nowrap' }}>{price}</span>}
       </div>
       {it.menu_description && <p className="mt-2" style={{ fontFamily: t.body, fontWeight: 300, color: t.inkSoft, fontSize: 14, lineHeight: 1.6 }}>{it.menu_description}</p>}
       <Allergens ids={it.allergens} t={t} />
@@ -246,11 +258,11 @@ export function CartaPublica({ slug }) {
   const [zoom, setZoom] = useState(null)
   useEffect(() => { getPublicCarta(slug).then(setData).catch(() => setError('Esta carta no está disponible ahora mismo.')) }, [slug])
 
-  const t = resolveTheme(data?.restaurant)
+  const t = resolveTheme(data?.restaurant?.design)
   if (error) return <State t={t}>{error}</State>
   if (!data) return <State t={t}>Cargando la carta…</State>
   const cur = data.restaurant?.currency
-  const gridClass = t.variant === 'marea' ? 'grid gap-x-8 gap-y-10 sm:grid-cols-2' : 'space-y-1'
+  const gridClass = t.variant === 'marea' ? 'grid gap-x-8 gap-y-12 sm:grid-cols-2' : t.variant === 'lienzo' ? 'space-y-3.5' : 'space-y-0'
 
   return (
     <div style={rootStyle(t)}>
@@ -264,7 +276,7 @@ export function CartaPublica({ slug }) {
           <section key={i} id={`sec-${i}`} className="mb-14" style={{ scrollMarginTop: 62 }}>
             <SectionHead t={t} name={sec.name} />
             <ul className={gridClass}>
-              {sec.items.map((it) => <DishItem key={it.id} t={t} it={it} cur={cur} onZoom={setZoom} />)}
+              {sec.items.map((it, j) => <DishItem key={it.id} t={t} it={it} cur={cur} onZoom={setZoom} idx={j} />)}
             </ul>
           </section>
         ))}
@@ -282,7 +294,7 @@ export function EspecialesPublica({ slug }) {
   const [zoom, setZoom] = useState(null)
   useEffect(() => { getPublicEspeciales(slug).then(setData).catch(() => setError('No disponible ahora mismo.')) }, [slug])
 
-  const t = resolveTheme(data?.restaurant)
+  const t = resolveTheme(data?.restaurant?.design)
   if (error) return <State t={t}>{error}</State>
   if (!data) return <State t={t}>Cargando los especiales…</State>
   const cur = data.restaurant?.currency
@@ -318,6 +330,34 @@ export function EspecialesPublica({ slug }) {
         <footer className="pt-16 text-center" style={{ color: t.inkSoft, fontSize: 10.5, letterSpacing: '.34em', opacity: .7 }}>HECHO CON RECIPEFORGE</footer>
       </main>
       <Lightbox shot={zoom} onClose={() => setZoom(null)} t={t} />
+    </div>
+  )
+}
+
+/* ════════════ VISTA PREVIA en vivo (para el panel de gestión) ════════════ */
+const PREVIEW_SAMPLE = [
+  { id: 'p1', name: 'Ceviche de la casa', price: '14.50', menu_description: 'Corvina, leche de tigre, cebolla morada y cancha.', allergens: ['pescado'] },
+  { id: 'p2', name: 'Tiradito nikkei', price: '16.00', menu_description: 'Pescado del día, ají amarillo y cítricos.', allergens: ['pescado', 'soja'] },
+  { id: 'p3', name: 'Causa limeña', price: '11.00', menu_description: 'Patata amarilla, palta y mayonesa de ají.', allergens: ['huevos'] },
+]
+
+export function CartaPreview({ design, restaurantName, logo, surface = 'carta' }) {
+  const t = resolveTheme(design)
+  const r = { name: restaurantName || 'Tu restaurante', logo: logo || null }
+  const isEsp = surface === 'especiales'
+  return (
+    <div className="rf-navscroll relative mx-auto shadow-2xl" style={{ width: 300, height: 500, overflowY: 'auto', overflowX: 'hidden', borderRadius: 26, border: '7px solid #16130f', background: t.bg, color: t.ink, fontFamily: t.body }}>
+      <Fonts />
+      <BgLayer t={t} contained />
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <Header t={t} r={r} kicker={isEsp ? 'Fuera de carta' : t.kicker} sub={isEsp ? 'Especiales' : null} />
+        <div style={{ padding: '0 18px 26px' }}>
+          {!isEsp && <SectionHead t={t} name="Entrantes" />}
+          <ul className={t.variant === 'marea' ? 'grid gap-6' : t.variant === 'lienzo' ? 'space-y-3' : 'space-y-0'}>
+            {PREVIEW_SAMPLE.map((it, j) => <DishItem key={it.id} t={t} it={it} cur="EUR" onZoom={() => {}} idx={j} />)}
+          </ul>
+        </div>
+      </div>
     </div>
   )
 }
