@@ -44,7 +44,7 @@ export default function AppShell({ sections, active, onNavigate, username, role,
         </div>
       )}
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {sections.map((s, i) => {
           const Icon = s.icon
           const isActive = s.id === active

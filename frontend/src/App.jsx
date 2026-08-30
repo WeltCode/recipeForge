@@ -165,6 +165,23 @@ const PLAN_DEFS = {
   business: { name: 'Business', resumen: 'Gestión completa del restaurante.', maxRec: 'Ilimitadas', maxU: 20, marca: false, plantillas: true, alerg: true, escand: true, inv: true, sup: true },
 }
 const PLAN_ORDER = ['prueba', 'basico', 'pro', 'business']
+
+// Marca de agua del plan de prueba: sello diagonal visible (pantalla + impresión).
+function TrialWatermark() {
+  return (
+    <div aria-hidden="true" style={{
+      position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', overflow: 'hidden',
+      pointerEvents: 'none', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', zIndex: 5,
+    }}>
+      <span style={{
+        transform: 'rotate(-24deg)', fontFamily: "'Oswald', system-ui, sans-serif", fontWeight: 600,
+        fontSize: '38px', lineHeight: 1.1, letterSpacing: '0.12em', textTransform: 'uppercase', textAlign: 'center',
+        color: 'rgba(200,55,26,0.22)', border: '3px solid rgba(200,55,26,0.22)', borderRadius: '14px',
+        padding: '14px 34px', whiteSpace: 'nowrap',
+      }}>RecipeForge<br /><span style={{ fontSize: '20px', letterSpacing: '0.24em' }}>Periodo de prueba</span></span>
+    </div>
+  )
+}
 const PLAN_ROWS = [
   ['Recetas', (p) => p.maxRec],
   ['Usuarios', (p) => String(p.maxU)],
@@ -870,20 +887,7 @@ function App() {
             {/* Si el plan no incluye plantillas personalizables, se exporta con
                 la plantilla básica (sin perder la plantilla guardada). */}
             <RecipeSheetPreview recipe={feat('templates_custom') ? exportRecipe : { ...exportRecipe, template: 'formal', accent_color: '' }} />
-            {feat('watermark') && (
-              <div
-                aria-hidden="true"
-                style={{
-                  position: 'absolute', bottom: '7mm', right: '7mm', transform: 'rotate(-4deg)',
-                  fontFamily: "'Oswald', system-ui, sans-serif", fontSize: '10.5px', fontWeight: 600,
-                  textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(200,55,26,0.6)',
-                  border: '1.5px solid rgba(200,55,26,0.5)', borderRadius: '6px', padding: '4px 9px',
-                  WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact', pointerEvents: 'none',
-                }}
-              >
-                Periodo de Prueba de: RecipeForge
-              </div>
-            )}
+            {feat('watermark') && <TrialWatermark />}
           </>
         )}
       </div>
@@ -1484,14 +1488,17 @@ function App() {
                 </p>
               )}
             </div>
-            <ScaledA4>
-              <RecipeSheetPreview recipe={{
-                ...form,
-                template: feat('templates_custom') ? form.template : 'formal',
-                accent_color: feat('templates_custom') ? form.accent_color : '',
-                photoPreviewUrl, restaurant_name: activeRestaurant.name, restaurant_logo: activeRestaurant.logo,
-              }} />
-            </ScaledA4>
+            <div style={{ position: 'relative' }}>
+              <ScaledA4>
+                <RecipeSheetPreview recipe={{
+                  ...form,
+                  template: feat('templates_custom') ? form.template : 'formal',
+                  accent_color: feat('templates_custom') ? form.accent_color : '',
+                  photoPreviewUrl, restaurant_name: activeRestaurant.name, restaurant_logo: activeRestaurant.logo,
+                }} />
+              </ScaledA4>
+              {feat('watermark') && <TrialWatermark />}
+            </div>
           </div>
         </div>
 
