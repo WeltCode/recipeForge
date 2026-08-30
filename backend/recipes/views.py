@@ -269,9 +269,16 @@ class RecipeViewSet(ModelViewSet):
 # ── Fase 2: carta pública + especiales ──────────────────────────────────────
 
 def _restaurant_header(request, r):
-    """Cabecera pública del restaurante (sin datos internos)."""
+    """Cabecera pública del restaurante (sin datos internos) + tema de la carta."""
     logo = r.logo.name if r.logo else None
-    return {'name': r.name, 'logo': media_url(request, logo), 'currency': r.currency}
+    return {
+        'name': r.name, 'logo': media_url(request, logo), 'currency': r.currency,
+        'carta_theme': r.carta_theme or 'marea',
+        'carta_font': r.carta_font or '',
+        'carta_text_color': r.carta_text_color or '',
+        'carta_accent_color': r.carta_accent_color or '',
+        'carta_bg_image': media_url(request, r.carta_bg_image.name) if r.carta_bg_image else None,
+    }
 
 
 class EspecialViewSet(ModelViewSet):
@@ -300,18 +307,51 @@ class EspecialViewSet(ModelViewSet):
 
 
 class CartaSettingsView(APIView):
-    """Publicar/despublicar la carta pública (owner/chef con plan carta)."""
+    """Publicar/despublicar y PERSONALIZAR la carta pública (owner/chef con
+    plan carta): diseño, fuente, colores e imagen de fondo."""
 
     permission_classes = [CanManageCarta]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def _payload(self, request, r):
+        return {
+            'public_slug': r.public_slug, 'carta_published': r.carta_published,
+            'carta_theme': r.carta_theme or 'marea', 'carta_font': r.carta_font or '',
+            'carta_text_color': r.carta_text_color or '', 'carta_accent_color': r.carta_accent_color or '',
+            'carta_bg_image': media_url(request, r.carta_bg_image.name) if r.carta_bg_image else None,
+        }
+
+    def get(self, request):
+        r = get_user_restaurant(request.user)
+        if not r:
+            return Response({'detail': 'No tienes un restaurante asignado.'}, status=400)
+        return Response(self._payload(request, r))
 
     def patch(self, request):
         r = get_user_restaurant(request.user)
         if not r:
             return Response({'detail': 'No tienes un restaurante asignado.'}, status=400)
-        if 'carta_published' in request.data:
-            r.carta_published = bool(request.data.get('carta_published'))
-            r.save(update_fields=['carta_published'])
-        return Response({'public_slug': r.public_slug, 'carta_published': r.carta_published})
+        data = request.data
+        fields = []
+        if 'carta_published' in data:
+            r.carta_published = str(data.get('carta_published')).lower() in ('1', 'true', 'on', 'yes')
+            fields.append('carta_published')
+        if 'carta_theme' in data and data.get('carta_theme') in ('marea', 'lienzo', 'carbon'):
+            r.carta_theme = data.get('carta_theme')
+            fields.append('carta_theme')
+        for key in ('carta_font', 'carta_text_color', 'carta_accent_color'):
+            if key in data:
+                setattr(r, key, (data.get(key) or '')[:16 if key == 'carta_font' else 9])
+                fields.append(key)
+        if data.get('carta_bg_image_clear') in ('1', 'true', True):
+            r.carta_bg_image = None
+            fields.append('carta_bg_image')
+        elif 'carta_bg_image' in request.FILES:
+            r.carta_bg_image = request.FILES['carta_bg_image']
+            fields.append('carta_bg_image')
+        if fields:
+            r.save(update_fields=list(set(fields)))
+        return Response(self._payload(request, r))
 
 
 class PublicCartaView(APIView):

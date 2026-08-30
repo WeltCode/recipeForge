@@ -64,6 +64,34 @@ export async function setCartaPublishedApi(published) {
   }))
 }
 
+// ── Diseño de la carta (tema, fuente, colores, imagen de fondo) ──
+export async function getCartaSettings() {
+  return jsonOrThrow(await authFetch(`${API_BASE}/carta/settings/`))
+}
+export async function setCartaTheme(fields) {
+  // Multipart si viene una imagen de fondo (File); si no, JSON.
+  if (fields.carta_bg_image instanceof File) {
+    const fd = new FormData()
+    Object.entries(fields).forEach(([k, v]) => { if (v !== undefined && v !== null) fd.append(k, v) })
+    return jsonOrThrow(await authFetch(`${API_BASE}/carta/settings/`, { method: 'PATCH', body: fd }))
+  }
+  return jsonOrThrow(await authFetch(`${API_BASE}/carta/settings/`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields),
+  }))
+}
+export const CARTA_THEMES = [
+  { id: 'marea', name: 'Marea', desc: 'Oscuro elegante · fine dining' },
+  { id: 'lienzo', name: 'Lienzo', desc: 'Bistró claro y cálido' },
+  { id: 'carbon', name: 'Carbón', desc: 'Minimal alto contraste' },
+]
+export const CARTA_FONTS = [
+  { id: '', name: 'La del diseño', stack: 'system-ui, sans-serif' },
+  { id: 'serif', name: 'Serif elegante', stack: "'Bodoni Moda', Georgia, serif" },
+  { id: 'sans', name: 'Sans moderna', stack: "'Jost', system-ui, sans-serif" },
+  { id: 'mono', name: 'Mono técnica', stack: "'DM Mono', ui-monospace, monospace" },
+  { id: 'script', name: 'Manuscrita', stack: "'Snell Roundhand', 'Brush Script MT', cursive" },
+]
+
 // ── Público (sin login) ──
 export async function getPublicCarta(slug) {
   return jsonOrThrow(await fetch(`${API_BASE}/public/carta/${slug}/`))

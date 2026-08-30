@@ -5,6 +5,7 @@ import {
   listEspeciales, createEspecial, updateEspecial, deleteEspecial,
   setRecipeMenu, uploadMenuPhoto, setCartaPublishedApi, publicUrl, qrDataUrl,
   TEMP_OPTS, CAT_OPTS, FORMATO_OPTS,
+  getCartaSettings, setCartaTheme, CARTA_THEMES, CARTA_FONTS,
 } from '../lib/carta'
 import { Plus, Trash, Pencil, X } from './icons'
 
@@ -260,17 +261,96 @@ function EspecialesTab({ slug }) {
   )
 }
 
+// ── Diseño de la carta: tema + fuente + colores + imagen de fondo ──
+function DisenoTab({ slug }) {
+  const [s, setS] = useState(null)
+  const [bgFile, setBgFile] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  useEffect(() => { getCartaSettings().then(setS).catch(() => setMsg('No se pudo cargar el diseño.')) }, [])
+
+  const upd = (k, v) => setS((p) => ({ ...p, [k]: v }))
+  const save = async () => {
+    setBusy(true); setMsg('')
+    try {
+      const fields = { carta_theme: s.carta_theme, carta_font: s.carta_font || '', carta_text_color: s.carta_text_color || '', carta_accent_color: s.carta_accent_color || '' }
+      if (bgFile) fields.carta_bg_image = bgFile
+      const res = await setCartaTheme(fields); setS(res); setBgFile(null); setMsg('Diseño guardado ✓')
+    } catch (err) { setMsg(err.message) } finally { setBusy(false) }
+  }
+  const clearBg = async () => { setBusy(true); try { const res = await setCartaTheme({ carta_bg_image_clear: '1' }); setS(res); setBgFile(null) } catch (err) { setMsg(err.message) } finally { setBusy(false) } }
+
+  if (!s) return <p className="px-1 py-8 text-[13px] text-ink-3">{msg || 'Cargando diseño…'}</p>
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl steel-plate p-5">
+        <p className="pass-title text-[14px] text-ink">Diseño de las cartas</p>
+        <p className="mt-0.5 text-[12px] text-ink-3">Se aplica a la carta y a los especiales. Elige un estilo y personalízalo.</p>
+
+        {/* Temas */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          {CARTA_THEMES.map((th) => {
+            const on = s.carta_theme === th.id
+            const sw = { marea: ['#0c0e0d', '#c9a24b', '#f2ede2'], lienzo: ['#f6efe0', '#c1502e', '#3a2c1c'], carbon: ['#f3f3f1', '#e8531f', '#141414'] }[th.id]
+            return (
+              <button key={th.id} onClick={() => upd('carta_theme', th.id)} className={`rounded-xl border p-3 text-left transition ${on ? 'border-ember ring-2 ring-ember/25' : 'border-steel-300 hover:border-steel-400'}`} style={{ background: '#fff' }}>
+                <div className="flex gap-1.5">{sw.map((c, i) => <span key={i} className="h-6 w-6 rounded-md" style={{ background: c, border: '1px solid rgba(0,0,0,.1)' }} />)}</div>
+                <p className="mt-2 text-[14px] font-semibold text-ink">{th.name}{on && <span className="ml-1 text-ember">✓</span>}</p>
+                <p className="text-[11.5px] text-ink-3">{th.desc}</p>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Fuente + colores */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-3">
+          <div className="flex flex-col gap-1 text-[12px] text-ink-2 sm:col-span-3">Letras (fuente) — cada opción se muestra en su tipografía
+            <div className="flex flex-wrap gap-2">{CARTA_FONTS.map((f) => {
+              const on = (s.carta_font || '') === f.id
+              return <button key={f.id} type="button" onClick={() => upd('carta_font', f.id)} className={`rounded-lg border px-3.5 py-2 text-[16px] transition ${on ? 'border-ember bg-[#fff3ea] text-ink ring-1 ring-ember/30' : 'border-steel-300 bg-white text-ink-2 hover:border-steel-400'}`} style={{ fontFamily: f.stack }}>{f.name}{on && ' ✓'}</button>
+            })}</div>
+          </div>
+          <label className="flex flex-col gap-1 text-[12px] text-ink-2">Color del texto
+            <span className="flex items-center gap-2"><input type="color" value={s.carta_text_color || '#333333'} onChange={(e) => upd('carta_text_color', e.target.value)} className="h-9 w-12 rounded border border-steel-300" />{s.carta_text_color && <button onClick={() => upd('carta_text_color', '')} className="text-[11px] text-ink-3 underline">auto</button>}</span>
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] text-ink-2">Color de acento
+            <span className="flex items-center gap-2"><input type="color" value={s.carta_accent_color || '#c9a24b'} onChange={(e) => upd('carta_accent_color', e.target.value)} className="h-9 w-12 rounded border border-steel-300" />{s.carta_accent_color && <button onClick={() => upd('carta_accent_color', '')} className="text-[11px] text-ink-3 underline">auto</button>}</span>
+          </label>
+        </div>
+
+        {/* Imagen de fondo */}
+        <div className="mt-4">
+          <p className="text-[12px] text-ink-2">Imagen de fondo (opcional)</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-3">
+            {(bgFile || s.carta_bg_image) && <img src={bgFile ? URL.createObjectURL(bgFile) : s.carta_bg_image} alt="" className="h-14 w-24 rounded-lg object-cover" />}
+            <label className="inline-flex h-9 cursor-pointer items-center rounded-lg steel-plate px-3 text-[13px] text-ink hover:bg-white">{s.carta_bg_image || bgFile ? 'Cambiar' : 'Subir fondo'}<input type="file" accept="image/*" className="hidden" onChange={(e) => setBgFile(e.target.files?.[0] || null)} /></label>
+            {s.carta_bg_image && <button onClick={clearBg} disabled={busy} className="text-[12px] text-danger underline">Quitar fondo</button>}
+          </div>
+          <p className="mt-1 text-[11px] text-ink-3">Se muestra atenuada detrás de la carta para no restar legibilidad.</p>
+        </div>
+
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <button onClick={save} disabled={busy} className="inline-flex h-9 items-center rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">{busy ? 'Guardando…' : 'Guardar diseño'}</button>
+          {slug && <a href={publicUrl('carta', slug)} target="_blank" rel="noreferrer" className="text-[13px] font-medium text-ember-deep underline">Ver la carta →</a>}
+          {msg && <span className="text-[12px] text-ink-2">{msg}</span>}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function CartaSection() {
   const [tab, setTab] = useState('carta')
   const slug = getPublicSlug()
   return (
     <div className="pb-6">
       <div className="mb-6 inline-flex rounded-lg steel-plate p-1">
-        {[['carta', 'Carta'], ['especiales', 'Especiales']].map(([id, label]) => (
+        {[['carta', 'Carta'], ['especiales', 'Especiales'], ['diseno', 'Diseño']].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)} className={`h-9 rounded-md px-4 text-[13px] font-medium transition-colors ${tab === id ? 'bg-soot text-cream' : 'text-ink-2 hover:text-ink'}`}>{label}</button>
         ))}
       </div>
-      {tab === 'carta' ? <CartaTab slug={slug} /> : <EspecialesTab slug={slug} />}
+      {tab === 'carta' ? <CartaTab slug={slug} /> : tab === 'especiales' ? <EspecialesTab slug={slug} /> : <DisenoTab slug={slug} />}
     </div>
   )
 }

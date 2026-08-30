@@ -133,6 +133,22 @@ DEFAULT_ROLES = {
 }
 
 
+# Diseños de carta pública. Cada tema es un mundo visual propio; el
+# restaurante puede además cambiar fuente, colores y fondo.
+CARTA_THEME_CHOICES = [
+    ('marea', 'Marea — oscuro elegante (fine dining)'),
+    ('lienzo', 'Lienzo — bistró claro y cálido (kraft/pizarra)'),
+    ('carbon', 'Carbón — minimal alto contraste (urbano)'),
+]
+CARTA_FONT_CHOICES = [
+    ('', 'La del diseño'),
+    ('serif', 'Serif elegante'),
+    ('sans', 'Sans moderna'),
+    ('mono', 'Mono técnica'),
+    ('script', 'Manuscrita'),
+]
+
+
 class Restaurant(models.Model):
     """Cliente/tenant de la plataforma: un restaurante con sus propias recetas."""
 
@@ -164,6 +180,12 @@ class Restaurant(models.Model):
     # /especiales/<slug>; carta_published controla si la carta es visible.
     public_slug = models.SlugField(max_length=80, unique=True, null=True, blank=True)
     carta_published = models.BooleanField(default=False)
+    # Personalización de la carta pública (diseño, fuente, colores, fondo).
+    carta_theme = models.CharField(max_length=16, choices=CARTA_THEME_CHOICES, default='marea')
+    carta_font = models.CharField(max_length=16, blank=True, default='')
+    carta_text_color = models.CharField(max_length=9, blank=True, default='')
+    carta_accent_color = models.CharField(max_length=9, blank=True, default='')
+    carta_bg_image = models.ImageField(upload_to='carta_bg/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
