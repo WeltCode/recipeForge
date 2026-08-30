@@ -22,6 +22,7 @@ from accounts.models import (
     UserProfile,
     get_user_restaurant,
     get_user_role,
+    log_activity,
     plan_allows,
     plan_features,
 )
@@ -124,7 +125,17 @@ class RecipeViewSet(ModelViewSet):
         # Si no se indicó plantilla, usar la por defecto del restaurante
         if not self.request.data.get('template') and restaurant:
             extra['template'] = restaurant.default_template
-        serializer.save(**extra)
+        obj = serializer.save(**extra)
+        log_activity(restaurant, user, 'create', 'receta', obj.name or obj.code)
+
+    def perform_update(self, serializer):
+        obj = serializer.save()
+        log_activity(obj.restaurant, self.request.user, 'update', 'receta', obj.name or obj.code)
+
+    def perform_destroy(self, instance):
+        r, name = instance.restaurant, (instance.name or instance.code)
+        super().perform_destroy(instance)
+        log_activity(r, self.request.user, 'delete', 'receta', name)
 
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def register_pdf(self, request):

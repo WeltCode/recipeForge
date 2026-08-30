@@ -436,3 +436,41 @@ def get_user_features(user):
 def plan_allows(restaurant, feature):
     """True si el plan del restaurante incluye la función `feature`."""
     return bool(plan_features(restaurant).get(feature, False))
+
+
+class ActivityLog(models.Model):
+    """Registro de actividad: quién creó/editó/borró qué. Se llena a partir de
+    ahora (no hay histórico previo). Alimenta el Dashboard."""
+
+    ACTION_CHOICES = [('create', 'Creó'), ('update', 'Editó'), ('delete', 'Borró')]
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name='activity')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+')
+    user_name = models.CharField(max_length=180, blank=True)   # denormalizado (sobrevive al borrado del usuario)
+    action = models.CharField(max_length=8, choices=ACTION_CHOICES)
+    entity = models.CharField(max_length=20, default='receta')
+    entity_name = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+
+def user_display_name(user):
+    if not user:
+        return ''
+    return (getattr(user, 'first_name', '') or getattr(user, 'username', '') or getattr(user, 'email', '') or '').strip()
+
+
+def log_activity(restaurant, user, action, entity, name):
+    """Crea una entrada de actividad sin romper nunca la petición si algo falla."""
+    if not restaurant:
+        return
+    try:
+        ActivityLog.objects.create(
+            restaurant=restaurant,
+            user=user if getattr(user, 'is_authenticated', False) else None,
+            user_name=user_display_name(user), action=action, entity=entity,
+            entity_name=(name or '')[:200],
+        )
+    except Exception:
+        pass

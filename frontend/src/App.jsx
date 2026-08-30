@@ -3,7 +3,8 @@ import RecipeSheetPreview from './components/RecipeSheetPreview'
 import Login from './components/Login'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
-import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck, Tag, Flame, Cloche } from './components/icons'
+import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck, Tag, Flame, Cloche, Grid } from './components/icons'
+import DashboardSection from './components/DashboardSection'
 import AppShell from './components/AppShell'
 import { LockedSection, UpgradeModal } from './components/FeatureGate'
 import AlergenosSection from './components/AlergenosSection'
@@ -355,7 +356,7 @@ function App() {
   const [avatar, setAvatar] = useState(getAvatar())
   const [role, setRole] = useState(getRole())
   const [view, setView] = useState('dashboard') // 'dashboard' | 'editor'
-  const [section, setSection] = useState('recetas') // sección activa del shell (usuario normal)
+  const [section, setSection] = useState('inicio') // sección activa del shell (usuario normal) — arranca en el panel
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [selectedRestaurantId, setSelectedRestaurantId] = useState(null)
   const [activeRestaurant, setActiveRestaurant] = useState({
@@ -396,7 +397,7 @@ function App() {
     setAuthed(false)
     setRole(null)
     setView('dashboard')
-    setSection('recetas')
+    setSection('inicio')
     setSelectedRestaurantId(null)
     setSessionExpired(false)
   }
@@ -853,7 +854,7 @@ function App() {
           setMustChange(mustChangePassword())
           setRole(data.role)
           setView('dashboard')
-          setSection('recetas')
+          setSection('inicio')
           setSessionExpired(false)
           // El shell ya está montado, así que el useEffect de arranque no vuelve a
           // correr: hay que refrescar aquí el estado que no se lee en cada render
@@ -931,6 +932,7 @@ function App() {
     // ── Usuario de restaurante → plataforma unificada (shell + secciones) ──
     const canTeam = hasPerm('can_manage_users')
     const userSections = [
+      { id: 'inicio', label: 'Inicio', icon: Grid },
       { id: 'recetas', label: 'Recetas', icon: RecipeSheet },
       { id: 'escandallo', label: 'Escandallo', icon: Coins, locked: !feat('escandallo') },
       { id: 'alergenos', label: 'Alérgenos', icon: Allergen, locked: !feat('allergens') },
@@ -944,7 +946,9 @@ function App() {
     ]
 
     let sectionContent = null
-    if (section === 'recetas') {
+    if (section === 'inicio') {
+      sectionContent = <DashboardSection username={username} role={role} plan={getPlan()} restaurantName={restaurantName} restaurantLogo={getRestaurantLogo()} onNavigate={setSection} onOpenRecipe={openRecipe} onNewRecipe={canCreate ? openNewRecipe : null} />
+    } else if (section === 'recetas') {
       sectionContent = (
         <Dashboard
           username={username} role={role} plan={getPlan()} restaurantName={restaurantName}

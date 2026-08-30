@@ -268,3 +268,67 @@ class RoleViewSet(viewsets.ModelViewSet):
             return qs.filter(restaurant=get_user_restaurant(u))
         restaurant_id = self.request.query_params.get('restaurant')
         return qs.filter(restaurant_id=restaurant_id) if restaurant_id else qs
+
+
+class DashboardView(APIView):
+    """Resumen condensado de todas las funciones. Solo agrega datos que YA
+    existen en la app (recetas, inventario, proveedores, escandallo, actividad)."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from django.db.models import Count
+        from recipes.models import Recipe
+        from catalog.models import InventoryItem, Supplier
+        from costeo.models import Costing, Insumo
+        from .models import ActivityLog, UserProfile, plan_features
+
+        user = request.user
+        r = get_user_restaurant(user)
+        if not r and get_user_role(user) == UserProfile.ROLE_SUPERADMIN:
+            rid = request.query_params.get('restaurant')
+            r = Restaurant.objects.filter(pk=rid).first() if rid else None
+        if not r:
+            return Response({'detail': 'No tienes un restaurante asignado.'}, status=400)
+
+        recipes = Recipe.objects.filter(restaurant=r)
+        by_cat = list(recipes.exclude(category='').values('category').annotate(n=Count('id')).order_by('-n')[:6])
+        recent = list(recipes.order_by('-updated_at').values(
+            'id', 'code', 'name', 'category', 'updated_at', 'created_at', 'revision')[:6])
+        on_menu = recipes.filter(on_menu=True)
+        pvp_total = 0.0
+        for it in on_menu.values('menu_price', 'sale_price'):
+            v = it['menu_price'] if it['menu_price'] is not None else it['sale_price']
+            if v is not None:
+                pvp_total += float(v)
+
+        inv = InventoryItem.objects.filter(restaurant=r)
+        low = sum(1 for i in inv if i.low_stock)
+
+        escandallos = Costing.objects.filter(restaurant=r)
+        fc_vals = [float(x) for x in escandallos.exclude(target_food_cost=None).values_list('target_food_cost', flat=True)]
+        fc_avg = round(sum(fc_vals) / len(fc_vals) * 100, 1) if fc_vals else None
+
+        activity = list(ActivityLog.objects.filter(restaurant=r).values(
+            'action', 'user_name', 'entity', 'entity_name', 'created_at')[:12])
+
+        feats = plan_features(r)
+        return Response({
+            'restaurant': {'name': r.name, 'plan': r.get_plan_display(), 'currency': r.currency},
+            'recipes': {
+                'total': recipes.count(), 'on_menu': on_menu.count(),
+                'priced': recipes.filter(sale_price__isnull=False).count(),
+                'by_category': by_cat, 'recent': recent,
+            },
+            'inventory': {'items': inv.count(), 'low_stock': low},
+            'suppliers': Supplier.objects.filter(restaurant=r).count(),
+            'insumos': Insumo.objects.filter(restaurant=r).count(),
+            'costeo': {
+                'escandallos': escandallos.count(),
+                'priced': escandallos.filter(sale_price__isnull=False).count(),
+                'target_food_cost_avg': fc_avg,
+            },
+            'money': {'menu_pvp_total': round(pvp_total, 2)},
+            'activity': activity,
+            'features': {k: feats.get(k) for k in ('escandallo', 'inventory', 'suppliers', 'carta', 'multiuser')},
+        })

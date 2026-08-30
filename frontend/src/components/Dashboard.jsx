@@ -154,7 +154,7 @@ export default function Dashboard({ username, role, plan, recipes, canCreate, ca
 
   return (
     <div>
-      <Saludo username={username} role={role} plan={plan} />
+      {/* El saludo/rol/plan se movió al Panel de Inicio. */}
 
       {/* Barra de acciones */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
