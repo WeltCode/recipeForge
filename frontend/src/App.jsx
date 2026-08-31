@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import RecipeSheetPreview from './components/RecipeSheetPreview'
 import Login from './components/Login'
+import VerifyEmail from './components/VerifyEmail'
 import Dashboard from './components/Dashboard'
 import AdminDashboard from './components/AdminDashboard'
 import { ArrowLeft, Doc, RecipeSheet, Coins, Allergen, Users, Gear, Inventory, Truck, Tag, Flame, Cloche, Grid } from './components/icons'
@@ -503,6 +504,8 @@ function App() {
   const isExportMode = Boolean(exportRecipeId)
   // Rutas PÚBLICAS sin login (carta/especiales por slug); Netlify sirve SPA.
   const publicRoute = window.location.pathname.match(/^\/(carta|especiales)\/([^/]+)\/?$/)
+  // Verificación de correo (enlace del email): /verificar?uid=&token=
+  const isVerifyRoute = window.location.pathname.replace(/\/$/, '') === '/verificar'
   // La RAÍZ (recipeforge.es) es la web de ventas; la app vive en app.recipeforge.es.
   // Solo el dominio de marketing exacto muestra la landing; el resto (app.*,
   // netlify.app, localhost) es la app. La carta pública funciona en cualquier host.
@@ -863,6 +866,11 @@ function App() {
     return kind === 'carta' ? <CartaPublica slug={slug} /> : <EspecialesPublica slug={slug} />
   }
 
+  // ── Verificación de correo (enlace del email, sin login) ──────────────────
+  if (isVerifyRoute && !isExportMode) {
+    return <VerifyEmail />
+  }
+
   // ── RAÍZ de marketing (recipeforge.es): web de ventas / landing ───────────
   // (la app y el login viven en app.recipeforge.es). No aplica al modo export.
   if (isMarketingRoot && !isExportMode) {
@@ -1018,7 +1026,8 @@ function App() {
         sections={userSections} active={section} onNavigate={setSection}
         username={username} role={role} plan={getPlan()} restaurantName={restaurantName}
         restaurants={getRestaurants()} onSwitchRestaurant={handleSwitchRestaurant}
-        canAddLocal={feat('multi_local')} onAddLocal={handleAddLocal} onDeleteLocal={handleDeleteLocal}
+        canAddLocal={feat('multi_local') && hasPerm('can_manage_locals')} onAddLocal={handleAddLocal}
+        onDeleteLocal={hasPerm('can_manage_locals') ? handleDeleteLocal : null}
         avatar={avatar} onLogout={handleLogout}
       >
         {connBanner}

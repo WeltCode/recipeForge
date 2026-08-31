@@ -12,6 +12,7 @@ const FLAGS = [
   ['can_delete_recipes', 'Borrar recetas', 'Eliminar fichas'],
   ['can_view_escandallo', 'Ver coste / escandallo', 'Acceso a costes y escandallo'],
   ['can_manage_users', 'Gestionar usuarios', 'Añadir y quitar personas del equipo'],
+  ['can_manage_locals', 'Añadir / eliminar locales', 'Crear o borrar restaurantes del dueño (requiere plan Business)'],
 ]
 
 // Descripción y acento por rol (según su key estable).

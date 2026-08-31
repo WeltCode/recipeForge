@@ -131,8 +131,21 @@ function CartaTab({ slug }) {
                   </div>
                   {on && (
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      <input value={e.menu_section} onChange={(ev) => upd(r.id, 'menu_section', ev.target.value)} placeholder="Sección (Entrantes, Postres…)" className={inp} />
-                      <input value={e.menu_price} onChange={(ev) => upd(r.id, 'menu_price', ev.target.value)} placeholder={`Precio (${currencySymbol()})`} inputMode="decimal" className={inp} />
+                      <label className="flex flex-col gap-1 text-[12px] text-ink-2">Sección
+                        <select value={e.menu_section} onChange={(ev) => upd(r.id, 'menu_section', ev.target.value)} className={inp}>
+                          <option value="">Elegir sección…</option>
+                          <option value="Entrante">Entrante</option>
+                          <option value="Segundo">Segundo</option>
+                          <option value="Postre">Postre</option>
+                          {/* conserva una sección personalizada anterior si la hubiera */}
+                          {e.menu_section && !['Entrante', 'Segundo', 'Postre'].includes(e.menu_section) && (
+                            <option value={e.menu_section}>{e.menu_section}</option>
+                          )}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1 text-[12px] text-ink-2">Precio ({currencySymbol()})
+                        <input value={e.menu_price} onChange={(ev) => upd(r.id, 'menu_price', ev.target.value)} placeholder={`0,00 ${currencySymbol()}`} inputMode="decimal" className={inp} />
+                      </label>
                     </div>
                   )}
                 </div>

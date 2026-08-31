@@ -189,6 +189,29 @@ def send_welcome_email(user, restaurant):
     return send_mail_safe(subject, body, user.email, html=html)
 
 
+def send_verification_email(user, verify_url):
+    """Enlace para verificar el correo tras el alta autoservicio."""
+    name = _display_name(user)
+    subject = f'Verifica tu cuenta de {BRAND}'
+    body = (
+        f'Hola {name},\n\n'
+        f'Gracias por crear tu cuenta en {BRAND}. Para activarla y poder entrar,'
+        f' confirma tu correo aquí:\n{verify_url}\n\n'
+        f'Si no fuiste tú, ignora este mensaje.\n\n'
+        f'— El equipo de {BRAND}'
+    )
+    html = _wrap_html(
+        'Verifica tu cuenta',
+        f'<p style="color:#3a352e;line-height:1.55">Hola {name}, gracias por crear tu cuenta en '
+        f'<strong>{BRAND}</strong>. Para activarla y poder entrar, confirma tu correo:</p>'
+        f'{_email_btn(verify_url, "Verificar mi cuenta →")}'
+        f'<p style="color:#6a635c;font-size:13px">Si el botón no funciona, copia este enlace:<br>'
+        f'<a href="{verify_url}" style="color:#b0552b;word-break:break-all">{verify_url}</a></p>'
+        f'<p style="color:#9a9186;font-size:12px">Si no fuiste tú, ignora este mensaje.</p>',
+    )
+    return send_mail_safe(subject, body, user.email, html=html)
+
+
 def send_admin_new_signup(restaurant, user):
     """Aviso al admin de cada alta nueva: plan, tipo de cuenta y datos de contacto."""
     from django.utils import timezone

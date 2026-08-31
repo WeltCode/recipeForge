@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { login, signup, requestPasswordReset } from '../auth'
+import { login, signup, requestPasswordReset, resendVerification } from '../auth'
 import Logo from './Logo'
 import wokVideo from '../assets/wokvideo.mp4'
 import { User, Lock, Eye, EyeOff, Flame } from './icons'
@@ -93,6 +93,7 @@ function Login({ onSuccess, notice }) {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)   // { id, kind:'error'|'ok', title, msg }
+  const [unverified, setUnverified] = useState('')  // correo pendiente de verificar
   const [hasVideo, setHasVideo] = useState(true)
   const panelRef = useRef(null)
 
@@ -145,6 +146,7 @@ function Login({ onSuccess, notice }) {
     if (!validate()) return
     setToast(null)
     setLoading(true)
+    setUnverified('')
     try {
       if (mode === 'login') {
         const data = await login(username.trim(), password)
@@ -157,21 +159,37 @@ function Login({ onSuccess, notice }) {
           first_name: firstName.trim(),
           account_type: accountType,
         })
-        onSuccess(data)
+        if (data.verification_required) {
+          setMode('login')
+          notify('ok', 'Revisa tu correo', 'Te enviamos un enlace para verificar tu cuenta. Ábrelo para activarla y poder entrar.', { doShake: false })
+        } else {
+          onSuccess(data)
+        }
       } else {
         const detail = await requestPasswordReset(username.trim())
         notify('ok', 'Revisa tu correo', detail || 'Si el correo está registrado, te enviaremos una contraseña temporal.', { doShake: false })
       }
     } catch (err) {
-      // Mensajes más humanos para los casos típicos del login.
       const raw = err.message || 'Algo salió mal.'
-      if (mode === 'login' && /incorrect|401|credential/i.test(raw)) {
+      if (err.code === 'email_not_verified') {
+        setUnverified(err.email || username.trim())
+        notify('error', 'Falta verificar tu correo', raw)
+      } else if (mode === 'login' && /incorrect|401|credential/i.test(raw)) {
         notify('error', 'No pudimos entrar', 'El correo o la contraseña no coinciden. Revísalos e inténtalo de nuevo.')
       } else {
         notify('error', 'Ups', raw)
       }
     } finally {
       setLoading(false)
+    }
+  }
+
+  const doResend = async () => {
+    try {
+      await resendVerification(unverified)
+      notify('ok', 'Enviado', 'Si la cuenta sigue sin verificar, te reenviamos el enlace. Revisa tu correo.', { doShake: false })
+    } catch (err) {
+      notify('error', 'Ups', err.message || 'No se pudo reenviar.')
     }
   }
 
@@ -377,9 +395,16 @@ function Login({ onSuccess, notice }) {
                         </button>
                       </div>
                       {mode === 'login' && (
-                        <button type="button" onClick={() => switchMode('forgot')} className="rf-cond mt-2 text-[12px] uppercase tracking-[0.1em] text-[#b0552b] transition hover:text-[#8a3d15]">
-                          ¿Olvidaste tu contraseña?
-                        </button>
+                        <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+                          <button type="button" onClick={() => switchMode('forgot')} className="rf-cond text-[12px] uppercase tracking-[0.1em] text-[#b0552b] transition hover:text-[#8a3d15]">
+                            ¿Olvidaste tu contraseña?
+                          </button>
+                          {unverified && (
+                            <button type="button" onClick={doResend} className="rf-cond text-[12px] uppercase tracking-[0.1em] text-[#b0552b] transition hover:text-[#8a3d15]">
+                              Reenviar verificación
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}

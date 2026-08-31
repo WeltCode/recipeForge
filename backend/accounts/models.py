@@ -113,7 +113,7 @@ DEFAULT_ROLES = {
     'owner': dict(
         name='Owner (Dueño)', can_view_recipes=True, can_edit_recipes=True,
         can_create_recipes=True, can_delete_recipes=True,
-        can_view_escandallo=True, can_manage_users=True,
+        can_view_escandallo=True, can_manage_users=True, can_manage_locals=True,
     ),
     'manager': dict(
         name='Manager (Chef)', can_view_recipes=True, can_edit_recipes=True,
@@ -243,6 +243,9 @@ class Role(models.Model):
     can_delete_recipes = models.BooleanField(default=False)
     can_view_escandallo = models.BooleanField(default=False)
     can_manage_users = models.BooleanField(default=False)
+    # Añadir/eliminar locales (multi-local). Por defecto solo el Owner (+ el
+    # superadmin, que puede todo). Requiere además que el plan lo incluya.
+    can_manage_locals = models.BooleanField(default=False)
 
     class Meta:
         ordering = ['restaurant', 'id']
@@ -334,6 +337,10 @@ class UserProfile(models.Model):
     # True mientras el usuario use una contraseña temporal/por defecto: al entrar
     # se le obliga a definir la suya. Se pone al crear (auto) y al restablecer.
     must_change_password = models.BooleanField(default=False)
+    # Correo verificado. Default True para no bloquear a los usuarios existentes
+    # ni a los creados por un admin; el alta AUTOSERVICIO lo pone en False y exige
+    # verificar antes de poder entrar.
+    email_verified = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -388,6 +395,7 @@ SUPERADMIN = 'superadmin'  # rol de plataforma (is_superuser), no es un rol de r
 PERMISSION_FLAGS = [
     'can_view_recipes', 'can_edit_recipes', 'can_create_recipes',
     'can_delete_recipes', 'can_view_escandallo', 'can_manage_users',
+    'can_manage_locals',
 ]
 
 

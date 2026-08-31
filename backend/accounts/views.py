@@ -2,9 +2,12 @@ from datetime import timedelta
 
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -17,11 +20,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
 from .emails import (
-    send_admin_new_signup, send_admin_plan_change, send_password_reset, send_welcome_email,
+    send_admin_new_signup, send_admin_plan_change, send_password_reset,
+    send_verification_email, send_welcome_email,
 )
 from .models import (
     CURRENCY_CHOICES, Membership, PlanChangeRequest, Restaurant, Role,
-    generate_temp_password, get_user_restaurant, get_user_role, plan_features,
+    generate_temp_password, get_user_restaurant, get_user_role, plan_features, user_can,
 )
 from .permissions import CanManageUsers, IsSuperAdmin
 from .serializers import (
@@ -163,6 +167,15 @@ def _login_payload(user, request, extra=None):
     return data
 
 
+def _verify_url(user, request):
+    """Enlace de verificación de correo (token de un solo uso, caduca en días)."""
+    from django.conf import settings
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    base = getattr(settings, 'FRONTEND_BASE_URL', '').rstrip('/')
+    return f'{base}/verificar?uid={uid}&token={token}'
+
+
 class SignupView(APIView):
     """Alta autoservicio a la PRUEBA (abierta): crea un restaurante en plan Prueba
     + su usuario owner, envía bienvenida + aviso al admin, y autentica. Con
@@ -206,11 +219,59 @@ class SignupView(APIView):
             user.save()  # el signal crea el UserProfile
             role = Role.objects.filter(restaurant=restaurant, key='owner').first()
             Membership.objects.create(user=user, restaurant=restaurant, role=role)
+            # Alta autoservicio → exige verificar el correo antes de entrar.
+            prof = user.profile
+            prof.email_verified = False
+            prof.save(update_fields=['email_verified'])
 
         # Correos (nunca rompen la petición).
+        send_verification_email(user, _verify_url(user, request))
         send_welcome_email(user, restaurant)
         send_admin_new_signup(restaurant, user)
-        return Response(_login_payload(user, request), status=201)
+        # NO se auto-inicia sesión: primero hay que verificar el correo.
+        return Response({'verification_required': True, 'email': email}, status=201)
+
+
+class VerifyEmailView(APIView):
+    """Verifica el correo con uid+token del enlace y deja al usuario dentro
+    (auto-login), para que el alta autoservicio termine sin fricción."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = 'signup'
+
+    def post(self, request):
+        uidb64 = request.data.get('uid') or ''
+        token = request.data.get('token') or ''
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+        if not user or not default_token_generator.check_token(user, token):
+            return Response({'detail': 'El enlace no es válido o ha caducado. Pide uno nuevo.'}, status=400)
+        prof = getattr(user, 'profile', None)
+        if prof and not prof.email_verified:
+            prof.email_verified = True
+            prof.save(update_fields=['email_verified'])
+        return Response(_login_payload(user, request))
+
+
+class ResendVerificationView(APIView):
+    """Reenvía el correo de verificación. Responde 200 SIEMPRE (no revela nada)."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = 'signup'
+
+    def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        ok = {'detail': 'Si la cuenta existe y está sin verificar, te reenviamos el correo.'}
+        if not email:
+            return Response(ok)
+        user = User.objects.filter(username__iexact=email).first() or User.objects.filter(email__iexact=email).first()
+        prof = getattr(user, 'profile', None) if user else None
+        if user and user.email and prof and not prof.email_verified:
+            send_verification_email(user, _verify_url(user, request))
+        return Response(ok)
 
 
 class PasswordResetRequestView(APIView):
@@ -305,8 +366,8 @@ class OwnerCreateRestaurantView(APIView):
     def post(self, request):
         user = request.user
         current = get_user_restaurant(user)
-        if get_user_role(user) != 'owner':
-            raise PermissionDenied('Solo el dueño puede crear locales.')
+        if not user_can(user, 'can_manage_locals'):
+            raise PermissionDenied('No tienes permiso para añadir locales.')
         if not plan_features(current).get('multi_local'):
             raise PermissionDenied('Tu plan no incluye varios locales. Sube a Business para gestionar más de uno.')
         name = (request.data.get('name') or '').strip()
@@ -335,9 +396,13 @@ class OwnerDeleteRestaurantView(APIView):
 
     def delete(self, request, pk):
         user = request.user
-        m = Membership.objects.filter(user=user, restaurant_id=pk, role__key='owner').select_related('restaurant').first()
+        # Debe pertenecer a ese local con un rol que permita gestionar locales
+        # (por defecto Owner). El superadmin borra restaurantes por otra vía.
+        m = Membership.objects.filter(
+            user=user, restaurant_id=pk, role__can_manage_locals=True,
+        ).select_related('restaurant').first()
         if not m:
-            raise PermissionDenied('Solo el dueño puede eliminar este local.')
+            raise PermissionDenied('No tienes permiso para eliminar este local.')
         if user.memberships.count() <= 1:
             raise PermissionDenied('No puedes eliminar tu único local.')
         prof = getattr(user, 'profile', None)

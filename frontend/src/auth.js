@@ -156,6 +156,33 @@ export function clearSession() {
   Object.values(KEYS).forEach((k) => localStorage.removeItem(k))
 }
 
+// Mapea un payload de login/verificación (contexto /me + tokens) a storeSession.
+function _sessionFromLogin(data) {
+  return {
+    access: data.access,
+    refresh: data.refresh,
+    role: data.role,
+    permissions: data.permissions,
+    features: data.features,
+    usage: data.usage,
+    plan: data.restaurant_plan,
+    title: data.title,
+    username: data.username,
+    first_name: data.first_name,
+    avatar: data.avatar ?? '',
+    must_change_password: data.must_change_password,
+    restaurant: data.restaurant,
+    restaurant_name: data.restaurant_name,
+    restaurant_prefix: data.restaurant_prefix,
+    restaurant_logo: data.restaurant_logo,
+    restaurant_default_template: data.restaurant_default_template,
+    restaurant_currency: data.restaurant_currency,
+    restaurant_public_slug: data.restaurant_public_slug,
+    restaurant_carta_published: data.restaurant_carta_published,
+    restaurants: data.restaurants,
+  }
+}
+
 export async function login(username, password) {
   let res
   try {
@@ -168,8 +195,16 @@ export async function login(username, password) {
     throw new Error(`No se pudo conectar con el servidor (${API_BASE}).`)
   }
   if (!res.ok) {
-    if (res.status === 401) throw new Error('Usuario o contraseña incorrectos.')
-    throw new Error(`Error al iniciar sesión (${res.status}).`)
+    const body = await res.json().catch(() => ({}))
+    // DRF envuelve los valores en listas; los aplanamos.
+    const flat = (v) => (Array.isArray(v) ? v[0] : v)
+    if (flat(body.code) === 'email_not_verified') {
+      const e = new Error(flat(body.detail) || 'Verifica tu correo antes de entrar.')
+      e.code = 'email_not_verified'; e.email = flat(body.email)
+      throw e
+    }
+    if (res.status === 401) throw new Error('Correo/usuario o contraseña incorrectos.')
+    throw new Error(flat(body.detail) || `Error al iniciar sesión (${res.status}).`)
   }
   const data = await res.json()
   storeSession({
@@ -253,30 +288,35 @@ export async function signup({ restaurant_name, email, password, first_name, acc
     const detail = data.detail || Object.values(data).flat().join(' ') || `Error al crear la cuenta (${res.status}).`
     throw new Error(detail)
   }
-  storeSession({
-    access: data.access,
-    refresh: data.refresh,
-    role: data.role,
-    permissions: data.permissions,
-    features: data.features,
-    usage: data.usage,
-    plan: data.restaurant_plan,
-    title: data.title,
-    username: data.username,
-    first_name: data.first_name,
-    avatar: data.avatar ?? '',
-    must_change_password: data.must_change_password,
-    restaurant: data.restaurant,
-    restaurant_name: data.restaurant_name,
-    restaurant_prefix: data.restaurant_prefix,
-    restaurant_logo: data.restaurant_logo,
-    restaurant_default_template: data.restaurant_default_template,
-    restaurant_currency: data.restaurant_currency,
-    restaurant_public_slug: data.restaurant_public_slug,
-    restaurant_carta_published: data.restaurant_carta_published,
-    restaurants: data.restaurants,
+  // El alta autoservicio exige verificar el correo: NO auto-inicia sesión.
+  // (Si algún día se enviara sin verificación, vendría `access` y se guardaría.)
+  if (data.access) storeSession(_sessionFromLogin(data))
+  return data  // { verification_required, email }
+}
+
+// Verifica el correo con uid+token del enlace y deja la sesión iniciada.
+export async function verifyEmail(uid, token) {
+  const res = await fetch(`${API_BASE}/auth/verify-email/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid, token }),
   })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || `Error ${res.status}`)
+  storeSession(_sessionFromLogin(data))
   return data
+}
+
+// Reenvía el correo de verificación. Responde siempre OK.
+export async function resendVerification(email) {
+  const res = await fetch(`${API_BASE}/auth/resend-verification/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || `Error ${res.status}`)
+  return data.detail
 }
 
 // Solicita el enlace de restablecer contraseña. Responde siempre OK (no revela

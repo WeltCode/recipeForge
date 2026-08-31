@@ -193,6 +193,13 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         data = super().validate(attrs)
         user = self.user
+        # Correo sin verificar (alta autoservicio) → no se permite entrar aún.
+        prof = getattr(user, 'profile', None)
+        if prof and not prof.email_verified:
+            raise serializers.ValidationError(
+                {'detail': 'Verifica tu correo antes de entrar. Te enviamos un enlace al registrarte.',
+                 'code': 'email_not_verified', 'email': user.email or user.username},
+            )
         r = get_user_restaurant(user)
         data['role'] = get_user_role(user)
         data['permissions'] = get_user_permissions(user)
@@ -240,7 +247,8 @@ class RoleSerializer(serializers.ModelSerializer):
         model = Role
         fields = ['id', 'restaurant', 'key', 'name',
                   'can_view_recipes', 'can_edit_recipes', 'can_create_recipes',
-                  'can_delete_recipes', 'can_view_escandallo', 'can_manage_users']
+                  'can_delete_recipes', 'can_view_escandallo', 'can_manage_users',
+                  'can_manage_locals']
         read_only_fields = ['restaurant', 'key']
 
 

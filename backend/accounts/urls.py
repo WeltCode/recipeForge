@@ -5,8 +5,9 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from .views import (
     ActiveRestaurantView, ChangePasswordView, DashboardView, LoginView, MeView,
     OwnerCreateRestaurantView, OwnerDeleteRestaurantView, PasswordResetRequestView,
-    PlanChangeRequestViewSet, ProfileAvatarView, RestaurantSettingsView,
-    RestaurantViewSet, RoleViewSet, SignupView, UserAdminViewSet,
+    PlanChangeRequestViewSet, ProfileAvatarView, ResendVerificationView,
+    RestaurantSettingsView, RestaurantViewSet, RoleViewSet, SignupView,
+    UserAdminViewSet, VerifyEmailView,
 )
 
 router = DefaultRouter()
@@ -18,6 +19,8 @@ router.register('plan-requests', PlanChangeRequestViewSet, basename='plan-reques
 urlpatterns = [
     path('auth/login/', LoginView.as_view(), name='login'),
     path('auth/signup/', SignupView.as_view(), name='signup'),
+    path('auth/verify-email/', VerifyEmailView.as_view(), name='verify-email'),
+    path('auth/resend-verification/', ResendVerificationView.as_view(), name='resend-verification'),
     path('auth/password-reset/', PasswordResetRequestView.as_view(), name='password-reset'),
     path('auth/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('auth/me/', MeView.as_view(), name='me'),
