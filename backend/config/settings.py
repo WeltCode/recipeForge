@@ -240,7 +240,11 @@ ADMIN_NOTIFY_EMAIL = os.environ.get('ADMIN_NOTIFY_EMAIL', 'weltcode@gmail.com')
 # Base del frontend para construir enlaces (p. ej. el de restablecer contraseña).
 FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'https://app.recipeforge.es' if not DEBUG else 'http://localhost:5173')
 
-_RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+# Envío por la API HTTP de Resend (puerto 443) cuando hay API key: es lo que
+# funciona en PaaS como Render, que bloquean el SMTP saliente (587/465). Si no
+# hay key, se usa el backend de Django (consola en DEBUG, dummy en prod).
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+_RESEND_API_KEY = RESEND_API_KEY
 EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.resend.com' if _RESEND_API_KEY else '').strip()
 EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'resend' if _RESEND_API_KEY else '').strip()

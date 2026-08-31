@@ -4,7 +4,10 @@ Todo el envío pasa por `send_mail_safe`, que NUNCA lanza: si el correo no está
 configurado (sin credenciales) o el envío falla, se registra y se sigue. Así una
 alta o un reset jamás se rompen por un problema de correo.
 """
+import json
 import logging
+import urllib.error
+import urllib.request
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -13,14 +16,49 @@ logger = logging.getLogger(__name__)
 
 BRAND = 'RecipeForge'
 
+RESEND_ENDPOINT = 'https://api.resend.com/emails'
+
+
+def _resend_api_send(recipients, subject, body, html, reply_to):
+    """Envía por la API HTTP de Resend (puerto 443). Funciona en Render, que
+    bloquea el SMTP saliente. Lanza si la respuesta no es 2xx."""
+    key = getattr(settings, 'RESEND_API_KEY', '')
+    payload = {
+        'from': getattr(settings, 'DEFAULT_FROM_EMAIL', 'RecipeForge <info@recipeforge.es>'),
+        'to': recipients,
+        'subject': subject,
+        'text': body,
+    }
+    if html:
+        payload['html'] = html
+    if reply_to:
+        payload['reply_to'] = reply_to
+    req = urllib.request.Request(
+        RESEND_ENDPOINT,
+        data=json.dumps(payload).encode('utf-8'),
+        headers={
+            'Authorization': f'Bearer {key}',
+            'Content-Type': 'application/json',
+            # User-Agent propio: el de urllib por defecto lo bloquea el Cloudflare
+            # de Resend (error 1010).
+            'User-Agent': f'{BRAND}/1.0 (+https://recipeforge.es)',
+        },
+        method='POST',
+    )
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return 200 <= resp.status < 300
+
 
 def send_mail_safe(subject, body, to, html=None, reply_to=None):
-    """Envía un correo sin romper la petición. Devuelve True si se entregó al
-    backend, False si estaba desactivado o hubo error."""
+    """Envía un correo sin romper NUNCA la petición. Con RESEND_API_KEY usa la API
+    HTTP de Resend (puerto 443, va en Render); si no, el backend de Django
+    (consola en DEBUG, dummy en prod). Devuelve True si se entregó, False si no."""
     if not to:
         return False
     recipients = [to] if isinstance(to, str) else list(to)
     try:
+        if getattr(settings, 'RESEND_API_KEY', ''):
+            return _resend_api_send(recipients, subject, body, html, reply_to)
         msg = EmailMultiAlternatives(
             subject=subject,
             body=body,
