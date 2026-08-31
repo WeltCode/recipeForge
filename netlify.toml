@@ -12,3 +12,29 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# ── Cabeceras de caché ────────────────────────────────────────────────────────
+# El service worker NUNCA debe cachearse: así la PWA detecta cada versión nueva
+# al instante. `no-store` evita además que Cloudflare (proxy del dominio) lo
+# sirva viejo hasta 4 h, que es lo que dejaba a la app "pegada" en la versión
+# anterior tras cada despliegue.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0, no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Los bundles llevan hash en el nombre → son inmutables: cachear a tope.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
