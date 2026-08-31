@@ -1,17 +1,18 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Logo from './Logo'
-import { authFetch, getFirstName } from '../auth'
+import { authFetch, getFirstName, getAvatar, uploadAvatar } from '../auth'
 import RestaurantDetail from './RestaurantDetail'
 import UserManager from './UserManager'
 import { greeting, capitalize, initials, Embers, StatusLamp } from '../lib/ui'
 import { CURRENCY_OPTS } from '../lib/money'
-import { LogOut, Plus, Search, Book, User, Cloche, Sparkle, X, Flame } from './icons'
+import { LogOut, Plus, Search, Book, User, Cloche, Sparkle, X, Flame, Pencil } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
 const emptyNew = {
   name: '', code_prefix: '', tax_id: '', contact_email: '', contact_phone: '', address: '',
   currency: 'EUR', default_template: 'formal', plan: 'prueba',
+  owner_mode: 'new',  // 'new' = crear dueño · 'existing' = ligar a un dueño ya existente
   owner_first_name: '', owner_last_name: '', owner_email: '', owner_phone: '', owner_role: 'owner',
 }
 const TEMPLATE_OPTS = [['formal', 'Formal'], ['moderna', 'Moderna'], ['tradicional', 'Tradicional'], ['llamativa', 'Llamativa']]
@@ -30,6 +31,24 @@ function AdminDashboard({
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState('')
   const [ownerCred, setOwnerCred] = useState(null) // { login, password } tras crear
+  const [avatar, setAvatarState] = useState(getAvatar())
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
+  const avatarInputRef = useRef(null)
+
+  const onPickAvatar = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setUploadingAvatar(true)
+    try {
+      const url = await uploadAvatar(file)
+      setAvatarState(url)
+    } catch (err) {
+      setError(`No se pudo subir la foto: ${err.message}`)
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
 
   const loadRestaurants = async () => {
     try {
@@ -66,7 +85,7 @@ function AdminDashboard({
       const res = await authFetch(`${API_BASE}/restaurants/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(nuevo),
+        body: JSON.stringify({ ...nuevo, owner_existing: nuevo.owner_mode === 'existing' }),
       })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(Object.values(data).flat().join(' '))
@@ -108,14 +127,34 @@ function AdminDashboard({
         <div aria-hidden className="pointer-events-none absolute -left-28 -top-28 h-80 w-80 rounded-full" style={{ background: 'radial-gradient(circle, rgba(255,138,76,0.22), transparent 68%)' }} />
         <div aria-hidden className="pointer-events-none absolute right-[-6rem] top-[-4rem] h-72 w-72 rounded-full" style={{ background: 'radial-gradient(circle, rgba(232,83,31,0.16), transparent 66%)' }} />
         <div className="relative mx-auto max-w-6xl px-5 pb-28 pt-6 md:px-8">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <Logo variant="dark" className="text-2xl" />
             <div className="flex items-center gap-2.5">
+              {/* Identidad del superadmin: foto (clicable para subir) + nombre + rol */}
+              <input ref={avatarInputRef} type="file" accept="image/*" onChange={onPickAvatar} className="hidden" />
+              <button
+                onClick={() => avatarInputRef.current?.click()}
+                title="Cambiar mi foto"
+                className="group flex items-center gap-2.5 rounded-full border border-white/12 bg-white/[.06] py-1 pl-1 pr-3.5 backdrop-blur transition hover:bg-white/[.12]"
+              >
+                <span className="relative grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-[#ff7a34] to-[#c8371a] text-[13px] font-semibold text-white">
+                  {avatar ? <img src={avatar} alt="" className="h-full w-full object-cover" /> : initials(getFirstName() || username)}
+                  <span className="absolute inset-0 grid place-items-center bg-black/45 opacity-0 transition group-hover:opacity-100">
+                    {uploadingAvatar
+                      ? <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+                      : <Pencil size={14} className="text-white" />}
+                  </span>
+                </span>
+                <span className="hidden text-left leading-tight sm:block">
+                  <span className="block text-[13px] font-medium text-white/90">{capitalize(getFirstName() || username)}</span>
+                  <span className="rf-cond block text-[10px] uppercase tracking-[0.14em] text-[#ffcf9e]">Super Admin</span>
+                </span>
+              </button>
               <button onClick={() => setShowAdmins(true)} className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[.06] px-4 py-2 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/[.12]">
-                <Sparkle size={15} /> Administradores
+                <Sparkle size={15} /> <span className="hidden sm:inline">Administradores</span>
               </button>
               <button onClick={onLogout} className="flex items-center gap-2 rounded-full border border-white/12 bg-white/[.06] px-4 py-2 text-sm font-medium text-white/90 backdrop-blur transition hover:bg-white/[.12]">
-                <LogOut size={17} /> Salir
+                <LogOut size={17} /> <span className="hidden sm:inline">Salir</span>
               </button>
             </div>
           </div>
@@ -323,21 +362,41 @@ function AdminDashboard({
                   </div>
 
                   <div className="rf-steel rf-edge rounded-xl border border-[#c4ccd2] p-4">
-                    <p className="rf-cond mb-3 flex items-center gap-1.5 text-xs font-600 uppercase tracking-[0.12em] text-[#7a736b]" style={{ fontWeight: 600 }}><User size={13} /> Usuario dueño (entra con su correo)</p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      {fld('Nombre *', 'owner_first_name', { required: true })}
-                      {fld('Apellido', 'owner_last_name', {})}
-                      {fld('Correo *', 'owner_email', { required: true, type: 'email', ph: 'dueno@rest.com' })}
-                      {fld('Teléfono', 'owner_phone', {})}
+                    <p className="rf-cond mb-3 flex items-center gap-1.5 text-xs font-600 uppercase tracking-[0.12em] text-[#7a736b]" style={{ fontWeight: 600 }}><User size={13} /> Dueño del restaurante</p>
+                    {/* Nuevo dueño o ligar a uno existente (2º local del mismo dueño) */}
+                    <div className="mb-3 grid grid-cols-2 gap-2">
+                      {[['new', 'Dueño nuevo'], ['existing', 'Dueño existente']].map(([val, lbl]) => {
+                        const on = nuevo.owner_mode === val
+                        return (
+                          <button key={val} type="button" onClick={() => setNuevo({ ...nuevo, owner_mode: val })}
+                            className={`rf-cond rounded-lg border px-3 py-2 text-[12px] uppercase tracking-[0.06em] transition ${on ? 'border-[#e8531f] bg-[#fff3ea] text-[#8a3d15]' : 'border-[#b9c0c6] bg-white text-[#6a635c] hover:border-[#e8531f]/50'}`}
+                            style={{ fontWeight: on ? 600 : 500 }}>{lbl}</button>
+                        )
+                      })}
                     </div>
-                    <label className="mt-3 flex flex-col gap-1 text-[12px] text-[#6a635c]">Rol
-                      <select value={nuevo.owner_role} onChange={(e) => setNuevo({ ...nuevo, owner_role: e.target.value })} className={inp}>
-                        <option value="owner">Owner (dueño: todo + gestión)</option>
-                        <option value="manager">Manager (chef: crear/editar/borrar)</option>
-                        <option value="editor">Editor (editar, sin crear/borrar)</option>
-                        <option value="viewer">Viewer (cocina: solo consulta)</option>
-                      </select></label>
-                    <p className="mt-2 text-[11px] text-[#8a837b]">Se generará una contraseña temporal que el dueño cambiará al entrar.</p>
+                    {nuevo.owner_mode === 'existing' ? (
+                      <>
+                        {fld('Correo del dueño existente *', 'owner_email', { required: true, type: 'email', ph: 'dueno@rest.com' })}
+                        <p className="mt-2 text-[11px] text-[#8a837b]">Se ligará este nuevo local al dueño con ese correo (su 2º restaurante). No se crea usuario nuevo.</p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          {fld('Nombre *', 'owner_first_name', { required: true })}
+                          {fld('Apellido', 'owner_last_name', {})}
+                          {fld('Correo *', 'owner_email', { required: true, type: 'email', ph: 'dueno@rest.com' })}
+                          {fld('Teléfono', 'owner_phone', {})}
+                        </div>
+                        <label className="mt-3 flex flex-col gap-1 text-[12px] text-[#6a635c]">Rol
+                          <select value={nuevo.owner_role} onChange={(e) => setNuevo({ ...nuevo, owner_role: e.target.value })} className={inp}>
+                            <option value="owner">Owner (dueño: todo + gestión)</option>
+                            <option value="manager">Manager (chef: crear/editar/borrar)</option>
+                            <option value="editor">Editor (editar, sin crear/borrar)</option>
+                            <option value="viewer">Viewer (cocina: solo consulta)</option>
+                          </select></label>
+                        <p className="mt-2 text-[11px] text-[#8a837b]">Se generará una contraseña temporal que el dueño cambiará al entrar.</p>
+                      </>
+                    )}
                   </div>
                 </>
                 ) })()}

@@ -1,20 +1,27 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.generics import RetrieveAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from .emails import (
+    send_admin_new_signup, send_admin_plan_change, send_password_reset, send_welcome_email,
+)
 from .models import (
-    CURRENCY_CHOICES, PlanChangeRequest, Restaurant, Role,
-    generate_temp_password, get_user_restaurant, get_user_role,
+    CURRENCY_CHOICES, Membership, PlanChangeRequest, Restaurant, Role,
+    generate_temp_password, get_user_restaurant, get_user_role, plan_features,
 )
 from .permissions import CanManageUsers, IsSuperAdmin
 from .serializers import (
@@ -88,7 +95,9 @@ class PlanChangeRequestViewSet(viewsets.ModelViewSet):
         if not restaurant:
             raise ValidationError('Sin restaurante.')
         # El estado siempre nace pendiente (solo el superadmin lo resuelve).
-        serializer.save(restaurant=restaurant, created_by=u, status=PlanChangeRequest.STATUS_PENDING)
+        obj = serializer.save(restaurant=restaurant, created_by=u, status=PlanChangeRequest.STATUS_PENDING)
+        # Aviso al admin (además del banner del dashboard). No rompe la petición.
+        send_admin_plan_change(restaurant, obj.get_requested_plan_display(), u)
 
     def perform_update(self, serializer):
         if not self.request.user.is_superuser:
@@ -130,6 +139,109 @@ class LoginView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
+def _prefix_from_name(name):
+    """Prefijo corto para los códigos de receta a partir del nombre del negocio."""
+    words = [w for w in ''.join(c if c.isalnum() else ' ' for c in name).split() if w]
+    if len(words) >= 2:
+        pref = ''.join(w[0] for w in words[:4])
+    elif words:
+        pref = words[0][:4]
+    else:
+        pref = 'RF'
+    return pref.upper()[:6]
+
+
+def _login_payload(user, request, extra=None):
+    """Devuelve el mismo contexto que /me + los tokens JWT (para autologin)."""
+    from .serializers import MeSerializer
+    data = MeSerializer(user, context={'request': request}).data
+    refresh = RefreshToken.for_user(user)
+    data['access'] = str(refresh.access_token)
+    data['refresh'] = str(refresh)
+    if extra:
+        data.update(extra)
+    return data
+
+
+class SignupView(APIView):
+    """Alta autoservicio a la PRUEBA (abierta): crea un restaurante en plan Prueba
+    + su usuario owner, envía bienvenida + aviso al admin, y autentica. Con
+    throttling antiabuso. La info fiscal completa se pedirá al pasar a un plan de
+    pago (más adelante)."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = 'signup'
+
+    def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        name = (request.data.get('restaurant_name') or '').strip()
+        password = request.data.get('password') or ''
+        first_name = (request.data.get('first_name') or '').strip()
+        account_type = request.data.get('account_type') or 'restaurant'
+        if account_type not in ('restaurant', 'individual'):
+            account_type = 'restaurant'
+
+        if not email or '@' not in email:
+            return Response({'email': 'Introduce un correo válido.'}, status=400)
+        if not name:
+            return Response({'restaurant_name': 'Indica el nombre de tu negocio o el tuyo.'}, status=400)
+        if User.objects.filter(username__iexact=email).exists():
+            return Response({'email': 'Ya existe una cuenta con ese correo.'}, status=400)
+        try:
+            validate_password(password)
+        except DjangoValidationError as e:
+            return Response({'password': list(e.messages)}, status=400)
+
+        with transaction.atomic():
+            restaurant = Restaurant.objects.create(
+                name=name, plan='prueba', business_type=account_type,
+                code_prefix=_prefix_from_name(name),
+            )  # el signal crea los 4 roles
+            feats = plan_features(restaurant)
+            if feats.get('trial') and restaurant.trial_ends_at is None:
+                restaurant.trial_ends_at = timezone.now() + timedelta(days=feats.get('trial_days') or 30)
+                restaurant.save(update_fields=['trial_ends_at'])
+            user = User(username=email, email=email, first_name=first_name)
+            user.set_password(password)
+            user.save()  # el signal crea el UserProfile
+            role = Role.objects.filter(restaurant=restaurant, key='owner').first()
+            Membership.objects.create(user=user, restaurant=restaurant, role=role)
+
+        # Correos (nunca rompen la petición).
+        send_welcome_email(user, restaurant)
+        send_admin_new_signup(restaurant, user)
+        return Response(_login_payload(user, request), status=201)
+
+
+class PasswordResetRequestView(APIView):
+    """Restablecer contraseña (autoservicio) igual que el reset de admin/owner:
+    si el correo existe, genera una contraseña TEMPORAL, la envía por correo y
+    obliga a cambiarla al entrar. Responde 200 SIEMPRE (no revela si el correo
+    está registrado). El envío real depende del correo estar configurado."""
+
+    permission_classes = [AllowAny]
+    throttle_scope = 'password_reset'
+
+    def post(self, request):
+        email = (request.data.get('email') or '').strip().lower()
+        ok = {'detail': 'Si el correo está registrado, te enviaremos una contraseña temporal para entrar.'}
+        if not email:
+            return Response(ok)
+        user = User.objects.filter(username__iexact=email).first() or User.objects.filter(email__iexact=email).first()
+        # Solo si tiene un correo al que enviar la temporal (si no, no se toca la cuenta).
+        target = (user.email or (user.username if user and '@' in user.username else '')) if user else ''
+        if user and user.is_active and target:
+            temp = generate_temp_password()
+            user.set_password(temp)
+            user.save()
+            prof = getattr(user, 'profile', None)
+            if prof:
+                prof.must_change_password = True
+                prof.save(update_fields=['must_change_password'])
+            send_password_reset(user, temp, target)
+        return Response(ok)
+
+
 class MeView(RetrieveAPIView):
     """GET datos del usuario autenticado."""
 
@@ -159,6 +271,60 @@ class RestaurantSettingsView(APIView):
         r.currency = currency
         r.save(update_fields=['currency'])
         return Response({'currency': r.currency})
+
+
+class ActiveRestaurantView(APIView):
+    """Multi-local: fija el restaurante activo del usuario (debe ser uno de sus
+    locales) y devuelve el contexto completo (mismo payload que /me) para que el
+    cliente reemplace rol/permisos/plan/features/restaurante del local nuevo."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        from .models import Membership
+        from .serializers import MeSerializer
+        rid = request.data.get('restaurant')
+        m = Membership.objects.filter(user=request.user, restaurant_id=rid).select_related('restaurant').first()
+        if not m:
+            raise PermissionDenied('No perteneces a ese restaurante.')
+        prof = getattr(request.user, 'profile', None)
+        if prof is None:
+            return Response({'detail': 'Sin perfil de usuario.'}, status=400)
+        prof.active_restaurant = m.restaurant
+        prof.save(update_fields=['active_restaurant'])
+        return Response(MeSerializer(request.user, context={'request': request}).data)
+
+
+class OwnerCreateRestaurantView(APIView):
+    """Autoservicio multi-local: un dueño con plan que lo permita (Business) crea
+    un LOCAL NUEVO ligado a sí mismo como owner, y pasa a ser su local activo.
+    Devuelve el contexto /me del local nuevo."""
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        current = get_user_restaurant(user)
+        if get_user_role(user) != 'owner':
+            raise PermissionDenied('Solo el dueño puede crear locales.')
+        if not plan_features(current).get('multi_local'):
+            raise PermissionDenied('Tu plan no incluye varios locales. Sube a Business para gestionar más de uno.')
+        name = (request.data.get('name') or '').strip()
+        if not name:
+            return Response({'name': 'Indica el nombre del nuevo local.'}, status=400)
+        plan = current.plan if current else 'business'
+        currency = request.data.get('currency') or (current.currency if current else 'EUR')
+        with transaction.atomic():
+            restaurant = Restaurant.objects.create(
+                name=name, plan=plan, currency=currency, code_prefix=_prefix_from_name(name),
+            )  # el signal crea los 4 roles
+            role = Role.objects.filter(restaurant=restaurant, key='owner').first()
+            Membership.objects.create(user=user, restaurant=restaurant, role=role)
+            prof = getattr(user, 'profile', None)
+            if prof:
+                prof.active_restaurant = restaurant
+                prof.save(update_fields=['active_restaurant'])
+        return Response(_login_payload(user, request), status=201)
 
 
 class UserAdminViewSet(viewsets.ModelViewSet):
@@ -281,7 +447,7 @@ class DashboardView(APIView):
         from recipes.models import Recipe
         from catalog.models import InventoryItem, Supplier
         from costeo.models import Costing, Insumo
-        from .models import ActivityLog, UserProfile, plan_features
+        from .models import ActivityLog, Membership, UserProfile, plan_features
 
         user = request.user
         r = get_user_restaurant(user)
@@ -335,7 +501,7 @@ class DashboardView(APIView):
                 'unpriced': esc_unpriced,
                 'target_food_cost_avg': fc_avg,
             },
-            'team': r.members.filter(user__is_active=True).count(),
+            'team': Membership.objects.filter(restaurant=r, user__is_active=True).count(),
             'money': {'menu_pvp_total': round(pvp_total, 2)},
             'activity': activity,
             'features': {k: feats.get(k) for k in ('escandallo', 'inventory', 'suppliers', 'carta', 'multiuser')},

@@ -31,5 +31,14 @@ services:
         sync: false
       - key: R2_PUBLIC_DOMAIN
         sync: false
+      # Correo transaccional (Resend por SMTP). La API key es secreta: se pone su
+      # valor en el panel de Render (Environment). Sin ella, no se envía nada y la
+      # app sigue funcionando igual (el envío está gateado).
+      - key: RESEND_API_KEY
+        sync: false
+      - key: DEFAULT_FROM_EMAIL
+        value: "RecipeForge <info@recipeforge.es>"
+      - key: ADMIN_NOTIFY_EMAIL
+        value: "weltcode@gmail.com"
       - key: PYTHON_VERSION
         value: "3.12.6"

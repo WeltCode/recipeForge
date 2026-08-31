@@ -199,6 +199,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
     ],
+    # ScopedRateThrottle solo limita las vistas que fijan `throttle_scope`
+    # (alta autoservicio y reset de contraseña); el resto no se ve afectado.
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.ScopedRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'signup': '12/hour',
+        'password_reset': '12/hour',
+    },
 }
 
 SIMPLE_JWT = {
@@ -217,3 +226,34 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+
+
+# ── Correo transaccional (gateado por configuración) ──────────────────────────
+# Envío por SMTP nativo de Django. Compatible con Resend: si defines RESEND_API_KEY
+# se autoconfigura smtp.resend.com; o define EMAIL_HOST/USER/PASSWORD a mano.
+# Si NO hay credenciales: en DEBUG usa la consola; en producción el backend dummy
+# (descarta sin error). El código de envío nunca rompe la petición (send_mail_safe).
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'RecipeForge <info@recipeforge.es>')
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+# Destino de los avisos internos (altas nuevas, solicitudes de plan).
+ADMIN_NOTIFY_EMAIL = os.environ.get('ADMIN_NOTIFY_EMAIL', 'weltcode@gmail.com')
+# Base del frontend para construir enlaces (p. ej. el de restablecer contraseña).
+FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'https://app.recipeforge.es' if not DEBUG else 'http://localhost:5173')
+
+_RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '').strip()
+EMAIL_HOST = os.environ.get('EMAIL_HOST', 'smtp.resend.com' if _RESEND_API_KEY else '').strip()
+EMAIL_PORT = int(os.environ.get('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER', 'resend' if _RESEND_API_KEY else '').strip()
+EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD', _RESEND_API_KEY)
+EMAIL_USE_TLS = env_bool('EMAIL_USE_TLS', True)
+EMAIL_USE_SSL = env_bool('EMAIL_USE_SSL', False)
+EMAIL_TIMEOUT = 15
+
+# ¿Hay un canal de envío real configurado?
+EMAILS_ENABLED = bool(EMAIL_HOST and EMAIL_HOST_PASSWORD)
+if EMAILS_ENABLED:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+elif DEBUG:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.dummy.EmailBackend'

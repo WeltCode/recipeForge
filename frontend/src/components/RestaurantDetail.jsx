@@ -39,6 +39,23 @@ function RestaurantDetail({
   const [logoFile, setLogoFile] = useState(null)
   const [savingInfo, setSavingInfo] = useState(false)
   const [infoMsg, setInfoMsg] = useState('')
+  const [delConfirm, setDelConfirm] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [delErr, setDelErr] = useState('')
+
+  const deleteRestaurant = async () => {
+    setDeleting(true)
+    setDelErr('')
+    try {
+      const res = await authFetch(`${API_BASE}/restaurants/${restaurant.id}/`, { method: 'DELETE' })
+      if (!res.ok && res.status !== 204) throw new Error(`Error ${res.status}`)
+      onUpdated?.()  // refresca la lista
+      onBack?.()     // vuelve a "Todos los restaurantes"
+    } catch (err) {
+      setDelErr(`No se pudo eliminar: ${err.message}`)
+      setDeleting(false)
+    }
+  }
 
   const filtered = recipes.filter((r) => {
     const q = query.trim().toLowerCase()
@@ -215,8 +232,10 @@ function RestaurantDetail({
         {tab === 'info' && (() => {
           const inp = 'rounded-lg border border-steel-300 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-ember/60 focus:ring-2 focus:ring-ember/15'
           const logoPreview = logoFile ? URL.createObjectURL(logoFile) : restaurant.logo
+          const canDeleteRestaurant = delConfirm.trim() === restaurant.name.trim()
           return (
-          <form onSubmit={saveInfo} className="max-w-3xl space-y-5">
+          <div className="max-w-3xl space-y-8">
+          <form onSubmit={saveInfo} className="space-y-5">
             {/* Identidad + marca */}
             <section className="rounded-2xl steel-plate p-5 sm:p-6">
               <p className="pass-title mb-4 text-[15px] text-ink">Identidad y marca</p>
@@ -304,6 +323,37 @@ function RestaurantDetail({
               {infoMsg && <span className="text-[13px] text-ink-2">{infoMsg}</span>}
             </div>
           </form>
+
+          {/* Zona de peligro: eliminar el restaurante (destructivo, en cascada) */}
+          <section className="rounded-2xl border border-danger/35 bg-danger/[.04] p-5">
+            <h3 className="pass-title text-[15px] text-danger">Zona de peligro</h3>
+            <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-2">
+              Eliminar «<span className="font-semibold text-ink">{restaurant.name}</span>» borra de forma
+              <strong> permanente e irreversible</strong> todo su contenido: recetas, escandallos, inventario,
+              proveedores, carta y los accesos de sus usuarios a este restaurante. No se puede deshacer.
+            </p>
+            <label className="mt-4 block text-[12.5px] font-medium text-ink-2">
+              Para confirmar, escribe el nombre exacto del restaurante: <span className="data text-ink">{restaurant.name}</span>
+            </label>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={delConfirm}
+                onChange={(e) => setDelConfirm(e.target.value)}
+                placeholder={restaurant.name}
+                className="rounded-lg border border-danger/40 bg-white px-3 py-2 text-[14px] text-ink outline-none focus:border-danger focus:ring-2 focus:ring-danger/15 sm:max-w-xs"
+              />
+              <button
+                type="button"
+                onClick={deleteRestaurant}
+                disabled={!canDeleteRestaurant || deleting}
+                className="inline-flex h-10 items-center justify-center rounded-lg bg-danger px-5 text-sm font-medium text-white transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-45"
+              >
+                {deleting ? 'Eliminando…' : 'Eliminar restaurante'}
+              </button>
+            </div>
+            {delErr && <p className="mt-2 text-[13px] text-danger">{delErr}</p>}
+          </section>
+          </div>
           )
         })()}
       </main>

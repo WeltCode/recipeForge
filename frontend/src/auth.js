@@ -22,6 +22,7 @@ const KEYS = {
   restaurantCurrency: 'rf_restaurant_currency',
   publicSlug: 'rf_public_slug',
   cartaPublished: 'rf_carta_published',
+  restaurants: 'rf_restaurants',
   lastActivity: 'rf_last_activity',
 }
 
@@ -111,6 +112,13 @@ export function getPublicSlug() {
 export function getCartaPublished() {
   return localStorage.getItem(KEYS.cartaPublished) === '1'
 }
+export function getRestaurants() {
+  try {
+    return JSON.parse(localStorage.getItem(KEYS.restaurants) || '[]')
+  } catch {
+    return []
+  }
+}
 export function setCartaPublished(v) {
   localStorage.setItem(KEYS.cartaPublished, v ? '1' : '0')
 }
@@ -118,7 +126,7 @@ export function isAuthenticated() {
   return Boolean(getAccess())
 }
 
-function storeSession({ access, refresh, role, permissions, features, usage, plan, title, username, first_name, avatar, must_change_password, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template, restaurant_currency, restaurant_public_slug, restaurant_carta_published }) {
+function storeSession({ access, refresh, role, permissions, features, usage, plan, title, username, first_name, avatar, must_change_password, restaurant, restaurant_name, restaurant_prefix, restaurant_logo, restaurant_default_template, restaurant_currency, restaurant_public_slug, restaurant_carta_published, restaurants }) {
   if (access) localStorage.setItem(KEYS.access, access)
   if (refresh) localStorage.setItem(KEYS.refresh, refresh)
   if (role) localStorage.setItem(KEYS.role, role)
@@ -141,6 +149,7 @@ function storeSession({ access, refresh, role, permissions, features, usage, pla
   // así un restaurante sin logo NO hereda el del restaurante anterior en este navegador.
   if (restaurant_logo !== undefined) localStorage.setItem(KEYS.restaurantLogo, restaurant_logo || '')
   if (restaurant_default_template) localStorage.setItem(KEYS.restaurantDefaultTemplate, restaurant_default_template)
+  if (restaurants != null) localStorage.setItem(KEYS.restaurants, JSON.stringify(restaurants))
 }
 
 export function clearSession() {
@@ -186,6 +195,131 @@ export async function login(username, password) {
     restaurant_currency: data.restaurant_currency,
     restaurant_public_slug: data.restaurant_public_slug,
     restaurant_carta_published: data.restaurant_carta_published,
+    restaurants: data.restaurants,
+  })
+  return data
+}
+
+// Multi-local: cambia el restaurante activo del usuario. El servidor devuelve el
+// contexto completo del local nuevo (rol/permisos/plan/features/moneda…), que se
+// guarda tal cual. El llamador debe recargar la app para refrescar los datos.
+export async function switchRestaurant(id) {
+  const res = await authFetch(`${API_BASE}/auth/active-restaurant/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ restaurant: id }),
+  })
+  if (!res.ok) {
+    let detail = `Error ${res.status}`
+    try { const d = await res.json(); detail = d.detail || Object.values(d).flat().join(' ') || detail } catch { /* sin cuerpo */ }
+    throw new Error(detail)
+  }
+  const data = await res.json()
+  storeSession({
+    role: data.role,
+    permissions: data.permissions,
+    features: data.features,
+    usage: data.usage,
+    plan: data.restaurant_plan,
+    title: data.title,
+    restaurant: data.restaurant,
+    restaurant_name: data.restaurant_name,
+    restaurant_prefix: data.restaurant_prefix,
+    restaurant_logo: data.restaurant_logo,
+    restaurant_default_template: data.restaurant_default_template,
+    restaurant_currency: data.restaurant_currency,
+    restaurant_public_slug: data.restaurant_public_slug,
+    restaurant_carta_published: data.restaurant_carta_published,
+    restaurants: data.restaurants,
+  })
+  return data
+}
+
+// Alta autoservicio a la Prueba: crea restaurante + owner y autentica (guarda la
+// sesión igual que login). Devuelve los datos de la cuenta nueva.
+export async function signup({ restaurant_name, email, password, first_name, account_type }) {
+  let res
+  try {
+    res = await fetch(`${API_BASE}/auth/signup/`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ restaurant_name, email, password, first_name, account_type }),
+    })
+  } catch {
+    throw new Error(`No se pudo conectar con el servidor (${API_BASE}).`)
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const detail = data.detail || Object.values(data).flat().join(' ') || `Error al crear la cuenta (${res.status}).`
+    throw new Error(detail)
+  }
+  storeSession({
+    access: data.access,
+    refresh: data.refresh,
+    role: data.role,
+    permissions: data.permissions,
+    features: data.features,
+    usage: data.usage,
+    plan: data.restaurant_plan,
+    title: data.title,
+    username: data.username,
+    first_name: data.first_name,
+    avatar: data.avatar ?? '',
+    must_change_password: data.must_change_password,
+    restaurant: data.restaurant,
+    restaurant_name: data.restaurant_name,
+    restaurant_prefix: data.restaurant_prefix,
+    restaurant_logo: data.restaurant_logo,
+    restaurant_default_template: data.restaurant_default_template,
+    restaurant_currency: data.restaurant_currency,
+    restaurant_public_slug: data.restaurant_public_slug,
+    restaurant_carta_published: data.restaurant_carta_published,
+    restaurants: data.restaurants,
+  })
+  return data
+}
+
+// Solicita el enlace de restablecer contraseña. Responde siempre OK (no revela
+// si el correo existe).
+export async function requestPasswordReset(email) {
+  const res = await fetch(`${API_BASE}/auth/password-reset/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.detail || `Error ${res.status}`)
+  return data.detail
+}
+
+// Multi-local (autoservicio del dueño Business): crea un LOCAL NUEVO ligado a mí
+// como owner y lo deja como activo. El servidor devuelve el contexto completo.
+export async function createLocal(name, currency) {
+  const res = await authFetch(`${API_BASE}/auth/create-restaurant/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, currency }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.detail || Object.values(data).flat().join(' ') || `Error ${res.status}`)
+  }
+  storeSession({
+    role: data.role,
+    permissions: data.permissions,
+    features: data.features,
+    usage: data.usage,
+    plan: data.restaurant_plan,
+    title: data.title,
+    restaurant: data.restaurant,
+    restaurant_name: data.restaurant_name,
+    restaurant_prefix: data.restaurant_prefix,
+    restaurant_logo: data.restaurant_logo,
+    restaurant_default_template: data.restaurant_default_template,
+    restaurant_currency: data.restaurant_currency,
+    restaurant_public_slug: data.restaurant_public_slug,
+    restaurant_carta_published: data.restaurant_carta_published,
+    restaurants: data.restaurants,
   })
   return data
 }
@@ -259,6 +393,7 @@ export async function refreshMe() {
     restaurant_currency: data.restaurant_currency,
     restaurant_public_slug: data.restaurant_public_slug,
     restaurant_carta_published: data.restaurant_carta_published,
+    restaurants: data.restaurants,
     })
     return data
   } catch {

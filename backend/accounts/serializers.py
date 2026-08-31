@@ -12,6 +12,7 @@ from .models import (
     generate_temp_password,
     get_membership,
     get_user_features,
+    get_user_memberships,
     get_user_permissions,
     get_user_restaurant,
     get_user_role,
@@ -38,6 +39,26 @@ def _abs_logo(restaurant, context):
     return _media(restaurant.logo.name, context) if (restaurant and restaurant.logo) else None
 
 
+def _restaurants_payload(user, context):
+    """Lista de locales del usuario para el selector multi-local. Marca el activo
+    (el que resuelve get_membership) con is_active."""
+    active = get_membership(user)
+    active_id = active.restaurant_id if active else None
+    out = []
+    for m in get_user_memberships(user):
+        r = m.restaurant
+        out.append({
+            'id': r.id,
+            'name': r.name,
+            'role': m.role.key if m.role else None,
+            'role_name': m.role.name if m.role else None,
+            'plan': r.plan,
+            'logo': _abs_logo(r, context),
+            'is_active': r.id == active_id,
+        })
+    return out
+
+
 class MeSerializer(serializers.ModelSerializer):
     """Datos del usuario autenticado: rol, permisos (flags), plan y restaurante."""
 
@@ -58,6 +79,7 @@ class MeSerializer(serializers.ModelSerializer):
     restaurant_currency = serializers.SerializerMethodField()
     restaurant_public_slug = serializers.SerializerMethodField()
     restaurant_carta_published = serializers.SerializerMethodField()
+    restaurants = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -66,7 +88,10 @@ class MeSerializer(serializers.ModelSerializer):
                   'must_change_password', 'avatar', 'restaurant', 'restaurant_name',
                   'restaurant_prefix', 'restaurant_logo', 'restaurant_default_template',
                   'restaurant_plan', 'restaurant_currency',
-                  'restaurant_public_slug', 'restaurant_carta_published']
+                  'restaurant_public_slug', 'restaurant_carta_published', 'restaurants']
+
+    def get_restaurants(self, obj):
+        return _restaurants_payload(obj, self.context)
 
     def get_phone(self, obj):
         p = getattr(obj, 'profile', None)
@@ -154,6 +179,17 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         return token
 
     def validate(self, attrs):
+        # Login por CORREO o usuario: si el identificador no es un username
+        # existente pero sí un correo único, se resuelve al username real antes
+        # de autenticar. Los usuarios de restaurante (username = correo) no se ven
+        # afectados. Superadmins pueden así entrar con su correo aunque su usuario
+        # sea otro (p. ej. DedSec5).
+        ident = attrs.get(self.username_field)
+        if ident and not User.objects.filter(username__iexact=ident).exists():
+            by_email = User.objects.filter(email__iexact=ident)
+            if by_email.count() == 1:
+                attrs[self.username_field] = by_email.first().username
+
         data = super().validate(attrs)
         user = self.user
         r = get_user_restaurant(user)
@@ -178,6 +214,7 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         data['restaurant_public_slug'] = r.public_slug if r else None
         data['restaurant_carta_published'] = bool(r.carta_published) if r else False
         data['restaurant_logo'] = _abs_logo(r, self.context)
+        data['restaurants'] = _restaurants_payload(user, self.context)
         return data
 
 
@@ -268,9 +305,30 @@ class UserAdminSerializer(serializers.ModelSerializer):
             if not email:
                 raise serializers.ValidationError({'email': 'El correo es obligatorio.'})
             validated_data['username'] = email
-        if User.objects.filter(username__iexact=validated_data['username']).exists():
-            key = 'username' if is_super else 'email'
-            raise serializers.ValidationError({key: 'Ya existe una cuenta con ese correo/usuario.'})
+        existing = User.objects.filter(username__iexact=validated_data['username']).first()
+        if existing:
+            # Multi-local: si es un usuario de restaurante EXISTENTE y se indica un
+            # restaurante, se VINCULA a ese local (nuevo membership) en vez de
+            # recrearlo — así el superadmin da a un dueño un segundo local por su
+            # correo. En cualquier otro caso, sigue siendo un duplicado inválido.
+            if is_super or restaurant is None or existing.is_superuser:
+                key = 'username' if is_super else 'email'
+                raise serializers.ValidationError({key: 'Ya existe una cuenta con ese correo/usuario.'})
+            if Membership.objects.filter(user=existing, restaurant=restaurant).exists():
+                raise serializers.ValidationError({'email': 'Este usuario ya pertenece a este restaurante.'})
+            max_users = plan_features(restaurant)['max_users']
+            if restaurant.memberships.count() >= max_users:
+                raise serializers.ValidationError({
+                    'plan': f'El plan {restaurant.get_plan_display()} permite hasta '
+                            f'{max_users} usuario(s). Sube de plan para añadir más.'
+                })
+            Membership.objects.create(
+                user=existing, restaurant=restaurant,
+                role=self._role_for(restaurant, role_key), title=title,
+            )
+            self._generated_password = None
+            self._linked_existing = True
+            return existing
 
         # Límite de usuarios por plan del restaurante (no aplica a superadmins).
         if not is_super and restaurant is not None:
@@ -311,7 +369,14 @@ class UserAdminSerializer(serializers.ModelSerializer):
         phone = validated_data.pop('phone', serializers.empty)
         restaurant = validated_data.pop('restaurant', serializers.empty)
         password = validated_data.pop('password', None) or None
-        validated_data.pop('username', None)  # el username no se edita aquí
+        new_username = validated_data.pop('username', None)
+        # El username sí se puede editar (p. ej. renombrar un superadmin), con
+        # comprobación de unicidad. Los usuarios de restaurante entran con su
+        # correo, así que rara vez se toca aquí.
+        if new_username and new_username.strip() and new_username != instance.username:
+            if User.objects.filter(username__iexact=new_username).exclude(pk=instance.pk).exists():
+                raise serializers.ValidationError({'username': 'Ese usuario ya está en uso.'})
+            instance.username = new_username.strip()
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if password:
@@ -354,6 +419,9 @@ class UserAdminSerializer(serializers.ModelSerializer):
         # La contraseña temporal generada se devuelve UNA vez (tras crear/restablecer).
         if getattr(self, '_generated_password', None):
             data['generated_password'] = self._generated_password
+        # Usuario existente vinculado a este local (multi-local): sin contraseña nueva.
+        if getattr(self, '_linked_existing', False):
+            data['linked_existing'] = True
         return data
 
 
@@ -376,6 +444,9 @@ class RestaurantSerializer(serializers.ModelSerializer):
     owner_last_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     owner_email = serializers.EmailField(write_only=True, required=False, allow_blank=True)
     owner_phone = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    # Multi-local: si es True, el owner_email debe ser un usuario YA existente, al
+    # que se VINCULA como dueño de este nuevo local (2º restaurante del mismo dueño).
+    owner_existing = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = Restaurant
@@ -384,7 +455,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
                   'contact_email', 'contact_phone', 'address', 'logo',
                   'created_at', 'recipe_count', 'member_count', 'members', 'pending_plan_request',
                   'owner_username', 'owner_password', 'owner_role',
-                  'owner_first_name', 'owner_last_name', 'owner_email', 'owner_phone']
+                  'owner_first_name', 'owner_last_name', 'owner_email', 'owner_phone', 'owner_existing']
         read_only_fields = ['trial_ends_at', 'pdf_exports_count']
 
     def get_pending_plan_request(self, obj):
@@ -415,6 +486,8 @@ class RestaurantSerializer(serializers.ModelSerializer):
         data['logo'] = _abs_logo(instance, self.context)  # servir por el proxy, no r2.dev
         if getattr(self, '_owner_generated_password', None):
             data['owner_generated_password'] = self._owner_generated_password
+        if getattr(self, '_linked_existing', False):
+            data['linked_existing'] = True
         return data
 
     def _ensure_trial_clock(self, restaurant):
@@ -435,15 +508,31 @@ class RestaurantSerializer(serializers.ModelSerializer):
         owner_password = validated_data.pop('owner_password', None) or None
         # El correo es el identificador de acceso; se acepta owner_email o el viejo
         # owner_username por compatibilidad.
+        owner_existing = validated_data.pop('owner_existing', False)
         owner_login = (validated_data.pop('owner_email', '') or validated_data.pop('owner_username', '') or '').strip()
 
-        if owner_login and User.objects.filter(username__iexact=owner_login).exists():
+        # Vincular a un dueño EXISTENTE (2º local del mismo dueño): el usuario debe
+        # existir y no ser superadmin; se enlaza tras crear el restaurante.
+        existing_user = None
+        if owner_existing:
+            if not owner_login:
+                raise serializers.ValidationError({'owner_email': 'Indica el correo del dueño existente.'})
+            existing_user = User.objects.filter(username__iexact=owner_login).first() or User.objects.filter(email__iexact=owner_login).first()
+            if not existing_user or existing_user.is_superuser:
+                raise serializers.ValidationError({'owner_email': 'No existe un dueño con ese correo.'})
+        elif owner_login and User.objects.filter(username__iexact=owner_login).exists():
             raise serializers.ValidationError({'owner_email': 'Ya existe una cuenta con ese correo.'})
 
         restaurant = Restaurant.objects.create(**validated_data)  # signal crea los 4 roles
         self._ensure_trial_clock(restaurant)
 
-        if owner_login:
+        if existing_user is not None:
+            role = Role.objects.filter(restaurant=restaurant, key=owner_role).first()
+            Membership.objects.get_or_create(
+                user=existing_user, restaurant=restaurant, defaults={'role': role, 'title': ''},
+            )
+            self._linked_existing = True
+        elif owner_login:
             generated = None
             if not owner_password:
                 owner_password = generate_temp_password()

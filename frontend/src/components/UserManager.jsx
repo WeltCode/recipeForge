@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { authFetch } from '../auth'
 import { initials } from '../lib/ui'
-import { Trash, Plus, Lock, X } from './icons'
+import { Trash, Plus, Lock, X, Pencil } from './icons'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api'
 
@@ -20,13 +20,16 @@ const ROLE_HELP = {
 //  - admins: super administradores de la plataforma (usuario + contraseña).
 function UserManager({ restaurantId, admins = false }) {
   const emptyNewUser = admins
-    ? { username: '', password: '', role: 'superadmin' }
+    ? { username: '', password: '', first_name: '', last_name: '', email: '', role: 'superadmin' }
     : { first_name: '', last_name: '', email: '', phone: '', role: 'viewer', title: '' }
   const [users, setUsers] = useState([])
   const [newUser, setNewUser] = useState({ ...emptyNewUser })
   const [message, setMessage] = useState('')
   const [tempCred, setTempCred] = useState(null) // { login, password } tras crear/restablecer
   const [loading, setLoading] = useState(false)
+  const [editing, setEditing] = useState(null)   // usuario en edición (o null)
+  const [editForm, setEditForm] = useState({})
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const listUrl = admins
     ? `${API_BASE}/users/?role=superadmin`
@@ -54,7 +57,8 @@ function UserManager({ restaurantId, admins = false }) {
     setTempCred(null)
     try {
       const body = admins
-        ? { username: newUser.username, password: newUser.password, role: 'superadmin' }
+        ? { username: newUser.username, password: newUser.password, role: 'superadmin',
+            first_name: newUser.first_name, last_name: newUser.last_name, email: newUser.email }
         : { ...newUser, restaurant: restaurantId }
       const res = await authFetch(`${API_BASE}/users/`, {
         method: 'POST',
@@ -86,6 +90,36 @@ function UserManager({ restaurantId, admins = false }) {
       loadUsers()
     } catch (err) {
       setMessage(`No se pudo actualizar: ${err.message}`)
+    }
+  }
+
+  const openEdit = (u) => {
+    setMessage('')
+    setEditForm(admins
+      ? { username: u.username || '', first_name: u.first_name || '', last_name: u.last_name || '', email: u.email || '' }
+      : { first_name: u.first_name || '', last_name: u.last_name || '', email: u.email || '', title: u.title || '' })
+    setEditing(u)
+  }
+
+  const saveEdit = async (e) => {
+    e.preventDefault()
+    setSavingEdit(true)
+    setMessage('')
+    try {
+      const res = await authFetch(`${API_BASE}/users/${editing.id}/`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editForm),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(Object.values(data).flat().join(' '))
+      setMessage('Cambios guardados.')
+      setEditing(null)
+      loadUsers()
+    } catch (err) {
+      setMessage(`No se pudo guardar: ${err.message}`)
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -129,13 +163,22 @@ function UserManager({ restaurantId, admins = false }) {
       <form onSubmit={createUser} className="rounded-2xl steel-plate p-5">
         <p className="pass-title mb-3 text-[14px] text-ink">{admins ? 'Nuevo administrador' : 'Nuevo usuario'}</p>
         {admins ? (
-          <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]">
-            <input required value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} className={inputCls} placeholder="Usuario" autoComplete="off" />
-            <input required type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} className={inputCls} placeholder="Contraseña" autoComplete="new-password" />
-            <button type="submit" disabled={loading} className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">
-              <Plus size={16} /> {loading ? 'Creando…' : 'Añadir admin'}
-            </button>
-          </div>
+          <>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {field('Nombre', 'first_name', { ph: 'Iván' })}
+              {field('Apellido', 'last_name', { ph: 'Hernández' })}
+              {field('Correo', 'email', { type: 'email', ph: 'tu@correo.com' })}
+              {field('Usuario *', 'username', { required: true, ph: 'ej. DedSec5' })}
+              <label className="flex flex-col gap-1 text-[12px] text-ink-2">Contraseña *
+                <input required type="password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} className={inputCls} placeholder="Contraseña" autoComplete="new-password" /></label>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-[12px] text-ink-3">El admin entra con su usuario o su correo, y la contraseña que definas.</p>
+              <button type="submit" disabled={loading} className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-lg bg-ember px-4 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">
+                <Plus size={16} /> {loading ? 'Creando…' : 'Añadir admin'}
+              </button>
+            </div>
+          </>
         ) : (
           <>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -199,6 +242,7 @@ function UserManager({ restaurantId, admins = false }) {
                   </select>
                 )}
                 <div className="flex shrink-0 items-center gap-1">
+                  <button onClick={() => openEdit(u)} title="Editar" className="inline-flex items-center gap-1 rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white"><Pencil size={14} /> Editar</button>
                   <button onClick={() => resetPassword(u.id, login)} title="Restablecer contraseña" className="inline-flex items-center gap-1 rounded-lg steel-plate px-2.5 py-1.5 text-[12px] font-medium text-ink hover:bg-white"><Lock size={14} /> Restablecer</button>
                   <button onClick={() => deleteUser(u.id, login)} title="Eliminar" className="grid h-9 w-9 place-items-center rounded-lg text-danger hover:bg-danger/8"><Trash size={15} /></button>
                 </div>
@@ -209,6 +253,37 @@ function UserManager({ restaurantId, admins = false }) {
       )}
 
       {message && <p className="rounded-lg border border-steel-300 bg-white/60 px-3 py-2 text-[13px] text-ink-2">{message}</p>}
+
+      {/* Modal de edición (nombre, correo y, para admins, usuario) */}
+      {editing && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm" onClick={() => setEditing(null)}>
+          <form onSubmit={saveEdit} className="w-full max-w-md rounded-2xl steel-plate p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <p className="pass-title text-[15px] text-ink">{admins ? 'Editar administrador' : 'Editar usuario'}</p>
+              <button type="button" onClick={() => setEditing(null)} className="text-ink-3 hover:text-ink"><X size={18} /></button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="flex flex-col gap-1 text-[12px] text-ink-2">Nombre
+                <input value={editForm.first_name} onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })} className={inputCls} autoComplete="off" /></label>
+              <label className="flex flex-col gap-1 text-[12px] text-ink-2">Apellido
+                <input value={editForm.last_name} onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })} className={inputCls} autoComplete="off" /></label>
+              <label className="flex flex-col gap-1 text-[12px] text-ink-2 sm:col-span-2">Correo
+                <input type="email" value={editForm.email} onChange={(e) => setEditForm({ ...editForm, email: e.target.value })} className={inputCls} placeholder="tu@correo.com" autoComplete="off" /></label>
+              {admins ? (
+                <label className="flex flex-col gap-1 text-[12px] text-ink-2 sm:col-span-2">Usuario
+                  <input required value={editForm.username} onChange={(e) => setEditForm({ ...editForm, username: e.target.value })} className={inputCls} autoComplete="off" /></label>
+              ) : (
+                <label className="flex flex-col gap-1 text-[12px] text-ink-2 sm:col-span-2">Cargo
+                  <input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className={inputCls} placeholder="ej. Sous chef" autoComplete="off" /></label>
+              )}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setEditing(null)} className="rounded-lg border border-steel-300 bg-white px-4 py-2 text-sm font-medium text-ink-2 hover:bg-steel-100">Cancelar</button>
+              <button type="submit" disabled={savingEdit} className="rounded-lg bg-ember px-4 py-2 text-sm font-medium text-cream hover:bg-ember-hi disabled:opacity-60">{savingEdit ? 'Guardando…' : 'Guardar cambios'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   )
 }

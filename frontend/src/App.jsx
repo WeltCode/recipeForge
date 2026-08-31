@@ -14,7 +14,7 @@ import CosteoSection from './components/CosteoSection'
 import { AllergenPicker } from './components/AllergenPicker'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
-import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getRestaurantId, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, getAvatar, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
+import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getRestaurantId, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, getRestaurants, switchRestaurant, createLocal, getAvatar, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
 import { ForcedPasswordScreen } from './components/ChangePassword'
 import AjustesSection from './components/AjustesSection'
 import UserManager from './components/UserManager'
@@ -400,6 +400,24 @@ function App() {
     setSection('inicio')
     setSelectedRestaurantId(null)
     setSessionExpired(false)
+  }
+
+  // Multi-local: cambia el restaurante activo y recarga la app para refrescar
+  // TODO el estado (permisos, plan, moneda, recetas…) del local nuevo. Recargar
+  // es lo más seguro: evita que queden datos del local anterior en memoria.
+  const handleSwitchRestaurant = async (id) => {
+    try {
+      await switchRestaurant(id)
+      window.location.reload()
+    } catch (e) {
+      alert(e.message || 'No se pudo cambiar de local.')
+    }
+  }
+  // Crear un local nuevo (dueño Business) y recargar en él. Propaga el error al
+  // formulario del selector para mostrarlo ahí.
+  const handleAddLocal = async (name) => {
+    await createLocal(name)
+    window.location.reload()
   }
 
   // ── Navegación panel ↔ editor ──
@@ -990,7 +1008,10 @@ function App() {
     return (
       <AppShell
         sections={userSections} active={section} onNavigate={setSection}
-        username={username} role={role} plan={getPlan()} restaurantName={restaurantName} avatar={avatar} onLogout={handleLogout}
+        username={username} role={role} plan={getPlan()} restaurantName={restaurantName}
+        restaurants={getRestaurants()} onSwitchRestaurant={handleSwitchRestaurant}
+        canAddLocal={feat('multi_local')} onAddLocal={handleAddLocal}
+        avatar={avatar} onLogout={handleLogout}
       >
         {connBanner}
         {sectionContent}

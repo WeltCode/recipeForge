@@ -240,6 +240,7 @@ export function Landing() {
   const offHero3D = () => { if (winRef.current) winRef.current.style.transform = 'perspective(1100px)'; if (fichaRef.current) fichaRef.current.style.transform = '' }
   useEffect(() => { if (!langOpen) return; const h = () => setLangOpen(false); document.addEventListener('click', h); return () => document.removeEventListener('click', h) }, [langOpen])
   const WA_TRIAL = waMsg(t.waMsgTrial), WA_DEMO = waMsg(t.waMsgDemo)
+  const SIGNUP_URL = `${APP_URL}/?signup=1`  // alta autoservicio a la prueba
   const MAIL = `mailto:${CONTACT.email}?subject=${encodeURIComponent('RecipeForge')}`
   const setLng = (l) => { setLang(l); try { localStorage.setItem('rf_lang', l) } catch { /* ignore */ } }
 
@@ -288,11 +289,11 @@ export function Landing() {
                 {langOpen && <div onClick={(e) => e.stopPropagation()} className="absolute right-0 z-50 mt-2 w-36 overflow-hidden rounded-2xl gl" role="listbox">{LANGS.map(([code, lbl, full]) => <button key={code} onClick={() => { setLng(code); setLangOpen(false) }} role="option" aria-selected={lang === code} className="flex w-full items-center justify-between px-3.5 py-2.5 text-left text-[13px] font-semibold transition hover:bg-white/70" style={lang === code ? { color: C.ember } : { color: C.ink }}><span>{full}</span><span className="text-[11px]" style={{ fontFamily: MONO, color: lang === code ? C.ember : C.inkSoft }}>{lbl}</span></button>)}</div>}
               </div>
               <a href={APP_URL} className="hidden rounded-full border px-4 py-2 text-sm font-semibold md:inline-block" style={{ borderColor: C.ember, color: C.ember }}>{t.access}</a>
-              <a href={WA_TRIAL} target="_blank" rel="noreferrer" className="lp-ember hidden rounded-full px-4 py-2 text-[15px] font-semibold text-white sm:inline-block">{t.trial}</a>
+              <a href={SIGNUP_URL} className="lp-ember hidden rounded-full px-4 py-2 text-[15px] font-semibold text-white sm:inline-block">{t.trial}</a>
               <button onClick={() => setMenuOpen((v) => !v)} className="grid h-10 w-10 place-items-center rounded-lg md:hidden" style={{ color: C.ink }} aria-label="Menú" aria-expanded={menuOpen}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">{menuOpen ? <><path d="M6 6l12 12" /><path d="M18 6L6 18" /></> : <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>}</svg></button>
             </div>
           </nav>
-          {menuOpen && <div className="border-t px-5 pb-4 pt-3 md:hidden" style={{ borderColor: C.line, background: 'rgba(253,250,245,.96)' }}><a href={WA_TRIAL} target="_blank" rel="noreferrer" onClick={() => setMenuOpen(false)} className="lp-ember mb-3 flex items-center justify-center rounded-full px-4 py-3 text-[15px] font-semibold text-white">{t.trial}</a><div className="flex flex-col">{NAV.map(([h, l]) => <a key={h} href={h} onClick={() => setMenuOpen(false)} className="border-b py-3 text-[15px] font-medium" style={{ borderColor: C.line, color: C.ink }}>{l}</a>)}<a href={APP_URL} onClick={() => setMenuOpen(false)} className="border-b py-3 text-[15px] font-semibold" style={{ borderColor: C.line, color: C.ember }}>{t.footAccess} →</a><div className="mt-2 flex gap-1.5">{LANGS.map(([code, lbl]) => <button key={code} onClick={() => setLng(code)} className="rounded-full px-3 py-1 text-[13px] font-bold" style={lang === code ? { background: C.ember, color: '#fff' } : { background: '#fff', color: C.inkSoft, border: `1px solid ${C.line}` }}>{lbl}</button>)}</div></div></div>}
+          {menuOpen && <div className="border-t px-5 pb-4 pt-3 md:hidden" style={{ borderColor: C.line, background: 'rgba(253,250,245,.96)' }}><a href={SIGNUP_URL} onClick={() => setMenuOpen(false)} className="lp-ember mb-3 flex items-center justify-center rounded-full px-4 py-3 text-[15px] font-semibold text-white">{t.trial}</a><div className="flex flex-col">{NAV.map(([h, l]) => <a key={h} href={h} onClick={() => setMenuOpen(false)} className="border-b py-3 text-[15px] font-medium" style={{ borderColor: C.line, color: C.ink }}>{l}</a>)}<a href={APP_URL} onClick={() => setMenuOpen(false)} className="border-b py-3 text-[15px] font-semibold" style={{ borderColor: C.line, color: C.ember }}>{t.footAccess} →</a><div className="mt-2 flex gap-1.5">{LANGS.map(([code, lbl]) => <button key={code} onClick={() => setLng(code)} className="rounded-full px-3 py-1 text-[13px] font-bold" style={lang === code ? { background: C.ember, color: '#fff' } : { background: '#fff', color: C.inkSoft, border: `1px solid ${C.line}` }}>{lbl}</button>)}</div></div></div>}
         </header>
 
         {/* HERO con vídeo de cocina + vapor */}
@@ -302,7 +303,7 @@ export function Landing() {
               <h1 className="disp" style={{ fontSize: 'clamp(40px,7.5vw,72px)', lineHeight: 1.02, color: C.ink }}>{t.heroTitleA}<br /><span style={{ color: C.ember }}>{t.heroTitleB}</span>{t.heroTitleC}</h1>
               <p className="mt-6 max-w-xl text-[16px] leading-relaxed md:text-[17px]" style={{ color: C.inkSoft }}>{t.heroSub}<strong style={{ color: C.ink }}>{t.heroSubStrong}</strong>{t.heroSubEnd}</p>
               <div className="mt-8 flex flex-wrap items-center gap-3">
-                <a href={WA_TRIAL} target="_blank" rel="noreferrer" ref={heroCta.ref} onMouseMove={heroCta.onMouseMove} onMouseLeave={heroCta.onMouseLeave} className="lp-ember lp-mag inline-flex items-center gap-2 rounded-full px-7 py-4 text-[16px] font-semibold text-white"><IcFlame s={18} /> {t.ctaTrial}</a>
+                <a href={SIGNUP_URL} ref={heroCta.ref} onMouseMove={heroCta.onMouseMove} onMouseLeave={heroCta.onMouseLeave} className="lp-ember lp-mag inline-flex items-center gap-2 rounded-full px-7 py-4 text-[16px] font-semibold text-white"><IcFlame s={18} /> {t.ctaTrial}</a>
                 <a href="#planes" className="gl inline-flex items-center gap-1.5 rounded-full px-6 py-4 text-[15px] font-semibold" style={{ color: C.ink }}>{t.ctaPlans} <IcChevron s={16} /></a>
               </div>
               <div className="mt-7 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] font-medium uppercase tracking-[0.08em]" style={{ color: C.inkSoft, fontFamily: MONO }}>{[IcReceipt, IcCoins, IcQr, IcPot].map((Ic, i) => <span key={i} className="flex items-center gap-1.5" style={{ color: C.ember }}><Ic s={15} /> <span style={{ color: C.inkSoft }}>{t.trust[i]}</span></span>)}</div>
@@ -384,7 +385,7 @@ export function Landing() {
             const price = p.free ? '0' : showMonthly ? eur(p.monthly) : eur(p.annual)
             const unit = p.free ? p.unit : showMonthly ? 'mes' : p.unit
             const withIva = p.free ? null : showMonthly ? eur(p.monthly * IVA) : eur(p.annual * IVA)
-            const href = i === 0 || i === 2 ? WA_TRIAL : WA_DEMO
+            const href = i === 0 ? SIGNUP_URL : (i === 2 ? WA_TRIAL : WA_DEMO)
             return (
               <div key={p.id} className="gl lp-reveal relative flex flex-col rounded-3xl p-6" style={{ transitionDelay: `${i * 60}ms`, ...(p.featured ? { boxShadow: '0 28px 60px -22px rgba(232,83,31,.5)', border: `1px solid ${C.emberHi}` } : {}) }}>
                 {p.featured && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.1em] text-white" style={{ background: C.ember }}>{t.featured}</span>}
@@ -414,7 +415,7 @@ export function Landing() {
         <section className="relative px-5 py-20 md:px-8 md:py-28"><div className="relative mx-auto max-w-4xl overflow-hidden rounded-[32px] px-6 py-14 text-center lp-reveal" style={{ background: `linear-gradient(155deg,${C.emberHi},${C.emberDeep})`, boxShadow: '0 34px 80px -34px rgba(232,83,31,.6)' }}>
           <h2 className="disp text-white" style={{ fontSize: 'clamp(28px,5vw,48px)' }}>{t.ctaTitle}</h2>
           <p className="mx-auto mt-4 max-w-xl text-[16px] text-white/90">{t.ctaSub}</p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3"><a href={WA_TRIAL} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-[16px] font-bold" style={{ color: C.emberDeep }}><IcFlame s={18} /> {t.ctaTrial}</a><a href={MAIL} className="inline-flex items-center gap-1.5 rounded-full border border-white/50 px-6 py-4 text-[15px] font-semibold text-white transition hover:bg-white/10">{t.ctaEmail}</a></div>
+          <div className="mt-8 flex flex-wrap items-center justify-center gap-3"><a href={SIGNUP_URL} className="inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 text-[16px] font-bold" style={{ color: C.emberDeep }}><IcFlame s={18} /> {t.ctaTrial}</a><a href={MAIL} className="inline-flex items-center gap-1.5 rounded-full border border-white/50 px-6 py-4 text-[15px] font-semibold text-white transition hover:bg-white/10">{t.ctaEmail}</a></div>
         </div></section>
 
         {/* FOOTER */}

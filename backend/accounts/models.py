@@ -70,7 +70,7 @@ PLAN_FEATURES = {
     PLAN_PRUEBA: {
         'pdf': True, 'watermark': True, 'templates_custom': False,
         'allergens': False, 'escandallo': False, 'inventory': False, 'suppliers': False, 'carta': False,
-        'multiuser': False, 'max_users': 1,
+        'multiuser': False, 'max_users': 1, 'multi_local': False,
         'max_recipes_total': 5, 'max_recipes_per_month': None, 'max_pdf_total': 5,
         'trial': True, 'trial_days': 30,
     },
@@ -79,21 +79,21 @@ PLAN_FEATURES = {
     PLAN_BASICO: {
         'pdf': True, 'watermark': False, 'templates_custom': False,
         'allergens': True, 'escandallo': True, 'inventory': False, 'suppliers': False, 'carta': False,
-        'multiuser': False, 'max_users': 1,
+        'multiuser': False, 'max_users': 1, 'multi_local': False,
         'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
         'trial': False, 'trial_days': None,
     },
     PLAN_PRO: {
         'pdf': True, 'watermark': False, 'templates_custom': True,
         'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': False, 'carta': True,
-        'multiuser': True, 'max_users': 8,
+        'multiuser': True, 'max_users': 8, 'multi_local': False,
         'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
         'trial': False, 'trial_days': None,
     },
     PLAN_BUSINESS: {
         'pdf': True, 'watermark': False, 'templates_custom': True,
         'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': True, 'carta': True,
-        'multiuser': True, 'max_users': 20,
+        'multiuser': True, 'max_users': 20, 'multi_local': True,
         'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
         'trial': False, 'trial_days': None,
     },
@@ -149,10 +149,21 @@ CARTA_FONT_CHOICES = [
 ]
 
 
+BUSINESS_TYPE_CHOICES = [
+    ('restaurant', 'Restaurante'),
+    ('individual', 'Cocinero particular'),
+]
+
+
 class Restaurant(models.Model):
     """Cliente/tenant de la plataforma: un restaurante con sus propias recetas."""
 
     name = models.CharField(max_length=180)
+    # Tipo de cuenta (elegido en el alta): restaurante o cocinero particular.
+    # Orienta el plan al pasar a pago (particular → Básico/Cocinero).
+    business_type = models.CharField(
+        max_length=20, choices=BUSINESS_TYPE_CHOICES, default='restaurant',
+    )
     default_template = models.CharField(
         max_length=20, choices=TEMPLATE_CHOICES, default='formal',
     )
@@ -310,6 +321,13 @@ class UserProfile(models.Model):
     )
     phone = models.CharField(max_length=40, blank=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+    # Local activo (multi-local): si el usuario pertenece a varios restaurantes,
+    # este es el que está operando ahora. Debe ser uno de sus memberships; si es
+    # inválido o None, get_membership() cae al primero. Solo presentación/scoping.
+    active_restaurant = models.ForeignKey(
+        Restaurant, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='+',
+    )
     # True mientras el usuario use una contraseña temporal/por defecto: al entrar
     # se le obliga a definir la suya. Se pone al crear (auto) y al restablecer.
     must_change_password = models.BooleanField(default=False)
@@ -371,10 +389,29 @@ PERMISSION_FLAGS = [
 
 
 def get_membership(user):
-    """Membership del usuario (por ahora 1 por usuario), o None."""
+    """Membership ACTIVA del usuario, o None.
+
+    Multi-local: si el usuario tiene un `active_restaurant` válido (uno de sus
+    memberships), devuelve ese; si no, el primero. Todo el aislamiento por tenant
+    pasa por aquí, así que fijar el local activo basta para que querysets,
+    permisos y features sigan al local elegido sin tocar cada llamada."""
     if not user or not user.is_authenticated:
         return None
-    return user.memberships.select_related('role', 'restaurant').first()
+    qs = user.memberships.select_related('role', 'restaurant')
+    prof = getattr(user, 'profile', None)
+    active_id = getattr(prof, 'active_restaurant_id', None) if prof else None
+    if active_id:
+        m = qs.filter(restaurant_id=active_id).first()
+        if m:
+            return m
+    return qs.first()
+
+
+def get_user_memberships(user):
+    """Todos los memberships del usuario (para el selector de local), o []."""
+    if not user or not user.is_authenticated:
+        return []
+    return list(user.memberships.select_related('role', 'restaurant').order_by('restaurant__name'))
 
 
 def get_user_role(user):
@@ -426,7 +463,7 @@ def get_user_features(user):
         return {
             'pdf': True, 'watermark': False, 'templates_custom': True,
             'allergens': True, 'escandallo': True, 'inventory': True, 'suppliers': True, 'carta': True,
-            'multiuser': True, 'max_users': 9999,
+            'multiuser': True, 'max_users': 9999, 'multi_local': True,
             'max_recipes_total': None, 'max_recipes_per_month': None, 'max_pdf_total': None,
             'trial': False, 'trial_days': None,
         }
