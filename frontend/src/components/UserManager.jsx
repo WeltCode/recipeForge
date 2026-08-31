@@ -232,6 +232,15 @@ function UserManager({ restaurantId, admins = false }) {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[14px] font-medium text-ink">{fullName || login}</p>
                   <p className="truncate text-[12px] text-ink-3">{login}{u.title ? ` · ${u.title}` : ''}</p>
+                  {!admins && Array.isArray(u.restaurants) && u.restaurants.length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {u.restaurants.map((r) => (
+                        <span key={r.id} className="inline-flex items-center gap-1 rounded-full bg-[#f0ece5] px-2 py-0.5 text-[10.5px] text-ink-2">
+                          {r.name}{r.role ? <span className="text-ink-3">· {ROLE_LABELS[r.role] || r.role}</span> : null}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {u.must_change_password && <span className="rounded-full bg-[#f0e3c9] px-2 py-0.5 text-[10px] font-medium text-[#8a6a1f]">contraseña temporal</span>}
                 {admins ? (

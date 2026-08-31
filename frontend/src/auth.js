@@ -324,6 +324,34 @@ export async function createLocal(name, currency) {
   return data
 }
 
+// Multi-local: el dueño elimina UNO DE SUS locales (no el único). Devuelve el
+// contexto del local restante; el llamador recarga la app.
+export async function deleteLocal(id) {
+  const res = await authFetch(`${API_BASE}/auth/my-restaurant/${id}/`, { method: 'DELETE' })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    throw new Error(data.detail || Object.values(data).flat().join(' ') || `Error ${res.status}`)
+  }
+  storeSession({
+    role: data.role,
+    permissions: data.permissions,
+    features: data.features,
+    usage: data.usage,
+    plan: data.restaurant_plan,
+    title: data.title,
+    restaurant: data.restaurant,
+    restaurant_name: data.restaurant_name,
+    restaurant_prefix: data.restaurant_prefix,
+    restaurant_logo: data.restaurant_logo,
+    restaurant_default_template: data.restaurant_default_template,
+    restaurant_currency: data.restaurant_currency,
+    restaurant_public_slug: data.restaurant_public_slug,
+    restaurant_carta_published: data.restaurant_carta_published,
+    restaurants: data.restaurants,
+  })
+  return data
+}
+
 // Cambia la contraseña del usuario autenticado. Al terminar, limpia el flag de
 // cambio obligatorio en el cliente.
 export async function changePassword(current_password, new_password) {

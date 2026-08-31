@@ -13,7 +13,8 @@ const emptyNew = {
   name: '', code_prefix: '', tax_id: '', contact_email: '', contact_phone: '', address: '',
   currency: 'EUR', default_template: 'formal', plan: 'prueba',
   owner_mode: 'new',  // 'new' = crear dueño · 'existing' = ligar a un dueño ya existente
-  owner_first_name: '', owner_last_name: '', owner_email: '', owner_phone: '', owner_role: 'owner',
+  owner_first_name: '', owner_last_name: '', owner_email: '', owner_phone: '', owner_dni: '', owner_role: 'owner',
+  owner_identifier: '',  // para ligar a dueño existente: correo, CIF/NIF o NIE/DNI
 }
 const TEMPLATE_OPTS = [['formal', 'Formal'], ['moderna', 'Moderna'], ['tradicional', 'Tradicional'], ['llamativa', 'Llamativa']]
 const PLAN_OPTS = [['prueba', 'Prueba (30 días)'], ['basico', 'Básico (Cocinero)'], ['pro', 'Premium'], ['business', 'Business']]
@@ -102,6 +103,14 @@ function AdminDashboard({
     }
   }
 
+  // Abre el modal de "nuevo restaurante" precargado para ligar a un dueño
+  // existente (identificado por su correo/usuario).
+  const openCreateForOwner = (identifier) => {
+    onBackToRestaurants()
+    setNuevo({ ...emptyNew, owner_mode: 'existing', owner_identifier: identifier || '' })
+    setShowCreate(true)
+  }
+
   // ── Detalle de un restaurante ──
   if (selectedRestaurantId && selected) {
     return (
@@ -111,6 +120,7 @@ function AdminDashboard({
         canDelete={canDelete}
         onBack={onBackToRestaurants}
         onUpdated={loadRestaurants}
+        onAddRestaurantToOwner={openCreateForOwner}
         onOpenRecipe={onOpenRecipe}
         onNewRecipe={onNewRecipe}
         onDeleteRecipe={onDeleteRecipe}
@@ -376,8 +386,8 @@ function AdminDashboard({
                     </div>
                     {nuevo.owner_mode === 'existing' ? (
                       <>
-                        {fld('Correo del dueño existente *', 'owner_email', { required: true, type: 'email', ph: 'dueno@rest.com' })}
-                        <p className="mt-2 text-[11px] text-[#8a837b]">Se ligará este nuevo local al dueño con ese correo (su 2º restaurante). No se crea usuario nuevo.</p>
+                        {fld('Correo, CIF/NIF o NIE/DNI del dueño *', 'owner_identifier', { required: true, ph: 'dueno@rest.com · B12345678 · 12345678Z' })}
+                        <p className="mt-2 text-[11px] text-[#8a837b]">Se ligará este nuevo local al dueño identificado (su 2º restaurante). Puedes buscarlo por su correo, por el CIF/NIF de uno de sus restaurantes o por su NIE/DNI. No se crea usuario nuevo.</p>
                       </>
                     ) : (
                       <>
@@ -385,6 +395,7 @@ function AdminDashboard({
                           {fld('Nombre *', 'owner_first_name', { required: true })}
                           {fld('Apellido', 'owner_last_name', {})}
                           {fld('Correo *', 'owner_email', { required: true, type: 'email', ph: 'dueno@rest.com' })}
+                          {fld('NIE/DNI', 'owner_dni', { ph: '12345678Z' })}
                           {fld('Teléfono', 'owner_phone', {})}
                         </div>
                         <label className="mt-3 flex flex-col gap-1 text-[12px] text-[#6a635c]">Rol

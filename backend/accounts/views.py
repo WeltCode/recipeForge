@@ -327,6 +327,29 @@ class OwnerCreateRestaurantView(APIView):
         return Response(_login_payload(user, request), status=201)
 
 
+class OwnerDeleteRestaurantView(APIView):
+    """Autoservicio multi-local: un dueño elimina UNO DE SUS locales (no el único).
+    Borra en cascada su contenido. Devuelve el contexto /me del local restante."""
+
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, pk):
+        user = request.user
+        m = Membership.objects.filter(user=user, restaurant_id=pk, role__key='owner').select_related('restaurant').first()
+        if not m:
+            raise PermissionDenied('Solo el dueño puede eliminar este local.')
+        if user.memberships.count() <= 1:
+            raise PermissionDenied('No puedes eliminar tu único local.')
+        prof = getattr(user, 'profile', None)
+        was_active = bool(prof and prof.active_restaurant_id == int(pk))
+        m.restaurant.delete()  # cascada: recetas, escandallos, inventario, etc.
+        if was_active and prof:
+            other = user.memberships.select_related('restaurant').first()
+            prof.active_restaurant = other.restaurant if other else None
+            prof.save(update_fields=['active_restaurant'])
+        return Response(_login_payload(user, request))
+
+
 class UserAdminViewSet(viewsets.ModelViewSet):
     """CRUD de usuarios. El Super Admin gestiona cualquier restaurante; un owner
     con `can_manage_users` gestiona SOLO el suyo (nunca superadmins ni otros

@@ -14,7 +14,7 @@ import CosteoSection from './components/CosteoSection'
 import { AllergenPicker } from './components/AllergenPicker'
 import { parseDecimal, fmtDecimal } from './lib/ui'
 import { TEMPLATES, templateMeta } from './templates'
-import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getRestaurantId, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, getRestaurants, switchRestaurant, createLocal, getAvatar, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
+import { authFetch, isAuthenticated, getRole, hasPerm, feat, getPlan, getUsage, getUsername, getRestaurantId, getRestaurantName, getRestaurantPrefix, getRestaurantLogo, getRestaurantDefaultTemplate, getRestaurants, switchRestaurant, createLocal, deleteLocal, getAvatar, logout, refreshMe, mustChangePassword, IDLE_LIMIT_MS } from './auth'
 import { ForcedPasswordScreen } from './components/ChangePassword'
 import AjustesSection from './components/AjustesSection'
 import UserManager from './components/UserManager'
@@ -418,6 +418,14 @@ function App() {
   const handleAddLocal = async (name) => {
     await createLocal(name)
     window.location.reload()
+  }
+  const handleDeleteLocal = async (id) => {
+    try {
+      await deleteLocal(id)
+      window.location.reload()
+    } catch (e) {
+      alert(e.message || 'No se pudo eliminar el local.')
+    }
   }
 
   // ── Navegación panel ↔ editor ──
@@ -1010,7 +1018,7 @@ function App() {
         sections={userSections} active={section} onNavigate={setSection}
         username={username} role={role} plan={getPlan()} restaurantName={restaurantName}
         restaurants={getRestaurants()} onSwitchRestaurant={handleSwitchRestaurant}
-        canAddLocal={feat('multi_local')} onAddLocal={handleAddLocal}
+        canAddLocal={feat('multi_local')} onAddLocal={handleAddLocal} onDeleteLocal={handleDeleteLocal}
         avatar={avatar} onLogout={handleLogout}
       >
         {connBanner}

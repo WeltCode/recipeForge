@@ -320,6 +320,9 @@ class UserProfile(models.Model):
         on_delete=models.SET_NULL, related_name='members',
     )
     phone = models.CharField(max_length=40, blank=True)
+    # Documento personal del dueño (NIE/DNI). Sirve para localizarlo al ligarle
+    # otro restaurante (además del correo o el CIF/NIF de sus restaurantes).
+    dni = models.CharField(max_length=40, blank=True)
     avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     # Local activo (multi-local): si el usuario pertenece a varios restaurantes,
     # este es el que está operando ahora. Debe ser uno de sus memberships; si es
@@ -405,6 +408,27 @@ def get_membership(user):
         if m:
             return m
     return qs.first()
+
+
+def find_owner_by_identifier(ident):
+    """Localiza un dueño (usuario de restaurante, no superadmin) por: correo o
+    usuario, NIE/DNI (UserProfile.dni), o CIF/NIF de uno de sus restaurantes.
+    Devuelve el User o None."""
+    ident = (ident or '').strip()
+    if not ident:
+        return None
+    u = User.objects.filter(username__iexact=ident).first() or User.objects.filter(email__iexact=ident).first()
+    if u and not u.is_superuser:
+        return u
+    prof = UserProfile.objects.filter(dni__iexact=ident).select_related('user').first()
+    if prof and not prof.user.is_superuser:
+        return prof.user
+    rest = Restaurant.objects.filter(tax_id__iexact=ident).first()
+    if rest:
+        m = rest.memberships.filter(role__key='owner').select_related('user').first() or rest.memberships.select_related('user').first()
+        if m and not m.user.is_superuser:
+            return m.user
+    return None
 
 
 def get_user_memberships(user):

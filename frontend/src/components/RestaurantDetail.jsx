@@ -18,9 +18,10 @@ const TABS = [
 ]
 
 function RestaurantDetail({
-  restaurant, recipes, canDelete, onBack, onUpdated,
+  restaurant, recipes, canDelete, onBack, onUpdated, onAddRestaurantToOwner,
   onOpenRecipe, onNewRecipe, onDeleteRecipe, onDownloadPDF,
 }) {
+  const owner = (restaurant.members || []).find((m) => m.role === 'owner') || (restaurant.members || [])[0]
   const [tab, setTab] = useState('recipes')
   const [query, setQuery] = useState('')
 
@@ -323,6 +324,23 @@ function RestaurantDetail({
               {infoMsg && <span className="text-[13px] text-ink-2">{infoMsg}</span>}
             </div>
           </form>
+
+          {/* Añadir otro restaurante al mismo dueño (multi-local) */}
+          {owner && onAddRestaurantToOwner && (
+            <section className="rounded-2xl steel-plate p-5">
+              <h3 className="pass-title text-[15px] text-ink">Más locales de este dueño</h3>
+              <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-2">
+                Da de alta otro restaurante ligado a <span className="font-semibold text-ink">{owner.role_name || 'el dueño'} «{owner.username}»</span> (su 2º local, mismo dueño).
+              </p>
+              <button
+                type="button"
+                onClick={() => onAddRestaurantToOwner(owner.username)}
+                className="mt-3 inline-flex h-10 items-center gap-2 rounded-lg bg-soot px-4 text-sm font-medium text-cream transition hover:bg-carbon-2"
+              >
+                <Plus size={16} /> Añadir otro restaurante a este dueño
+              </button>
+            </section>
+          )}
 
           {/* Zona de peligro: eliminar el restaurante (destructivo, en cascada) */}
           <section className="rounded-2xl border border-danger/35 bg-danger/[.04] p-5">
