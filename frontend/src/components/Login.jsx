@@ -40,6 +40,19 @@ const MODE_COPY = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
+// Prefijos telefónicos con bandera (España + Latinoamérica + algunos más).
+// [bandera, país, prefijo]. Valor del select = prefijo.
+const DIAL_CODES = [
+  ['🇪🇸', 'España', '+34'], ['🇲🇽', 'México', '+52'], ['🇦🇷', 'Argentina', '+54'],
+  ['🇨🇴', 'Colombia', '+57'], ['🇵🇪', 'Perú', '+51'], ['🇨🇱', 'Chile', '+56'],
+  ['🇻🇪', 'Venezuela', '+58'], ['🇪🇨', 'Ecuador', '+593'], ['🇧🇴', 'Bolivia', '+591'],
+  ['🇺🇾', 'Uruguay', '+598'], ['🇵🇾', 'Paraguay', '+595'], ['🇬🇹', 'Guatemala', '+502'],
+  ['🇭🇳', 'Honduras', '+504'], ['🇸🇻', 'El Salvador', '+503'], ['🇳🇮', 'Nicaragua', '+505'],
+  ['🇨🇷', 'Costa Rica', '+506'], ['🇵🇦', 'Panamá', '+507'], ['🇩🇴', 'R. Dominicana', '+1'],
+  ['🇧🇷', 'Brasil', '+55'], ['🇵🇹', 'Portugal', '+351'], ['🇬🇧', 'Reino Unido', '+44'],
+  ['🇫🇷', 'Francia', '+33'], ['🇩🇪', 'Alemania', '+49'], ['🇮🇹', 'Italia', '+39'],
+]
+
 // Notificación "de forja": chapa de carbón con filo de brasa que baja con rebote
 // y una chispa que late. Verde para éxito, brasa para error. Se autocierra.
 function ForgeToast({ toast, onClose }) {
@@ -90,6 +103,9 @@ function Login({ onSuccess, notice }) {
   const [restaurantName, setRestaurantName] = useState('')
   const [firstName, setFirstName] = useState('')
   const [accountType, setAccountType] = useState('restaurant')  // restaurant | individual
+  const [phoneCode, setPhoneCode] = useState('+34')
+  const [phoneNumber, setPhoneNumber] = useState('')
+  const [address, setAddress] = useState('')
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [toast, setToast] = useState(null)   // { id, kind:'error'|'ok', title, msg }
@@ -122,6 +138,12 @@ function Login({ onSuccess, notice }) {
     const ident = username.trim()
     if (mode === 'signup' && !restaurantName.trim()) {
       notify('error', 'Falta un dato', 'Escribe el nombre de tu negocio o el tuyo.'); return false
+    }
+    if (mode === 'signup' && !phoneNumber.trim()) {
+      notify('error', 'Falta el teléfono', 'El teléfono es obligatorio. Elige tu prefijo y escribe el número.'); return false
+    }
+    if (mode === 'signup' && accountType === 'restaurant' && !address.trim()) {
+      notify('error', 'Falta la dirección', 'Indica la dirección del restaurante.'); return false
     }
     if (!ident) {
       notify('error', mode === 'login' ? 'Falta el acceso' : 'Falta el correo',
@@ -158,6 +180,8 @@ function Login({ onSuccess, notice }) {
           password,
           first_name: firstName.trim(),
           account_type: accountType,
+          phone: `${phoneCode} ${phoneNumber.trim()}`.trim(),
+          address: accountType === 'restaurant' ? address.trim() : '',
         })
         if (data.verification_required) {
           setMode('login')
@@ -347,6 +371,44 @@ function Login({ onSuccess, notice }) {
                           />
                         </div>
                       </div>
+                      {/* Teléfono obligatorio con prefijo de país */}
+                      <div>
+                        <label className="rf-cond mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-[#7a736b]" style={{ fontWeight: 500 }}>Teléfono</label>
+                        <div className="flex gap-2">
+                          <select
+                            value={phoneCode}
+                            onChange={(e) => setPhoneCode(e.target.value)}
+                            aria-label="Prefijo de país"
+                            className="w-[150px] shrink-0 rounded-xl border border-[#b9c0c6] bg-white py-3 pl-3 pr-2 text-[#1c1611] shadow-[inset_0_1px_3px_rgba(20,16,8,0.10)] outline-none focus:border-[#e8531f] focus:ring-2 focus:ring-[#e8531f]/25"
+                          >
+                            {DIAL_CODES.map(([flag, name, code]) => (
+                              <option key={name} value={code}>{flag} {code} · {name}</option>
+                            ))}
+                          </select>
+                          <input
+                            type="tel"
+                            inputMode="tel"
+                            value={phoneNumber}
+                            onChange={(e) => setPhoneNumber(e.target.value)}
+                            autoComplete="tel-national"
+                            placeholder="600 123 456"
+                            className="w-full rounded-xl border border-[#b9c0c6] bg-white py-3 px-4 text-[#1c1611] shadow-[inset_0_1px_3px_rgba(20,16,8,0.10)] outline-none transition placeholder:text-[#a8a099] focus:border-[#e8531f] focus:ring-2 focus:ring-[#e8531f]/25"
+                          />
+                        </div>
+                      </div>
+                      {/* Dirección: solo para restaurantes (los cocineros no la dan) */}
+                      {accountType === 'restaurant' && (
+                        <div>
+                          <label className="rf-cond mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-[#7a736b]" style={{ fontWeight: 500 }}>Dirección del restaurante</label>
+                          <input
+                            value={address}
+                            onChange={(e) => setAddress(e.target.value)}
+                            autoComplete="street-address"
+                            placeholder="Calle, número, ciudad"
+                            className="w-full rounded-xl border border-[#b9c0c6] bg-white py-3 px-4 text-[#1c1611] shadow-[inset_0_1px_3px_rgba(20,16,8,0.10)] outline-none transition placeholder:text-[#a8a099] focus:border-[#e8531f] focus:ring-2 focus:ring-[#e8531f]/25"
+                          />
+                        </div>
+                      )}
                     </>
                   )}
 

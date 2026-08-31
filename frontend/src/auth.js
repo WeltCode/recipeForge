@@ -272,13 +272,13 @@ export async function switchRestaurant(id) {
 
 // Alta autoservicio a la Prueba: crea restaurante + owner y autentica (guarda la
 // sesión igual que login). Devuelve los datos de la cuenta nueva.
-export async function signup({ restaurant_name, email, password, first_name, account_type }) {
+export async function signup({ restaurant_name, email, password, first_name, account_type, phone, address }) {
   let res
   try {
     res = await fetch(`${API_BASE}/auth/signup/`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ restaurant_name, email, password, first_name, account_type }),
+      body: JSON.stringify({ restaurant_name, email, password, first_name, account_type, phone, address }),
     })
   } catch {
     throw new Error(`No se pudo conectar con el servidor (${API_BASE}).`)

@@ -190,6 +190,8 @@ class SignupView(APIView):
         name = (request.data.get('restaurant_name') or '').strip()
         password = request.data.get('password') or ''
         first_name = (request.data.get('first_name') or '').strip()
+        phone = (request.data.get('phone') or '').strip()
+        address = (request.data.get('address') or '').strip()
         account_type = request.data.get('account_type') or 'restaurant'
         if account_type not in ('restaurant', 'individual'):
             account_type = 'restaurant'
@@ -198,6 +200,11 @@ class SignupView(APIView):
             return Response({'email': 'Introduce un correo válido.'}, status=400)
         if not name:
             return Response({'restaurant_name': 'Indica el nombre de tu negocio o el tuyo.'}, status=400)
+        if not phone:
+            return Response({'phone': 'El teléfono es obligatorio.'}, status=400)
+        # La dirección solo se pide (y guarda) para restaurantes, no para cocineros.
+        if account_type != 'restaurant':
+            address = ''
         if User.objects.filter(username__iexact=email).exists():
             return Response({'email': 'Ya existe una cuenta con ese correo.'}, status=400)
         try:
@@ -209,6 +216,7 @@ class SignupView(APIView):
             restaurant = Restaurant.objects.create(
                 name=name, plan='prueba', business_type=account_type,
                 code_prefix=_prefix_from_name(name),
+                contact_email=email, contact_phone=phone, address=address,
             )  # el signal crea los 4 roles
             feats = plan_features(restaurant)
             if feats.get('trial') and restaurant.trial_ends_at is None:
@@ -221,8 +229,9 @@ class SignupView(APIView):
             Membership.objects.create(user=user, restaurant=restaurant, role=role)
             # Alta autoservicio → exige verificar el correo antes de entrar.
             prof = user.profile
+            prof.phone = phone
             prof.email_verified = False
-            prof.save(update_fields=['email_verified'])
+            prof.save(update_fields=['phone', 'email_verified'])
 
         # Correos (nunca rompen la petición).
         send_verification_email(user, _verify_url(user, request))

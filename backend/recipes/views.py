@@ -425,6 +425,11 @@ class PublicCartaView(APIView):
             'menu_section', 'menu_order', 'name',
         )
         rows = PublicCartaItemSerializer(items, many=True, context={'request': request}).data
+        # Orden culinario de las secciones: Entrante → Segundo → Postre; cualquier
+        # otra sección personalizada va después, alfabética. El orden dentro de
+        # cada sección (menu_order, nombre) se conserva porque sorted es estable.
+        course_order = {'Entrante': 0, 'Segundo': 1, 'Postre': 2}
+        rows = sorted(rows, key=lambda it: (course_order.get(it.get('menu_section') or '', 99), it.get('menu_section') or ''))
         sections = []
         for it in rows:
             sec = it.get('menu_section') or ''
