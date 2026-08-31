@@ -6,6 +6,7 @@ alta o un reset jamás se rompen por un problema de correo.
 """
 import json
 import logging
+import threading
 import urllib.error
 import urllib.request
 
@@ -49,30 +50,40 @@ def _resend_api_send(recipients, subject, body, html, reply_to):
         return 200 <= resp.status < 300
 
 
+def _deliver(subject, body, recipients, html, reply_to):
+    """Entrega real: API HTTP de Resend si hay key, si no el backend de Django."""
+    if getattr(settings, 'RESEND_API_KEY', ''):
+        return _resend_api_send(recipients, subject, body, html, reply_to)
+    msg = EmailMultiAlternatives(
+        subject=subject,
+        body=body,
+        from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
+        to=recipients,
+        reply_to=[reply_to] if reply_to else None,
+    )
+    if html:
+        msg.attach_alternative(html, 'text/html')
+    msg.send(fail_silently=False)
+    return True
+
+
 def send_mail_safe(subject, body, to, html=None, reply_to=None):
-    """Envía un correo sin romper NUNCA la petición. Con RESEND_API_KEY usa la API
-    HTTP de Resend (puerto 443, va en Render); si no, el backend de Django
-    (consola en DEBUG, dummy en prod). Devuelve True si se entregó, False si no."""
+    """Envía un correo sin bloquear NUNCA la petición: la entrega va en un hilo
+    aparte (Resend por HTTP puede tardar unos segundos desde Render). Nunca lanza.
+    Devuelve True si se encoló. Con RESEND_API_KEY usa la API HTTP de Resend; si no,
+    el backend de Django (consola en DEBUG, dummy en prod)."""
     if not to:
         return False
     recipients = [to] if isinstance(to, str) else list(to)
-    try:
-        if getattr(settings, 'RESEND_API_KEY', ''):
-            return _resend_api_send(recipients, subject, body, html, reply_to)
-        msg = EmailMultiAlternatives(
-            subject=subject,
-            body=body,
-            from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', None),
-            to=recipients,
-            reply_to=[reply_to] if reply_to else None,
-        )
-        if html:
-            msg.attach_alternative(html, 'text/html')
-        msg.send(fail_silently=False)
-        return True
-    except Exception:
-        logger.warning('No se pudo enviar el correo "%s" a %s', subject, recipients, exc_info=True)
-        return False
+
+    def _worker():
+        try:
+            _deliver(subject, body, recipients, html, reply_to)
+        except Exception:
+            logger.warning('No se pudo enviar el correo "%s" a %s', subject, recipients, exc_info=True)
+
+    threading.Thread(target=_worker, name='rf-email', daemon=True).start()
+    return True
 
 
 def _wrap_html(title, inner):
