@@ -118,14 +118,17 @@ function Login({ onSuccess, notice }) {
   // Validación propia (sin los mensajes por defecto del navegador) con avisos
   // bonitos y condiciones claras. Devuelve true si todo correcto.
   const validate = () => {
-    const email = username.trim()
+    const ident = username.trim()
     if (mode === 'signup' && !restaurantName.trim()) {
       notify('error', 'Falta un dato', 'Escribe el nombre de tu negocio o el tuyo.'); return false
     }
-    if (!email) {
-      notify('error', 'Falta el correo', 'Escribe tu correo electrónico para continuar.'); return false
+    if (!ident) {
+      notify('error', mode === 'login' ? 'Falta el acceso' : 'Falta el correo',
+        mode === 'login' ? 'Escribe tu correo o usuario para continuar.' : 'Escribe tu correo electrónico para continuar.'); return false
     }
-    if (!EMAIL_RE.test(email)) {
+    // En alta/recuperar el identificador SÍ debe ser un correo; al iniciar sesión
+    // se admite correo o usuario (algunas cuentas entran con su nombre de usuario).
+    if (mode !== 'login' && !EMAIL_RE.test(ident)) {
       notify('error', 'Correo no válido', 'Revisa el correo: parece que le falta algo (ej. nombre@dominio.com).'); return false
     }
     if (mode !== 'forgot' && !password) {
@@ -330,19 +333,19 @@ function Login({ onSuccess, notice }) {
                   )}
 
                   <div>
-                    <label className="rf-cond mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-[#7a736b]" style={{ fontWeight: 500 }}>Correo</label>
+                    <label className="rf-cond mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-[#7a736b]" style={{ fontWeight: 500 }}>{mode === 'login' ? 'Correo o usuario' : 'Correo'}</label>
                     <div className="relative">
                       <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[#9a9188]">
                         <User size={19} />
                       </span>
                       <input
-                        type="email"
-                        inputMode="email"
+                        type={mode === 'login' ? 'text' : 'email'}
+                        inputMode={mode === 'login' ? 'text' : 'email'}
                         autoFocus={mode !== 'signup'}
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         autoComplete="username"
-                        placeholder="tu@correo.com"
+                        placeholder={mode === 'login' ? 'tu@correo.com o usuario' : 'tu@correo.com'}
                         className="w-full rounded-xl border border-[#b9c0c6] bg-white py-3 pl-11 pr-4 text-[#1c1611] shadow-[inset_0_1px_3px_rgba(20,16,8,0.10)] outline-none transition placeholder:text-[#a8a099] focus:border-[#e8531f] focus:ring-2 focus:ring-[#e8531f]/25"
                       />
                     </div>
