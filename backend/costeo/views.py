@@ -5,7 +5,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
-from accounts.models import get_user_restaurant, get_user_role, UserProfile, Restaurant
+from accounts.models import get_user_restaurant, get_user_role, log_activity, UserProfile, Restaurant
+from accounts.mixins import ActivityLogMixin
 from catalog.permissions import EscandalloPermission
 
 from . import services
@@ -24,7 +25,7 @@ def _is_superadmin(user):
     return get_user_role(user) == UserProfile.ROLE_SUPERADMIN
 
 
-class _TenantViewSet(ModelViewSet):
+class _TenantViewSet(ActivityLogMixin, ModelViewSet):
     permission_classes = [EscandalloPermission]
 
     def _restaurant(self):
@@ -42,11 +43,13 @@ class _TenantViewSet(ModelViewSet):
         return qs.filter(restaurant=get_user_restaurant(user))
 
     def perform_create(self, serializer):
-        serializer.save(restaurant=self._restaurant())
+        obj = serializer.save(restaurant=self._restaurant())
+        self._log(obj, 'create')
 
 
 class InsumoViewSet(_TenantViewSet):
     serializer_class = InsumoSerializer
+    activity_entity = 'insumo'
 
     def get_queryset(self):
         return self._scope(Insumo.objects.prefetch_related('formats').all())
@@ -119,6 +122,7 @@ class PurchaseFormatViewSet(_TenantViewSet):
         insumo.save(update_fields=['reference_format', 'updated_at'])
         services.sync_insumo_base_unit(insumo)
         services.cascade_refresh(insumo.restaurant)
+        log_activity(insumo.restaurant, request.user, 'update', 'insumo', f'{insumo.name} · precio')
         return Response(PurchaseFormatSerializer(fmt, context=self.get_serializer_context()).data)
 
     @action(detail=True, methods=['get'])
@@ -129,6 +133,7 @@ class PurchaseFormatViewSet(_TenantViewSet):
 
 class CostingViewSet(_TenantViewSet):
     serializer_class = CostingSerializer
+    activity_entity = 'escandallo'
 
     def get_queryset(self):
         qs = Costing.objects.prefetch_related('lines').all()

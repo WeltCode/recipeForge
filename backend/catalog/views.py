@@ -5,7 +5,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from accounts.models import get_user_restaurant, get_user_role, UserProfile, Restaurant
+from accounts.models import get_user_restaurant, get_user_role, log_activity, UserProfile, Restaurant
+from accounts.mixins import ActivityLogMixin
 
 from .models import InventoryItem, Partida, Product, Supplier
 from .permissions import CatalogPermission
@@ -21,8 +22,10 @@ def _is_superadmin(user):
     return get_user_role(user) == UserProfile.ROLE_SUPERADMIN
 
 
-class _TenantScopedViewSet(ModelViewSet):
-    """Base: aísla por restaurante y fija el restaurante al crear."""
+class _TenantScopedViewSet(ActivityLogMixin, ModelViewSet):
+    """Base: aísla por restaurante y fija el restaurante al crear.
+    Registra actividad si el viewset fija `activity_entity` (update/delete vienen
+    del mixin; el create se registra aquí porque aquí se fija el restaurante)."""
 
     permission_classes = [CatalogPermission]
 
@@ -34,7 +37,8 @@ class _TenantScopedViewSet(ModelViewSet):
         return get_user_restaurant(user)
 
     def perform_create(self, serializer):
-        serializer.save(restaurant=self._restaurant())
+        obj = serializer.save(restaurant=self._restaurant())
+        self._log(obj, 'create')
 
 
 class PartidaViewSet(_TenantScopedViewSet):
@@ -53,6 +57,7 @@ class PartidaViewSet(_TenantScopedViewSet):
 class SupplierViewSet(_TenantScopedViewSet):
     serializer_class = SupplierSerializer
     required_feature = 'suppliers'
+    activity_entity = 'proveedor'
 
     def get_queryset(self):
         qs = Supplier.objects.prefetch_related('products').all()
@@ -89,6 +94,7 @@ class InventoryItemViewSet(_TenantScopedViewSet):
 
     serializer_class = InventoryItemSerializer
     required_feature = 'inventory'
+    activity_entity = 'inventario'
 
     def get_queryset(self):
         qs = InventoryItem.objects.select_related('partida').all()
@@ -128,4 +134,5 @@ class InventoryItemViewSet(_TenantScopedViewSet):
         else:
             item.quantity = qty
         item.save(update_fields=['quantity', 'updated_at'])
+        log_activity(item.restaurant, request.user, 'update', 'inventario', item.name)
         return Response(InventoryItemSerializer(item, context=self.get_serializer_context()).data)

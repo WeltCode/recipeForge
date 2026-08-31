@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { authFetch, getCurrency, getFirstName } from '../auth'
 import { money } from '../lib/money'
 import { greeting, capitalize, Embers, StatusLamp } from '../lib/ui'
-import { RecipeSheet, Cloche, Coins, Inventory, Truck, Clock, Plus, ChevronRight } from './icons'
+import { RecipeSheet, Cloche, Coins, Inventory, Truck, Users, Clock, Plus, ChevronRight } from './icons'
 
 const ROLE_META = {
   viewer: { label: 'Viewer', desc: 'Consultas las fichas técnicas en cocina.' },
@@ -30,6 +30,32 @@ const ACTION_STYLE = {
   create: { verb: 'creó', dot: '#2f9e5f' },
   update: { verb: 'editó', dot: '#ff9a3d' },
   delete: { verb: 'borró', dot: '#c94326' },
+}
+
+// Nombre legible de la entidad para el feed ("creó la receta «X»").
+const ENTITY_LABEL = {
+  receta: 'la receta',
+  proveedor: 'el proveedor',
+  inventario: 'el insumo',
+  insumo: 'el insumo de coste',
+  escandallo: 'el escandallo',
+}
+
+// Tira de avisos que requieren acción (bajo mínimo, escandallos sin precio…).
+function Alert({ tone = 'warn', icon: Icon, title, detail, cta, onClick }) {
+  const c = tone === 'warn'
+    ? { bg: '#fff6ec', bd: 'rgba(214,138,46,.35)', ink: '#8a5410', ic: '#c98a2e' }
+    : { bg: '#fbeae5', bd: 'rgba(176,52,24,.28)', ink: '#8f2c12', ic: '#c34526' }
+  return (
+    <button onClick={onClick} className="group flex w-full items-center gap-3 rounded-xl px-4 py-3 text-left transition hover:brightness-[0.99]" style={{ background: c.bg, border: `1px solid ${c.bd}` }}>
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg" style={{ background: '#fff', color: c.ic }}><Icon size={17} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13.5px] font-semibold" style={{ color: c.ink }}>{title}</span>
+        {detail && <span className="block truncate text-[12px]" style={{ color: c.ink, opacity: 0.75 }}>{detail}</span>}
+      </span>
+      <span className="shrink-0 text-[12px] font-medium" style={{ color: c.ink }}>{cta} <ChevronRight size={12} className="inline" /></span>
+    </button>
+  )
 }
 
 // Gauge de fogón: celda de acero con número condensado grande + acento.
@@ -109,6 +135,27 @@ export default function DashboardSection({ username, role, plan, restaurantName,
 
       {d && (
         <>
+          {/* Avisos que requieren acción */}
+          {(() => {
+            const alerts = []
+            if (feat('inventory') && d.inventory.low_stock > 0) {
+              const names = (d.inventory.low_names || []).join(', ')
+              alerts.push(
+                <Alert key="low" tone="warn" icon={Inventory}
+                  title={`${d.inventory.low_stock} ${d.inventory.low_stock === 1 ? 'insumo' : 'insumos'} bajo mínimo`}
+                  detail={names || undefined} cta="Reponer" onClick={() => onNavigate?.('inventario')} />
+              )
+            }
+            if (feat('escandallo') && d.costeo.unpriced > 0) {
+              alerts.push(
+                <Alert key="unpriced" tone="danger" icon={Coins}
+                  title={`${d.costeo.unpriced} ${d.costeo.unpriced === 1 ? 'escandallo' : 'escandallos'} sin precio de venta`}
+                  detail="Fija el PVP para conocer tu margen." cta="Poner precio" onClick={() => onNavigate?.('escandallo')} />
+              )
+            }
+            return alerts.length ? <div className="mt-4 grid gap-2 sm:grid-cols-2">{alerts}</div> : null
+          })()}
+
           {/* Gauges */}
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <Stat icon={RecipeSheet} value={d.recipes.total} label="Recetas" sub={`${d.recipes.priced} con precio de venta`} onClick={() => onNavigate?.('recetas')} />
@@ -116,6 +163,7 @@ export default function DashboardSection({ username, role, plan, restaurantName,
             {feat('escandallo') && <Stat icon={Coins} value={d.costeo.escandallos} label="Escandallos" sub={d.costeo.target_food_cost_avg != null ? `Food cost objetivo ${d.costeo.target_food_cost_avg}%` : 'Sin escandallos aún'} onClick={() => onNavigate?.('escandallo')} />}
             {feat('inventory') && <Stat icon={Inventory} value={d.inventory.items} label="Insumos en inventario" sub={`${d.insumos} en el catálogo de coste`} accent="#3f9142" badge={d.inventory.low_stock ? `${d.inventory.low_stock} bajo mínimo` : null} onClick={() => onNavigate?.('inventario')} />}
             {feat('suppliers') && <Stat icon={Truck} value={d.suppliers} label="Proveedores" onClick={() => onNavigate?.('proveedores')} />}
+            {feat('multiuser') && d.team != null && <Stat icon={Users} value={d.team} label="Equipo con acceso" sub={d.team === 1 ? 'Solo tú' : 'Usuarios activos'} accent="#6b7d8c" onClick={() => onNavigate?.('equipo')} />}
           </div>
 
           <div className="mt-6 grid gap-5 lg:grid-cols-[1.3fr_1fr]">
@@ -142,13 +190,14 @@ export default function DashboardSection({ username, role, plan, restaurantName,
                 <Clock size={15} className="text-ink-3" /><p className="pass-title text-[13px] text-ink">Actividad reciente</p>
               </div>
               {d.activity.length === 0 ? (
-                <p className="px-5 py-8 text-center text-[13px] text-ink-3">Sin actividad reciente todavía. Aquí verás quién crea, edita o borra recetas.</p>
+                <p className="px-5 py-8 text-center text-[13px] text-ink-3">Sin actividad reciente todavía. Aquí verás quién crea, edita o borra recetas, insumos, escandallos, inventario y proveedores.</p>
               ) : d.activity.map((a, i) => {
                 const st = ACTION_STYLE[a.action] || ACTION_STYLE.update
+                const ent = ENTITY_LABEL[a.entity] || a.entity
                 return (
                   <div key={i} className={`flex items-start gap-3 px-4 py-2.5 sm:px-5 ${i ? 'border-t border-steel-200' : ''}`}>
                     <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: st.dot }} />
-                    <p className="flex-1 text-[13px] leading-snug text-ink-2"><span className="font-semibold text-ink">{a.user_name || 'Alguien'}</span> {st.verb} {a.entity} <span className="font-medium text-ink">«{a.entity_name}»</span></p>
+                    <p className="flex-1 text-[13px] leading-snug text-ink-2"><span className="font-semibold text-ink">{a.user_name || 'Alguien'}</span> {st.verb} {ent}{a.entity_name && <> <span className="font-medium text-ink">«{a.entity_name}»</span></>}</p>
                     <span className="shrink-0 text-[11px] text-ink-3">{ago(a.created_at)}</span>
                   </div>
                 )

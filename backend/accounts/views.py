@@ -302,15 +302,21 @@ class DashboardView(APIView):
             if v is not None:
                 pvp_total += float(v)
 
-        inv = InventoryItem.objects.filter(restaurant=r)
-        low = sum(1 for i in inv if i.low_stock)
+        inv = InventoryItem.objects.filter(restaurant=r).select_related('partida')
+        low_items = [i for i in inv if i.low_stock]
+        low_names = [i.name for i in low_items[:8]]
 
         escandallos = Costing.objects.filter(restaurant=r)
+        esc_total = escandallos.count()
+        # El PVP solo aplica a platos de venta; las producciones (is_subrecipe) no lo llevan.
+        sale_dishes = escandallos.filter(is_subrecipe=False)
+        esc_priced = sale_dishes.filter(sale_price__isnull=False).count()
+        esc_unpriced = sale_dishes.filter(sale_price__isnull=True).count()
         fc_vals = [float(x) for x in escandallos.exclude(target_food_cost=None).values_list('target_food_cost', flat=True)]
         fc_avg = round(sum(fc_vals) / len(fc_vals) * 100, 1) if fc_vals else None
 
         activity = list(ActivityLog.objects.filter(restaurant=r).values(
-            'action', 'user_name', 'entity', 'entity_name', 'created_at')[:12])
+            'action', 'user_name', 'entity', 'entity_name', 'created_at')[:14])
 
         feats = plan_features(r)
         return Response({
@@ -320,14 +326,16 @@ class DashboardView(APIView):
                 'priced': recipes.filter(sale_price__isnull=False).count(),
                 'by_category': by_cat, 'recent': recent,
             },
-            'inventory': {'items': inv.count(), 'low_stock': low},
+            'inventory': {'items': inv.count(), 'low_stock': len(low_items), 'low_names': low_names},
             'suppliers': Supplier.objects.filter(restaurant=r).count(),
             'insumos': Insumo.objects.filter(restaurant=r).count(),
             'costeo': {
-                'escandallos': escandallos.count(),
-                'priced': escandallos.filter(sale_price__isnull=False).count(),
+                'escandallos': esc_total,
+                'priced': esc_priced,
+                'unpriced': esc_unpriced,
                 'target_food_cost_avg': fc_avg,
             },
+            'team': r.members.filter(user__is_active=True).count(),
             'money': {'menu_pvp_total': round(pvp_total, 2)},
             'activity': activity,
             'features': {k: feats.get(k) for k in ('escandallo', 'inventory', 'suppliers', 'carta', 'multiuser')},
