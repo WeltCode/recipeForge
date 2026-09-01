@@ -176,6 +176,18 @@ def _verify_url(user, request):
     return f'{base}/verificar?uid={uid}&token={token}'
 
 
+def delete_restaurant_and_orphans(restaurant):
+    """Borra un restaurante (cascada) y, además, los usuarios que SOLO pertenecían
+    a él (no superadmins), para liberar sus correos: así ese correo puede volver a
+    registrarse sin el error de "ya existe"."""
+    member_ids = list(restaurant.memberships.values_list('user_id', flat=True))
+    restaurant.delete()  # cascada: recetas, escandallos, inventario, memberships…
+    for uid in member_ids:
+        u = User.objects.filter(pk=uid, is_superuser=False).first()
+        if u and not u.memberships.exists():
+            u.delete()  # borra el usuario y su perfil (contacto) en cascada
+
+
 class SignupView(APIView):
     """Alta autoservicio a la PRUEBA (abierta): crea un restaurante en plan Prueba
     + su usuario owner, envía bienvenida + aviso al admin, y autentica. Con
@@ -233,9 +245,9 @@ class SignupView(APIView):
             prof.email_verified = False
             prof.save(update_fields=['phone', 'email_verified'])
 
-        # Correos (nunca rompen la petición).
+        # Correos (nunca rompen la petición). La BIENVENIDA se envía al VERIFICAR
+        # (cuando el usuario ya entra a su panel), no ahora.
         send_verification_email(user, _verify_url(user, request))
-        send_welcome_email(user, restaurant)
         send_admin_new_signup(restaurant, user)
         # NO se auto-inicia sesión: primero hay que verificar el correo.
         return Response({'verification_required': True, 'email': email}, status=201)
@@ -262,6 +274,10 @@ class VerifyEmailView(APIView):
         if prof and not prof.email_verified:
             prof.email_verified = True
             prof.save(update_fields=['email_verified'])
+            # Ya verificado y entrando a su panel → ahora sí, la bienvenida.
+            r = get_user_restaurant(user)
+            if r:
+                send_welcome_email(user, r)
         return Response(_login_payload(user, request))
 
 
@@ -416,7 +432,7 @@ class OwnerDeleteRestaurantView(APIView):
             raise PermissionDenied('No puedes eliminar tu único local.')
         prof = getattr(user, 'profile', None)
         was_active = bool(prof and prof.active_restaurant_id == int(pk))
-        m.restaurant.delete()  # cascada: recetas, escandallos, inventario, etc.
+        delete_restaurant_and_orphans(m.restaurant)  # + libera correos huérfanos
         if was_active and prof:
             other = user.memberships.select_related('restaurant').first()
             prof.active_restaurant = other.restaurant if other else None
@@ -509,6 +525,11 @@ class RestaurantViewSet(viewsets.ModelViewSet):
     serializer_class = RestaurantSerializer
     permission_classes = [IsSuperAdmin]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
+
+    def perform_destroy(self, instance):
+        # Al borrar un restaurante, libera también los correos de sus usuarios
+        # exclusivos (para poder re-registrarse con el mismo correo).
+        delete_restaurant_and_orphans(instance)
 
 
 class RoleViewSet(viewsets.ModelViewSet):

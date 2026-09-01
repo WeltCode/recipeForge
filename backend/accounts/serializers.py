@@ -469,7 +469,7 @@ class RestaurantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Restaurant
         fields = ['id', 'name', 'code_prefix', 'tax_id', 'currency', 'default_template', 'plan', 'plan_status',
-                  'trial_ends_at', 'pdf_exports_count',
+                  'business_type', 'trial_ends_at', 'pdf_exports_count',
                   'contact_email', 'contact_phone', 'address', 'logo',
                   'created_at', 'recipe_count', 'member_count', 'members', 'pending_plan_request',
                   'owner_username', 'owner_password', 'owner_role',

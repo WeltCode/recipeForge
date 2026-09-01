@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { authFetch, getCurrency, getFirstName } from '../auth'
 import { money } from '../lib/money'
 import { greeting, capitalize, Embers, StatusLamp } from '../lib/ui'
-import { RecipeSheet, Cloche, Coins, Inventory, Truck, Users, Clock, Plus, ChevronRight } from './icons'
+import { RecipeSheet, Cloche, Coins, Inventory, Truck, Users, Clock, Plus, ChevronRight, Flame, X } from './icons'
 
 const ROLE_META = {
   viewer: { label: 'Viewer', desc: 'Consultas las fichas técnicas en cocina.' },
@@ -84,9 +84,59 @@ function ActionChip({ icon: Icon, children, onClick }) {
   )
 }
 
+// Pasos del tutorial de primer uso (tras verificar la cuenta).
+const TUTORIAL_STEPS = [
+  { icon: Flame, title: '¡Bienvenido a tu cocina!', desc: 'Este es tu puesto de mando. De un vistazo verás tus recetas, costes, inventario y actividad del equipo.' },
+  { icon: RecipeSheet, title: 'Fichas técnicas', desc: 'Crea y estandariza tus recetas y imprímelas en A4 impecables, listas para la cocina.', nav: 'recetas' },
+  { icon: Coins, title: 'Escandallo y food cost', desc: 'Calcula el coste real de cada plato, su food cost y tu margen. Toma decisiones con números.', nav: 'escandallo' },
+  { icon: Cloche, title: 'Carta digital con QR', desc: 'Arma tu carta, publícala y ponla en las mesas con un código QR. Tus clientes la ven al instante.', nav: 'carta' },
+  { icon: Plus, title: '¡A cocinar!', desc: 'Empieza creando tu primera receta. Estamos aquí para ayudarte cuando lo necesites.' },
+]
+
+function TutorialOverlay({ onClose, onNavigate }) {
+  const [step, setStep] = useState(0)
+  const s = TUTORIAL_STEPS[step]
+  const last = step === TUTORIAL_STEPS.length - 1
+  const Icon = s.icon
+  const finish = () => { try { localStorage.removeItem('rf_onboarding') } catch { /* ignore */ } onClose() }
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+      <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[#aeb6bd] rf-steel rf-edge shadow-2xl" style={{ animation: 'rf-tut-in .4s cubic-bezier(.2,.9,.2,1) both' }}>
+        <style>{`@keyframes rf-tut-in{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}`}</style>
+        <div className="rf-hot rf-grain rf-pass-edge relative flex items-center justify-between px-5 py-3.5">
+          <span className="rf-cond text-[12px] uppercase tracking-[0.16em] text-[#ffcf9e]">Tutorial · {step + 1}/{TUTORIAL_STEPS.length}</span>
+          <button onClick={finish} className="text-white/60 hover:text-white" aria-label="Saltar"><X size={18} /></button>
+        </div>
+        <div className="px-6 py-7 text-center">
+          <span className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-[#ff8a4c] to-[#c8371a] text-white shadow-[0_10px_26px_-8px_rgba(232,83,31,0.8)]"><Icon size={30} /></span>
+          <h3 className="rf-cond mt-4 text-2xl uppercase tracking-[0.02em] text-ink" style={{ fontWeight: 600 }}>{s.title}</h3>
+          <p className="mx-auto mt-2 max-w-xs text-[14px] leading-relaxed text-ink-2">{s.desc}</p>
+          {s.nav && (
+            <button onClick={() => { finish(); onNavigate?.(s.nav) }} className="mt-3 text-[13px] font-medium text-ember-deep hover:underline">Ver {s.title.toLowerCase()} →</button>
+          )}
+          {/* puntos */}
+          <div className="mt-5 flex justify-center gap-1.5">
+            {TUTORIAL_STEPS.map((_, k) => <span key={k} className={`h-1.5 rounded-full transition-all ${k === step ? 'w-5 bg-ember' : 'w-1.5 bg-steel-300'}`} />)}
+          </div>
+        </div>
+        <div className="flex items-center justify-between gap-2 border-t border-steel-200 px-5 py-3.5">
+          <button onClick={finish} className="text-[13px] font-medium text-ink-3 hover:text-ink">Saltar</button>
+          <div className="flex gap-2">
+            {step > 0 && <button onClick={() => setStep((v) => v - 1)} className="rounded-lg border border-steel-300 bg-white px-3.5 py-2 text-[13px] font-medium text-ink-2 hover:bg-steel-100">Anterior</button>}
+            <button onClick={() => (last ? finish() : setStep((v) => v + 1))} className="rounded-lg bg-ember px-4 py-2 text-[13px] font-medium text-cream hover:bg-ember-hi">{last ? 'Empezar' : 'Siguiente'}</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardSection({ username, role, plan, restaurantName, restaurantLogo, onNavigate, onOpenRecipe, onNewRecipe }) {
   const [d, setD] = useState(null)
   const [error, setError] = useState('')
+  const [showTut, setShowTut] = useState(() => {
+    try { return localStorage.getItem('rf_onboarding') === '1' } catch { return false }
+  })
   useEffect(() => {
     authFetch(`${API_BASE}/dashboard/`).then((r) => r.ok ? r.json() : Promise.reject(new Error('No se pudo cargar el panel.'))).then(setD).catch((e) => setError(e.message))
   }, [])
@@ -99,6 +149,7 @@ export default function DashboardSection({ username, role, plan, restaurantName,
 
   return (
     <div className="pb-8">
+      {showTut && <TutorialOverlay onClose={() => setShowTut(false)} onNavigate={onNavigate} />}
       {/* Cabecera: saludo + rol/plan + logo del restaurante */}
       <div className="rf-hot rf-grain rf-pass-edge relative overflow-hidden rounded-2xl px-5 py-6 md:px-8 md:py-7">
         <Embers count={16} />
