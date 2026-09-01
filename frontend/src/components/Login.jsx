@@ -40,18 +40,58 @@ const MODE_COPY = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-// Prefijos telefónicos con bandera (España + Latinoamérica + algunos más).
-// [bandera, país, prefijo]. Valor del select = prefijo.
+// Prefijos telefónicos con bandera real (España + Latinoamérica + algunos más).
+// [iso2, país, prefijo]. La bandera se muestra como imagen (flagcdn).
 const DIAL_CODES = [
-  ['🇪🇸', 'España', '+34'], ['🇲🇽', 'México', '+52'], ['🇦🇷', 'Argentina', '+54'],
-  ['🇨🇴', 'Colombia', '+57'], ['🇵🇪', 'Perú', '+51'], ['🇨🇱', 'Chile', '+56'],
-  ['🇻🇪', 'Venezuela', '+58'], ['🇪🇨', 'Ecuador', '+593'], ['🇧🇴', 'Bolivia', '+591'],
-  ['🇺🇾', 'Uruguay', '+598'], ['🇵🇾', 'Paraguay', '+595'], ['🇬🇹', 'Guatemala', '+502'],
-  ['🇭🇳', 'Honduras', '+504'], ['🇸🇻', 'El Salvador', '+503'], ['🇳🇮', 'Nicaragua', '+505'],
-  ['🇨🇷', 'Costa Rica', '+506'], ['🇵🇦', 'Panamá', '+507'], ['🇩🇴', 'R. Dominicana', '+1'],
-  ['🇧🇷', 'Brasil', '+55'], ['🇵🇹', 'Portugal', '+351'], ['🇬🇧', 'Reino Unido', '+44'],
-  ['🇫🇷', 'Francia', '+33'], ['🇩🇪', 'Alemania', '+49'], ['🇮🇹', 'Italia', '+39'],
+  ['es', 'España', '+34'], ['mx', 'México', '+52'], ['ar', 'Argentina', '+54'],
+  ['co', 'Colombia', '+57'], ['pe', 'Perú', '+51'], ['cl', 'Chile', '+56'],
+  ['ve', 'Venezuela', '+58'], ['ec', 'Ecuador', '+593'], ['bo', 'Bolivia', '+591'],
+  ['uy', 'Uruguay', '+598'], ['py', 'Paraguay', '+595'], ['gt', 'Guatemala', '+502'],
+  ['hn', 'Honduras', '+504'], ['sv', 'El Salvador', '+503'], ['ni', 'Nicaragua', '+505'],
+  ['cr', 'Costa Rica', '+506'], ['pa', 'Panamá', '+507'], ['do', 'R. Dominicana', '+1'],
+  ['br', 'Brasil', '+55'], ['pt', 'Portugal', '+351'], ['gb', 'Reino Unido', '+44'],
+  ['fr', 'Francia', '+33'], ['de', 'Alemania', '+49'], ['it', 'Italia', '+39'],
 ]
+const flagUrl = (iso) => `https://flagcdn.com/w40/${iso}.png`
+
+// Selector de prefijo con BANDERA (imagen). El <select> nativo no admite
+// imágenes, así que es un desplegable propio: cerrado muestra bandera + prefijo.
+function PhonePrefix({ value, onChange }) {
+  const [open, setOpen] = useState(false)
+  const sel = DIAL_CODES.find(([, , c]) => c === value) || DIAL_CODES[0]
+  return (
+    <div className="relative w-[112px] shrink-0">
+      <button
+        type="button" onClick={() => setOpen((v) => !v)} aria-label="Prefijo de país"
+        className="flex w-full items-center gap-2 rounded-xl border border-[#b9c0c6] bg-white py-3 pl-3 pr-2 text-[#1c1611] shadow-[inset_0_1px_3px_rgba(20,16,8,0.10)] outline-none focus:border-[#e8531f] focus:ring-2 focus:ring-[#e8531f]/25"
+      >
+        <img src={flagUrl(sel[0])} alt="" width="22" height="16" className="rounded-[2px] object-cover shadow-[0_0_0_1px_rgba(0,0,0,.08)]" />
+        <span className="text-[14px]">{sel[2]}</span>
+        <svg className="ml-auto text-[#9a9188]" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 9l6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <ul className="absolute z-50 mt-1 max-h-64 w-[230px] overflow-y-auto rounded-xl border border-[#c4ccd2] bg-white py-1 shadow-[0_18px_44px_-16px_rgba(20,16,8,0.5)]">
+            {DIAL_CODES.map(([iso, name, code]) => (
+              <li key={iso}>
+                <button
+                  type="button"
+                  onClick={() => { onChange(code); setOpen(false) }}
+                  className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[14px] transition hover:bg-[#fff3ea] ${code === value ? 'bg-[#fff3ea]' : ''}`}
+                >
+                  <img src={flagUrl(iso)} alt="" width="22" height="16" className="rounded-[2px] object-cover shadow-[0_0_0_1px_rgba(0,0,0,.08)]" />
+                  <span className="font-medium text-[#1c1611]">{code}</span>
+                  <span className="truncate text-[12px] text-[#8a837b]">{name}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  )
+}
 
 // Notificación "de forja": chapa de carbón con filo de brasa que baja con rebote
 // y una chispa que late. Verde para éxito, brasa para error. Se autocierra.
@@ -375,16 +415,7 @@ function Login({ onSuccess, notice }) {
                       <div>
                         <label className="rf-cond mb-1.5 block text-[12px] uppercase tracking-[0.14em] text-[#7a736b]" style={{ fontWeight: 500 }}>Teléfono</label>
                         <div className="flex gap-2">
-                          <select
-                            value={phoneCode}
-                            onChange={(e) => setPhoneCode(e.target.value)}
-                            aria-label="Prefijo de país"
-                            className="w-[150px] shrink-0 rounded-xl border border-[#b9c0c6] bg-white py-3 pl-3 pr-2 text-[#1c1611] shadow-[inset_0_1px_3px_rgba(20,16,8,0.10)] outline-none focus:border-[#e8531f] focus:ring-2 focus:ring-[#e8531f]/25"
-                          >
-                            {DIAL_CODES.map(([flag, name, code]) => (
-                              <option key={name} value={code}>{flag} {code} · {name}</option>
-                            ))}
-                          </select>
+                          <PhonePrefix value={phoneCode} onChange={setPhoneCode} />
                           <input
                             type="tel"
                             inputMode="tel"
